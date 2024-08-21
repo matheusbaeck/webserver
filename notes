@@ -1,0 +1,5 @@
+EPOLLIN: Data is available to read.
+EPOLLOUT: Ready for writing without blocking.
+EPOLLET: Enable edge-triggered behavior for the associated file descriptor.
+EPOLLERR: Error condition occurred.
+EPOLLHUP: Hang-up occurred on the associated file descriptor.
