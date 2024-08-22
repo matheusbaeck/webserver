@@ -1,14 +1,17 @@
+#include <cstdio>
+#include <cstdlib> // malloc
+#include <cstring> // memset, bzero
 #include <arpa/inet.h> // inet_pton [convert string IP to binary]
-#include <stdio.h>
-#include <stdlib.h> // malloc
-#include <string.h> // memset, bzero
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 # include <sys/epoll.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <string>
+#include <iomanip>
 
-#define SERVER_PORT 8080
+#define SERVER_PORT 2626
 #define BUFFERSIZE 4096
 #define MAX_EVENTS 10		//epoll_wait max events at time
 #define TIME_OUT -1			//epoll_wait max time
@@ -31,7 +34,7 @@ void	req_handler(int fd)
 	char buffer[BUFFERSIZE];
 	ssize_t bytes_read;
 
-	bytes_read = read(fd, buffer, BUFFERSIZE - 1);
+	bytes_read = recv(fd, buffer, BUFFERSIZE, 0);//read(fd, buffer, BUFFERSIZE - 1);
 	if (bytes_read == -1)
 	{
 		perror("read");
@@ -48,6 +51,39 @@ void	req_handler(int fd)
 	printf("Received: %s\n", buffer);
 }
 
+void	hellow_world(int fd)
+{
+	char buffer[BUFFERSIZE];
+	ssize_t bytes_read;
+
+	bytes_read = read(fd, buffer, sizeof(buffer));
+	if (bytes_read <= 0)
+	{
+		if (bytes_read == 0)
+		{
+			close(fd);
+		}
+		else
+		{
+			perror("read");
+		}
+		return ;
+	}
+	/* std::string response = "HTTP/1.1 200 OK\r\n"
+							"Content-Type: text/plain\r\n"
+							"Content-Length: 12\r\n"
+							"\r\n"
+							"Hello World!";
+	write(fd, response.c_str(), response.size()); */
+	const char *response = "HTTP/1.1 200 OK\r\n"
+                           "Content-Type: text/plain\r\n"
+                           "Content-Length: 12\r\n"
+                           "\r\n"
+                           "Hello World!";
+    write(fd, response, strlen(response));
+	close(fd);
+}
+
 void	epoll_handler(int listen_sock, struct sockaddr *addr, socklen_t *addrlen)
 {
 	struct epoll_event	ev, events[MAX_EVENTS];
@@ -59,7 +95,7 @@ void	epoll_handler(int listen_sock, struct sockaddr *addr, socklen_t *addrlen)
 		exit(EXIT_FAILURE);
 	}
 
-	ev.events = EPOLLIN;
+	ev.events = EPOLLIN | EPOLLET;
 	ev.data.fd = listen_sock;
 	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == -1) {
 		perror("epoll_ctl: listen_sock");
@@ -83,13 +119,15 @@ void	epoll_handler(int listen_sock, struct sockaddr *addr, socklen_t *addrlen)
 				setnonblocking(conn_sock);
 				ev.events = EPOLLIN | EPOLLET;
 				ev.data.fd = conn_sock;
-				if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock,
-							&ev) == -1) {
+
+				if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1) {
 					perror("epoll_ctl: conn_sock");
 					exit(EXIT_FAILURE);
 				}
 			} else {
-				req_handler(events[n].data.fd);
+				printf("server: handeling request\n");
+				hellow_world(conn_sock);
+				//req_handler(events[n].data.fd);
 			}
 		}
 	}
@@ -105,21 +143,28 @@ int	create_server_socket(struct sockaddr_in *servaddr, int addrlen)
 		perror("socket");
 		return (-1);
 	}
+	// AHMED START
+	int reuse = 1;
+	if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
+		perror("setsockopt");
+		return -1;
+	}
+	// AHMED END
 	bzero(servaddr, addrlen);
 	servaddr->sin_family = AF_INET;
 	servaddr->sin_addr.s_addr = htonl(INADDR_ANY);
-	servaddr->sin_port = htons(SERVER_PORT);
-	if (bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0)
+	servaddr->sin_port = htons(SERVER_PORT);	
+	if (bind(listenfd, (struct sockaddr *) servaddr, addrlen) == -1)
 	{
 		perror("bind");
 		return (-1);
 	}
-	if (listen(listenfd, 10) < 0)
+	if (listen(listenfd, BACKLOG) < 0)
 	{
 		perror("listen");
 		return (-1);
 	}
-	return (listenfd)
+	return (listenfd);
 }
 
 int	main( void )
@@ -129,7 +174,7 @@ int	main( void )
 	struct sockaddr_in	servaddr;
 
 	addrlen = sizeof(servaddr);
-	create_server_socket(&servaddr, addrlen);
+	listenfd = create_server_socket(&servaddr, addrlen);
 	epoll_handler(listenfd, (struct sockaddr *) &servaddr, &addrlen);
 	close(listenfd);
 	return (0);

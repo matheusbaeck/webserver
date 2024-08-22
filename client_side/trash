@@ -1,0 +1,65 @@
+/* char	*binToHex(const unsigned char *input, size_t len)
+{
+	char	*result;
+	int		resultlength;
+
+	const char *hexits = "0123456789ABCDEF"; // Changed to const
+	if (input == NULL || len <= 0)
+		return (NULL);
+	resultlength = (len * 3) + 1;
+	result = (char *)malloc(resultlength);
+	if (result == NULL)
+	{
+		perror("malloc");
+		return (NULL);
+	}
+	bzero(result, resultlength);
+	for (int i = 0; i < len; i++)
+	{
+		result[i * 3] = hexits[input[i] >> 4];
+		result[i * 3 + 1] = hexits[input[i] & 0x0F];
+		result[i * 3 + 2] = ' ';
+	}
+	return (result);
+} */
+
+//handle_connection(listenfd, (struct sockaddr *) &servaddr);
+/* void handle_connection( int listenfd, struct servaddr *servaddr )
+{
+	int		connfd, n;
+	char	buff[MAXLINE + 1];
+	char	recvline[MAXLINE + 1];
+
+	for (;;)
+	{
+		printf("Waiting for a connection on port %d\n", SERVER_PORT);
+		fflush(stdout);
+		connfd = accept(listenfd, (struct sockaddr *)NULL, NULL);
+		if (connfd < 0)
+		{
+			perror("accept");
+			continue ;
+		}
+		//get request
+		memset(recvline, 0, MAXLINE);
+		while ((n = read(connfd, recvline, MAXLINE - 1)) > 0)
+		{
+			fprintf(stdout, "%s", recvline);
+			if (recvline[n - 1] == '\n')
+				break ;
+			memset(recvline, 0, MAXLINE);
+		}
+		if (n < 0)
+		{
+			perror("read");
+			close(connfd);
+			continue ;
+		}
+		//set response
+		snprintf(buff, sizeof(buff), "HTTP/1.0 200 OK\r\n\r\nHello");
+			// Use snprintf for safe formatting
+		if (write(connfd, buff, strlen(buff)) < 0)
+			perror("write");
+		close(connfd);
+	}
+} */
