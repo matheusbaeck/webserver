@@ -1,6 +1,6 @@
 #include "Worker.hpp"
 
-Worker::Worker( void )
+Worker::Worker( void ) : m_serv_port(SERVER_PORT)
 {
 	this->m_addr.sin_family = AF_INET;
 	this->m_addr.sin_port = htons(SERVER_PORT);
@@ -21,7 +21,7 @@ Worker::Worker( void )
 	}
 }
 
-Worker::Worker( int port )
+Worker::Worker( int port ) : m_serv_port(port)
 {
 	this->m_addr.sin_family = AF_INET;
 	this->m_addr.sin_port = htons(port);
@@ -97,7 +97,7 @@ static void	setnonblocking(int conn_sock)
 	}
 }
 
-void	Worker::run( std::queue<int> &requests )
+void	Worker::run( std::queue<Request> &requests )
 {
 	int conn_sock;
 
@@ -125,7 +125,7 @@ void	Worker::run( std::queue<int> &requests )
 			}
 		} else {
 			std::cout << "request add to queue" << std::endl;
-			requests.push(this->m_events[n].data.fd);
+			requests.push(this->m_events[n].data.fd, this->m_serv_port);
 		}
 	}
 }

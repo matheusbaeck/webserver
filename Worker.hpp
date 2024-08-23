@@ -17,6 +17,8 @@
 #include <iostream>
 #include <queue>
 
+#include "Request.hpp"
+
 #define SERVER_PORT 2626
 #define BUFFERSIZE 4096
 #define MAX_EVENTS 10		//epoll_wait max events at time
@@ -33,6 +35,7 @@ class Worker
 		sockaddr_in		m_addr;
 		socklen_t		m_addrlen;
 		int				m_serv_socket;
+		int				m_serv_port;
 
 		epoll_event     m_ev;
 		epoll_event     m_events[MAX_EVENTS];
@@ -44,7 +47,7 @@ class Worker
 
 		sockaddr	*addr( void );
 		int			create_server_socket( void );
-		void		run( std::queue<int> & );
+		void		run( std::queue<Request> & );
 };
 
 #endif
