@@ -18,7 +18,7 @@ OBJDIR      = .obj
 SRCS        = $(wildcard $(SRCSDIR)/*.cpp)
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 
-CC          = gcc
+CC          = g++
 CFLAGS      = #-Wall -Wextra -Werror -std=c++98
 
 all: $(NAME)

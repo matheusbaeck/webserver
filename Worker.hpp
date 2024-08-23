@@ -9,12 +9,13 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-# include <sys/epoll.h>
+#include <sys/epoll.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <string>
 #include <iomanip>
-#include <string>
+#include <iostream>
+#include <queue>
 
 #define SERVER_PORT 2626
 #define BUFFERSIZE 4096
@@ -24,13 +25,18 @@
 
 typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr sockaddr;
-
+typedef struct epoll_event epoll_event;
 
 class Worker
 {
 	private:
-		sockaddr_in	m_addr;
-		int			m_serv_socket;
+		sockaddr_in		m_addr;
+		socklen_t		m_addrlen;
+		int				m_serv_socket;
+
+		epoll_event     m_ev;
+		epoll_event     m_events[MAX_EVENTS];
+		int             m_nfds, m_epollfd;
 	public:
 		Worker( void );
 		Worker( int );
@@ -38,7 +44,7 @@ class Worker
 
 		sockaddr	*addr( void );
 		int			create_server_socket( void );
-		void		run( void );
+		void		run( std::queue<int> & );
 };
 
 #endif
