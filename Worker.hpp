@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <string>
 #include <iomanip>
+#include <string>
 
 #define SERVER_PORT 2626
 #define BUFFERSIZE 4096
@@ -21,17 +22,23 @@
 #define TIME_OUT -1			//epoll_wait max time
 #define BACKLOG 10			//listen param
 
-typedef struct sockaddr_in serv;
+typedef struct sockaddr_in sockaddr_in;
+typedef struct sockaddr sockaddr;
+
 
 class Worker
 {
 	private:
-		serv	_addr;
-		int		serv_socket;
+		sockaddr_in	m_addr;
+		int			m_serv_socket;
 	public:
-		Worker(void);
-		~Worker();
+		Worker( void );
+		Worker( int );
+		~Worker( void );
 
+		sockaddr	*addr( void );
+		int			create_server_socket( void );
+		void		run( void );
 };
 
 #endif

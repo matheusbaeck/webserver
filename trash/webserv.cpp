@@ -173,7 +173,7 @@ int	main( void )
 	int					listenfd;
 	struct sockaddr_in	servaddr;
 
-	addrlen = sizeof(servaddr);
+	addrlen = sizeof(struct sockaddr);
 	listenfd = create_server_socket(&servaddr, addrlen);
 	epoll_handler(listenfd, (struct sockaddr *) &servaddr, &addrlen);
 	close(listenfd);
