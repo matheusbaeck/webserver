@@ -2,6 +2,7 @@
 #include "Request.hpp"
 
 
+
 void	hellow_world(int fd)
 {
 	char buffer[BUFFERSIZE];
@@ -31,11 +32,13 @@ void	hellow_world(int fd)
 
 int main( void )
 {
-	Worker					worker1;
+	Selector				selector;
+	Worker					worker(selector); /* use some container to have many workers (this can be handled in the Server class)*/
 	std::queue<Request>		requests;
 
 	for (;;) {
-		worker1.run(requests);
+		/*for each worker*/
+		selector.putEventsToQ(worker, requests);
 		while (requests.size() > 0)
 		{
 			requests.front().handler();

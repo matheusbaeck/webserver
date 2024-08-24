@@ -2,6 +2,11 @@
 # define REQUEST_HPP__
 
 #include <iostream>
+#include <unistd.h>
+#include <cstring>
+
+
+#define BUFFERSIZE 4096
 
 class Request
 {
@@ -14,8 +19,8 @@ class Request
 		Request( int, int );
 		~Request( void );
 
-		int	fd( void );
-		int	port( void );
+		int	fd( void ) const;
+		int	port( void ) const;
 
 		void handler(void);
 };

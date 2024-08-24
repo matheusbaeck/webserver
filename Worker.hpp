@@ -1,6 +1,6 @@
 
-#ifndef WORKERS_HPP__
-# define WORKERS_HPP_
+#ifndef WORKER_HPP__
+# define WORKER_HPP__
 
 #include <cstdio>
 #include <cstdlib> // malloc
@@ -18,6 +18,7 @@
 #include <queue>
 
 #include "Request.hpp"
+#include "Selector.hpp"
 
 #define SERVER_PORT 2626
 #define BUFFERSIZE 4096
@@ -29,25 +30,31 @@ typedef struct sockaddr_in sockaddr_in;
 typedef struct sockaddr sockaddr;
 typedef struct epoll_event epoll_event;
 
+class Selector;
+
 class Worker
 {
 	private:
+		Selector		&m_selector;
+		const int		m_serv_port;
 		sockaddr_in		m_addr;
 		socklen_t		m_addrlen;
 		int				m_serv_socket;
-		int				m_serv_port;
 
-		epoll_event     m_ev;
-		epoll_event     m_events[MAX_EVENTS];
-		int             m_nfds, m_epollfd;
 	public:
-		Worker( void );
-		Worker( int );
+		/*after implementation of Server class, implement the following constructor*/
+		// Worker( Selector &, Server &, int Port );
+		Worker( Selector & );
+		Worker( Selector &, int );
 		~Worker( void );
 
-		sockaddr	*addr( void );
+		sockaddr	*addr( void ) const;
+		socklen_t	addrlen( void ) const;
+		int			sock( void ) const;
+		int			port( void ) const;
 		int			create_server_socket( void );
-		void		run( std::queue<Request> & );
 };
+
+std::ostream	&operator<<( std::ostream &, const Worker & );
 
 #endif
