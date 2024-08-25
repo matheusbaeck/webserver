@@ -3,6 +3,10 @@
 # define SERVER_HPP__
 
 #include <vector>
+#include <algorithm>
+#include <iostream>
+#include <cstdarg>
+
 #include "Worker.hpp"
 
 class Server
@@ -13,7 +17,9 @@ class Server
 		/* all other att of the server */
 
 	public:
-		Server(/* args */);
+		Server( void );
+		Server( std::vector<int> );
+		Server( int , ... );
 		~Server();
 
 		void addWorker(const Worker& worker);
