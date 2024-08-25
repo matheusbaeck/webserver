@@ -1,23 +1,23 @@
 #include "Worker.hpp"
 
-Worker::Worker( Selector &selector ) : m_selector(selector), m_serv_port(SERVER_PORT)
+Worker::Worker( void ) : m_serv_port(SERVER_PORT)
 {
 	this->m_addr.sin_family = AF_INET;
 	this->m_addr.sin_port = htons(SERVER_PORT);
 	this->m_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	this->m_addrlen = sizeof(*this->addr());
 	this->m_serv_socket = create_server_socket(); /* handle error */
-	this->m_selector.addSocket(this->m_serv_socket);
+	Selector::getSelector().addSocket(this->m_serv_socket);
 }
 
-Worker::Worker( Selector &selector, const int port ) : m_selector(selector), m_serv_port(port)
+Worker::Worker( const int port ) : m_serv_port(port)
 {
 	this->m_addr.sin_family = AF_INET;
 	this->m_addr.sin_port = htons(port);
 	this->m_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	this->m_addrlen = sizeof(*this->addr());
 	this->m_serv_socket = create_server_socket(); /* handle error */
-	this->m_selector.addSocket(this->m_serv_socket);
+	Selector::getSelector().addSocket(this->m_serv_socket);
 }
 
 Worker::~Worker()

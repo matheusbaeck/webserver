@@ -11,6 +11,7 @@
 #include <queue>			//queue
 #include <iostream>			//std::cout
 
+#include "Request.hpp"
 #include "Worker.hpp"
 
 #define MAX_EVENTS 10		//epoll_wait max events at time
@@ -22,15 +23,20 @@ class Request;
 
 class Worker;
 
+// this class is a singleton
 class Selector
 {
 	private:
-		epoll_event     m_ev;
-		epoll_event     m_events[MAX_EVENTS];
-		int             m_nfds, m_epollfd;
-	public:
+		static Selector	selector;
+		epoll_event		m_ev;
+		epoll_event		m_events[MAX_EVENTS];
+		int				m_nfds, m_epollfd;
+		
 		Selector( void );
+	public:
 		~Selector( void );
+
+		static Selector& getSelector() { return selector; }
 
 		void	addSocket( int ); //This adds the listening socket to the list of file descriptors being monitored by the epoll instance.
 		void	putEventsToQ( const Worker &, std::queue<Request> & );

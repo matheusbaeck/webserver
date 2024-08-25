@@ -1,5 +1,7 @@
 #include "Selector.hpp"
 
+Selector Selector::selector;
+
 Selector::Selector( void )
 {
 	this->m_epollfd = epoll_create1(0);
@@ -11,7 +13,8 @@ Selector::Selector( void )
 
 Selector::~Selector( void )
 {
-	close(this->m_epollfd);
+	if (this->m_epollfd != -1)
+		close(this->m_epollfd);
 }
 
 void Selector::addSocket( int listen_sock )
@@ -29,10 +32,12 @@ static void	setnonblocking(int conn_sock)
 	int	flags;
 
 	flags = fcntl(conn_sock, F_GETFL, 0);
-	if (flags == -1)
-	{
+	if (flags == -1) {
 		perror("fcntl(F_GETFL)");
 		return;
+	}
+	if (fcntl(conn_sock, F_SETFL, flags | O_NONBLOCK) == -1) {
+		perror("fcntl(F_SETFL)");
 	}
 }
 

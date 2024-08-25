@@ -35,7 +35,6 @@ class Selector;
 class Worker
 {
 	private:
-		Selector		&m_selector;
 		const int		m_serv_port;
 		sockaddr_in		m_addr;
 		socklen_t		m_addrlen;
@@ -44,8 +43,8 @@ class Worker
 	public:
 		/*after implementation of Server class, implement the following constructor*/
 		// Worker( Selector &, Server &, int Port );
-		Worker( Selector & );
-		Worker( Selector &, int );
+		Worker( void );
+		Worker( int );
 		~Worker( void );
 
 		sockaddr	*addr( void ) const;
