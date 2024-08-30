@@ -1,6 +1,6 @@
 #include "ServerManager.hpp"
 
-ServerManager::ServerManager( void )
+ServerManager::ServerManager( void ) {}
 
 ServerManager::ServerManager( std::vector<std::vector<int>> servers_ports )
 {

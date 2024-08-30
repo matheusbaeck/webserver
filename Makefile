@@ -6,7 +6,7 @@
 #    By: math <math@student.42.fr>                  +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/08/20 21:03:48 by math             ###   ########.fr        #
+#    Updated: 2024/08/30 18:37:26 by aabourri         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -15,7 +15,13 @@ SRCSDIR     = .
 INCLUDES    = .
 OBJDIR      = .obj
 
-SRCS        = $(wildcard $(SRCSDIR)/*.cpp)
+SRCS        = main.cpp\
+			  ConfigFile.cpp\
+			  HttpRequest.cpp\
+			  Tokenizer.cpp\
+			  Request.cpp\
+			  Worker.cpp\
+			  Selector.cpp
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 
 CC          = g++
