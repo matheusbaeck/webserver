@@ -6,7 +6,7 @@
 #    By: math <math@student.42.fr>                  +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/08/20 21:03:48 by math             ###   ########.fr        #
+#    Updated: 2024/09/06 22:01:27 by math             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -19,7 +19,7 @@ SRCS        = $(wildcard $(SRCSDIR)/*.cpp)
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 
 CC          = g++
-CFLAGS      = #-Wall -Wextra -Werror -std=c++98
+CFLAGS      =  -g3 -Wall -Wextra -Werror -std=c++98
 
 all: $(NAME)
 

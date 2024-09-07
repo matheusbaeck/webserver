@@ -40,6 +40,8 @@ class Selector
 
 		void	addSocket( int ); //This adds the listening socket to the list of file descriptors being monitored by the epoll instance.
 		void	putEventsToQ( const Worker &, std::queue<Request> & );
+		void	putEventsToQ( const Worker &, void * );
+
 };
 
 #endif
