@@ -14,10 +14,19 @@
 // 	va_end(args);
 // }
 
-ServerManager::ServerManager( std::vector<std::vector<int> > servers_ports )
+ServerManager::ServerManager( std::string ports )
+{
+	std::vector<std::vector<int> > server_ports;
+	AddServerFunctor functor(this);
+
+	server_ports = createVector( ports );
+	std::for_each(server_ports.begin(), server_ports.end(), functor);
+}
+
+ServerManager::ServerManager( std::vector<std::vector<int> > server_ports )
 {
 	AddServerFunctor functor(this);
-	std::for_each(servers_ports.begin(), servers_ports.end(), functor);
+	std::for_each(server_ports.begin(), server_ports.end(), functor);
 }
 
 ServerManager::~ServerManager( void ) {}
@@ -68,4 +77,35 @@ void	ServerManager::throwWorker(void (*f)( const Worker & worker, std::queue<Req
 			f(*w, this->requests);
 		}
 	}
+}
+
+std::vector<std::vector<int> > createVector(const std::string& data)
+{
+	std::vector<std::vector<int> > container;
+	std::istringstream stream(data);
+	std::string line;
+
+	std::getline(stream, line, '{');
+	while (std::getline(stream, line, '{'))
+	{
+		std::vector<int> innerContainer;
+		std::string element;
+
+		while (std::getline(stream, element, ','))
+		{
+			size_t endPos = element.find('}');
+			if (endPos != std::string::npos)
+			{
+				element = element.substr(0, endPos);
+				innerContainer.push_back(atoi(element.c_str()));
+				break;
+			}
+			else
+				innerContainer.push_back(atoi(element.c_str()));
+		}
+
+		if (!innerContainer.empty())
+			container.push_back(innerContainer);
+	}
+	return container;
 }

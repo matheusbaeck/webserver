@@ -42,7 +42,6 @@ class Worker
 
 	public:
 		/*after implementation of Server class, implement the following constructor*/
-		// Worker( Selector &, Server &, int Port );
 		Worker( void );
 		Worker( int );
 		~Worker( void );

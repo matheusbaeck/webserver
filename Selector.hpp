@@ -23,7 +23,7 @@ class Request;
 
 class Worker;
 
-// this class is a singleton
+// this class is a singleton (ensures that a class has only one instance and provides a global point of access to that instance)
 class Selector
 {
 	private:
@@ -41,7 +41,8 @@ class Selector
 		void	addSocket( int ); //This adds the listening socket to the list of file descriptors being monitored by the epoll instance.
 		void	putEventsToQ( const Worker &, std::queue<Request> & );
 
-		class Functor {
+		class Functor
+		{
 			private:
 				Selector*	selector;
 				void (Selector::*putEventsToQ)(const Worker &, std::queue<Request> &);

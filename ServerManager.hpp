@@ -2,6 +2,7 @@
 # define SERVERMANAGER_HPP__
 
 #include <vector>
+#include <sstream>
 
 #include "Server.hpp"
 
@@ -41,12 +42,14 @@ class ServerManager
 	public:
 		// ServerManager( void );
 		// ServerManager( int, ... );
+		ServerManager( const std::string );
 		ServerManager( std::vector<std::vector<int> > );
 		~ServerManager( void );
 
 		void					addServer( const Server & );
 		std::vector<Server> 	&getServers( void );
 		std::vector<Request> 	&getQueue( void );
+		
 		void					RequestHandler( void );
 		void					forEachWorker(void (*f)( const Worker & )) const;
 		void					forEachWorker(void (*f)( const Worker & worker, void* param ), void* param);
@@ -60,7 +63,6 @@ class ServerManager
 			}
 		}
 
-
 		class AddServerFunctor {
 			private:
 				ServerManager* serverManager;
@@ -72,5 +74,7 @@ class ServerManager
 				}
 		};
 };
+
+std::vector<std::vector<int> > createVector(const std::string& data);
 
 #endif
