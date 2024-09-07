@@ -15,17 +15,11 @@ SRCSDIR     = .
 INCLUDES    = .
 OBJDIR      = .obj
 
-SRCS        = main.cpp\
-			  ConfigFile.cpp\
-			  HttpRequest.cpp\
-			  Tokenizer.cpp\
-			  Request.cpp\
-			  Worker.cpp\
-			  Selector.cpp
+SRCS        = $(wildcard $(SRCSDIR)/*.cpp)
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 
 CC          = g++
-CFLAGS      = #-Wall -Wextra -Werror -std=c++98
+CFLAGS      = -Wall -Wextra -Werror # -std=c++98
 
 all: $(NAME)
 
