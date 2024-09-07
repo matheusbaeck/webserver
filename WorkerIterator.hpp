@@ -1,17 +1,18 @@
-#ifndef WORKERINTERATOR_HPP__
-# define WORKERINTERATOR_HPP__
+#ifndef WORKERITERATOR_HPP__
+# define WORKERITERATOR_HPP__
 
 #include <vector>
 #include "Worker.hpp"
 #include "Server.hpp"
 
+class Server;
+
+typedef std::vector<Server>::const_iterator ServerIterator;
+typedef std::vector<Worker>::const_iterator WorkerIteratorInternal;
 
 
 class WorkerIterator
 {
-	typedef std::vector<Server>::const_iterator ServerIterator;
-	typedef std::vector<Worker>::const_iterator WorkerIteratorInternal;
-
 	private:
 		ServerIterator			currServ;
 		ServerIterator			endServ;

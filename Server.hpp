@@ -8,11 +8,8 @@
 #include <cstdarg>
 
 #include "Worker.hpp"
-//#include "WorkerInterator.hpp"
 
 class Worker;
-
-class WorkerInterator;
 
 class Server
 {
@@ -28,8 +25,8 @@ class Server
 
 		void							addWorker( const Worker & );
 		std::vector<Worker>				&getWorkers( void );
-		std::vector<Worker>::iterator	workersBegin( void );
-		std::vector<Worker>::iterator	workersEnd( void );
+		std::vector<Worker>::const_iterator	workersBegin( void ) const;
+		std::vector<Worker>::const_iterator	workersEnd( void ) const;
 
 		class AddWorkerFunctor {
 			private:
@@ -42,6 +39,5 @@ class Server
 				}
 		};
 };
-
 
 #endif

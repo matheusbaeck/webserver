@@ -31,23 +31,13 @@ std::vector<Worker> &Server::getWorkers()
 	return (m_workers);
 }
 
-// ContainerIterator<std::vector<Worker>> Server::workersBegin()
-// {
-// 	return (ContainerIterator<std::vector<Worker>>(m_workers.begin()));
-// }
-
-// ContainerIterator<std::vector<Worker>> Server::workersEnd()
-// {
-// 	return (ContainerIterator<std::vector<Worker>>(m_workers.end()));
-// }
-
-std::vector<Worker>::const_iterator Server::workersBegin()
+std::vector<Worker>::const_iterator Server::workersBegin() const
 {
-	return (workers.begin());
+	return (m_workers.begin());
 }
-std::vector<Worker>::const_iterator Server::workersEnd()
+std::vector<Worker>::const_iterator Server::workersEnd() const
 {
-	return (workers.end());
+	return (m_workers.end());
 }
 
 

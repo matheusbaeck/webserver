@@ -4,10 +4,14 @@
 #include "ServerManager.hpp"
 #include "Templates.hpp"
 
+// void statis printWorkerPort(const Worker & w) const
+// {
+// 	std::cout << "worker: " << w.port() << std::endl;
+// }
 
 int main( void )
 {
-	Selector &selector = Selector::getSelector();
+	//Selector &selector = Selector::getSelector();
 	std::vector<std::vector<int> >	server_ports;
 	std::string 					ports;
 	
@@ -15,10 +19,11 @@ int main( void )
 	initializeContainer(server_ports, ports);
 
 	ServerManager manager(server_ports);
+	//manager.forEachWorker(&printWorkerPort);
 
-	for ( ; ; )
-	{
-		manager.forEachWorker(selector.putEventsToQ, manager.getQueue());
-		manager.RequestHandler();
-	}
+	// for ( ; ; )
+	// {
+	// 	manager.forEachWorker(selector.putEventsToQ, manager.getQueue());
+	// 	manager.RequestHandler();
+	// }
 }

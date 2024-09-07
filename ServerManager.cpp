@@ -1,18 +1,18 @@
 #include "ServerManager.hpp"
 
-ServerManager::ServerManager( void ) {}
+// ServerManager::ServerManager( void ) {}
 
-ServerManager::ServerManager(int count, ...)
-{
-	va_list args;
-	va_start(args, count);
+// ServerManager::ServerManager(int count, ...)
+// {
+// 	va_list args;
+// 	va_start(args, count);
 
-	for (int i = 0; i < count; ++i) {
-		Server server = va_arg(args, Server);
-		this->addServer(server);
-	}
-	va_end(args);
-}
+// 	for (int i = 0; i < count; ++i) {
+// 		Server server = va_arg(args, Server);
+// 		this->addServer(server);
+// 	}
+// 	va_end(args);
+// }
 
 ServerManager::ServerManager( std::vector<std::vector<int> > servers_ports )
 {
@@ -25,9 +25,9 @@ ServerManager::~ServerManager( void ) {}
 void ServerManager::addServer(const Server& server) { servers.push_back(server); }
 
 std::vector<Server>		&ServerManager::getServers() { return (this->servers); }
-std::vector<Request>	&ServerManager::getQueue() { return (this->requests); }
+//std::vector<Request>	&ServerManager::getQueue() { return (this->requests); }
 
-void	ServerManager::RequestHanlder( void )
+void	ServerManager::RequestHandler( void )
 {
 	while (this->requests.size() > 0)
 	{
@@ -35,22 +35,3 @@ void	ServerManager::RequestHanlder( void )
 		this->requests.pop();
 	}
 }
-
-
-/* ContainerIterator<std::vector<Worker>> ServerManager::allWorkersBegin()
-{
-	std::vector<Worker> allWorkers;
-	for (std::vector<Server>::iterator serverIt = servers.begin(); serverIt != servers.end(); ++serverIt) {
-		allWorkers.insert(allWorkers.end(), serverIt->getWorkers().begin(), serverIt->getWorkers().end());
-	}
-	return ContainerIterator<std::vector<Worker>>(allWorkers.begin());
-}
-
-ContainerIterator<std::vector<Worker>> ServerManager::allWorkersEnd()
-{
-	std::vector<Worker> allWorkers;
-	for (std::vector<Server>::iterator serverIt = servers.begin(); serverIt != servers.end(); ++serverIt) {
-		allWorkers.insert(allWorkers.end(), serverIt->getWorkers().begin(), serverIt->getWorkers().end());
-	}
-	return (ContainerIterator<std::vector<Worker>>(allWorkers.end()));
-} */
