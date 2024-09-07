@@ -52,6 +52,7 @@ class Selector
 
 				void operator()(const Worker &worker, std::queue<Request> &queue) const
 				{
+					
 					(selector->*putEventsToQ)(worker, queue);
 				}
 		};

@@ -34,10 +34,11 @@ ServerManager::~ServerManager( void ) {}
 void ServerManager::addServer(const Server& server) { servers.push_back(server); }
 
 std::vector<Server>		&ServerManager::getServers() { return (this->servers); }
-//std::vector<Request>	&ServerManager::getQueue() { return (this->requests); }
+std::queue<Request>		&ServerManager::getQueue(void) { return this->requests; }
 
 void	ServerManager::RequestHandler( void )
 {
+	std::cout << "reading requests.." << std::endl;
 	while (this->requests.size() > 0)
 	{
 		this->requests.front().handler();
@@ -56,6 +57,7 @@ void ServerManager::forEachWorker(void (*f)( const Worker & worker )) const
 {
 	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
 		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
+			std::cout << "inside forEachWorker " << *w << std::endl;
 			f(*w);
 		}
 	}

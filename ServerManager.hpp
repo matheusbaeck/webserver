@@ -48,7 +48,7 @@ class ServerManager
 
 		void					addServer( const Server & );
 		std::vector<Server> 	&getServers( void );
-		std::vector<Request> 	&getQueue( void );
+		std::queue<Request>		&getQueue(void);
 		
 		void					RequestHandler( void );
 		void					forEachWorker(void (*f)( const Worker & )) const;
