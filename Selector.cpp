@@ -75,11 +75,3 @@ void	Selector::putEventsToQ( const Worker &worker , std::queue<Request> &request
 		}
 	}
 }
-
-/* this function is called from forEachWorker that revieves void (*f)(const Worker &, void *) */
-void Selector::putEventsToQ(const Worker &worker, void *param)
-{
-	std::queue<Request> &requests = *reinterpret_cast<std::queue<Request>*>(param);
-	this->putEventsToQ(worker, requests);
-}
-

@@ -35,3 +35,37 @@ void	ServerManager::RequestHandler( void )
 		this->requests.pop();
 	}
 }
+
+/* void ServerManager::forEachWorker(void (*f)( const Worker & worker )) const
+{
+	for (ServerManager::WorkerIterator it(servers.begin(), servers.end()) ; it.curServer() != it.endServer() ; ++it) {
+		f(*it);
+	}
+} */
+
+void ServerManager::forEachWorker(void (*f)( const Worker & worker )) const
+{
+	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
+		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
+			f(*w);
+		}
+	}
+}
+
+void ServerManager::forEachWorker(void (*f)( const Worker & worker, void* param ), void* param)
+{
+	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
+		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
+			f(*w, param);
+		}
+	}
+}
+
+void	ServerManager::throwWorker(void (*f)( const Worker & worker, std::queue<Request>& ))
+{
+	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
+		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
+			f(*w, this->requests);
+		}
+	}
+}

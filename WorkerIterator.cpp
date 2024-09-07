@@ -19,6 +19,16 @@ void ServerManager::WorkerIterator::advanceToNextValid()
 	}
 }
 
+ServerIterator	ServerManager::WorkerIterator::curServer( void )
+{
+	return (this->currServ);
+}
+
+ServerIterator	ServerManager::WorkerIterator::endServer( void )
+{
+	return (this->endServ);
+}
+
 void	ServerManager::WorkerIterator::forEachWorker( void (*f)( const Worker & ) )
 {
 	for (; *this != WorkerIterator(endServ, endServ); ++(*this))

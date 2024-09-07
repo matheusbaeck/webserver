@@ -16,28 +16,6 @@ class ServerManager
 		std::vector<Server> servers;
 		std::queue<Request>	requests;
 
-	public:
-		// ServerManager( void );
-		// ServerManager( int, ... );
-		ServerManager( std::vector<std::vector<int> > );
-		~ServerManager( void );
-
-		void									addServer( const Server & );
-		std::vector<Server> 					&getServers( void );
-		std::vector<Request> 					&getQueue( void );
-		void									RequestHandler( void );
-
-		class AddServerFunctor {
-			private:
-				ServerManager* serverManager;
-			public:
-				AddServerFunctor(ServerManager* sm) : serverManager(sm) {}
-
-				void operator()(const std::vector<int>& ports) {
-					serverManager->addServer(Server(ports));
-				}
-		};
-
 		class WorkerIterator
 		{
 			private:
@@ -50,12 +28,48 @@ class ServerManager
 			public:
 				WorkerIterator(ServerIterator startServer, ServerIterator endServ);
 
+				ServerIterator	curServer( void );
+				ServerIterator	endServer( void );
 				void	forEachWorker( void (*f)( const Worker & ) );
 				void	forEachWorker( void (*f)( const Worker & , void *param ), void *param );
 
 				bool 	operator!=( const WorkerIterator& other ) const;
 				const 	Worker& operator*( void ) const;
 				WorkerIterator&	operator++( void );
+		};
+
+	public:
+		// ServerManager( void );
+		// ServerManager( int, ... );
+		ServerManager( std::vector<std::vector<int> > );
+		~ServerManager( void );
+
+		void					addServer( const Server & );
+		std::vector<Server> 	&getServers( void );
+		std::vector<Request> 	&getQueue( void );
+		void					RequestHandler( void );
+		void					forEachWorker(void (*f)( const Worker & )) const;
+		void					forEachWorker(void (*f)( const Worker & worker, void* param ), void* param);
+		void					throwWorker(void (*f)( const Worker & worker, std::queue<Request>& ));
+		template <typename Func>
+		void throwWorker(Func func) {
+			for (ServerIterator it = servers.begin(); it != servers.end(); ++it) {
+				for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd(); ++w) {
+					func(*w, this->requests);
+				}
+			}
+		}
+
+
+		class AddServerFunctor {
+			private:
+				ServerManager* serverManager;
+			public:
+				AddServerFunctor(ServerManager* sm) : serverManager(sm) {}
+
+				void operator()(const std::vector<int>& ports) {
+					serverManager->addServer(Server(ports));
+				}
 		};
 };
 
