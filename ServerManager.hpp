@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 
+#include "ALogger.hpp"
 #include "Server.hpp"
 
 class Server;
@@ -11,7 +12,7 @@ class Server;
 typedef std::vector<Server>::const_iterator ServerIterator;
 typedef std::vector<Worker>::const_iterator WorkerIteratorInternal;
 
-class ServerManager
+class ServerManager : public ALogger
 {
 	private:
 		std::vector<Server> servers;
@@ -73,6 +74,16 @@ class ServerManager
 					serverManager->addServer(Server(ports));
 				}
 		};
+
+		void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL)
+		{
+			logger->logMessage(this, logLevel, message, ex);
+		}
+
+		virtual std::string GetType() const
+		{
+			return "ServerManager";
+		}
 };
 
 std::vector<std::vector<int> > createVector(const std::string& data);
