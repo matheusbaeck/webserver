@@ -38,7 +38,6 @@ std::queue<Request>		&ServerManager::getQueue(void) { return this->requests; }
 
 void	ServerManager::RequestHandler( void )
 {
-	std::cout << "reading requests.." << std::endl;
 	while (this->requests.size() > 0)
 	{
 		this->requests.front().handler();

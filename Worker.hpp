@@ -16,9 +16,12 @@
 #include <iomanip>
 #include <iostream>
 #include <queue>
+#include <sstream>
+
 
 #include "Request.hpp"
 #include "Selector.hpp"
+#include "ALogger.hpp"
 
 #define SERVER_PORT 2626
 #define BUFFERSIZE 4096
@@ -31,7 +34,7 @@ typedef struct epoll_event epoll_event;
 
 class Selector;
 
-class Worker
+class Worker : public ALogger
 {
 	private:
 		const int		m_serv_port;
@@ -50,6 +53,18 @@ class Worker
 		int			sock( void ) const;
 		int			port( void ) const;
 		int			create_server_socket( void );
+
+		void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL)
+		{
+			logger->logMessage(this, logLevel, message, ex);
+		}
+
+		virtual std::string GetType() const
+		{
+			std::stringstream ss;
+			ss << "Worker:" << m_serv_port << ":" << m_serv_socket;
+			return ss.str();
+		}
 };
 
 std::ostream	&operator<<( std::ostream &, const Worker & );

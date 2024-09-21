@@ -11,6 +11,7 @@
 #include <queue>			//queue
 #include <iostream>			//std::cout
 
+#include "ALogger.hpp"
 #include "Request.hpp"
 #include "Worker.hpp"
 
@@ -24,7 +25,7 @@ class Request;
 class Worker;
 
 // this class is a singleton (ensures that a class has only one instance and provides a global point of access to that instance)
-class Selector
+class Selector : public ALogger
 {
 	private:
 		static Selector	selector;
@@ -40,6 +41,7 @@ class Selector
 
 		void	addSocket( int ); //This adds the listening socket to the list of file descriptors being monitored by the epoll instance.
 		void	putEventsToQ( const Worker &, std::queue<Request> & );
+		void	setnonblocking(int conn_sock);
 
 		class Functor
 		{
@@ -56,6 +58,16 @@ class Selector
 					(selector->*putEventsToQ)(worker, queue);
 				}
 		};
+
+		void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL)
+		{
+			logger->logMessage(this, logLevel, message, ex);
+		}
+
+		virtual std::string GetType() const
+		{
+			return "Selector";
+		}
 
 };
 

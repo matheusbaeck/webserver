@@ -8,6 +8,7 @@ Worker::Worker( void ) : m_serv_port(SERVER_PORT)
 	this->m_addrlen = sizeof(*this->addr());
 	this->m_serv_socket = create_server_socket(); /* handle error */
 	Selector::getSelector().addSocket(this->m_serv_socket);
+	LogMessage(DEBUG, "worker up!");
 }
 
 Worker::Worker( const int port ) : m_serv_port(port)
@@ -18,6 +19,8 @@ Worker::Worker( const int port ) : m_serv_port(port)
 	this->m_addrlen = sizeof(*this->addr());
 	this->m_serv_socket = create_server_socket(); /* handle error */
 	Selector::getSelector().addSocket(this->m_serv_socket);
+	LogMessage(DEBUG, "worker up!");
+
 }
 
 Worker::~Worker()
@@ -39,27 +42,25 @@ int Worker::create_server_socket( void )
 	this->m_serv_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (this->m_serv_socket < 0)
 	{
-		perror("socket");
-		/* handle error */
+		LogMessage(ERROR, "fail to open socket");
 	}
-	int reuse = 1;
-	if (setsockopt(this->m_serv_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
-		perror("setsockopt");
-		return -1;
-	}
+	// int reuse = 1;
+	// if (setsockopt(this->m_serv_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
+	// 	perror("setsockopt");
+	// 	return -1;
+	// }
 	//bzero(this->m_addr, addrlen);
 	this->m_addr.sin_family = AF_INET;
 	this->m_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	this->m_addr.sin_port = htons(SERVER_PORT);
 	if (bind(this->m_serv_socket, this->addr(), addrlen) == -1)
 	{
-		perror("bind");
-		/* handle error */
+		LogMessage(ERROR, "fail to bind socket");
 	}
 	if (listen(this->m_serv_socket, BACKLOG) < 0)
 	{
-		perror("listen");
-		/* handle error */
+		LogMessage(ERROR, "fail on listening on socket");
+
 	}
 	return (this->m_serv_socket);
 }

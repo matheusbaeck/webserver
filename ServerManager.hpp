@@ -55,6 +55,7 @@ class ServerManager : public ALogger
 		void					forEachWorker(void (*f)( const Worker & )) const;
 		void					forEachWorker(void (*f)( const Worker & worker, void* param ), void* param);
 		void					throwWorker(void (*f)( const Worker & worker, std::queue<Request>& ));
+
 		template <typename Func>
 		void throwWorker(Func func) {
 			for (ServerIterator it = servers.begin(); it != servers.end(); ++it) {

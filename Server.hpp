@@ -8,10 +8,11 @@
 #include <cstdarg>
 
 #include "Worker.hpp"
+#include "ALogger.hpp"
 
 class Worker;
 
-class Server
+class Server : public ALogger
 {
 	private:
 		std::string			m_server_name;
@@ -38,6 +39,16 @@ class Server
 					server->addWorker(Worker(port));
 				}
 		};
+
+		void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL)
+		{
+			logger->logMessage(this, logLevel, message, ex);
+		}
+
+		virtual std::string GetType() const
+		{
+			return "Server:" + m_server_name;
+		}
 };
 
 #endif

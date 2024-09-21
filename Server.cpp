@@ -15,6 +15,7 @@ Server::Server(int count, ...)
 
 Server::Server( std::vector<int> workers_port )
 {
+	LogMessage(DEBUG, "server up!");
 	AddWorkerFunctor functor(this);
 	std::for_each(workers_port.begin(), workers_port.end(), functor);
 }

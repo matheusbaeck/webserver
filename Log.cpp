@@ -18,14 +18,14 @@ void Log::outputLog(const void* entity, int logLevel, const std::string& message
 		<< " | ";
 	try {
 		if (entity) {
-			oss << std::setw(12) << loggerEntity->GetType();
+			oss << std::setw(15) << loggerEntity->GetType();
 		} else {
-			oss << std::setw(12) << "unknown";
+			oss << std::setw(15) << "unknown";
 		}
 	} catch (const std::exception& e) {
-		oss << std::setw(12) << "entity_error";
+		oss << std::setw(15) << "entity_error";
 	}
-	oss << " | " << message << reset << std::endl;
+	oss << " | " << message << reset;
 
 	if (logLevel >= COUT_LOG_LEVEL)
 		std::cout << oss.str() << std::endl;
