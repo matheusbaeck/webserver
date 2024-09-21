@@ -31,10 +31,10 @@ class ServerManager
 
 				ServerIterator	curServer( void );
 				ServerIterator	endServer( void );
-				void	forEachWorker( void (*f)( const Worker & ) );
-				void	forEachWorker( void (*f)( const Worker & , void *param ), void *param );
+				void			forEachWorker( void (*f)( const Worker & ) );
+				void			forEachWorker( void (*f)( const Worker & , void *param ), void *param );
 
-				bool 	operator!=( const WorkerIterator& other ) const;
+				bool 			operator!=( const WorkerIterator& other ) const;
 				const 	Worker& operator*( void ) const;
 				WorkerIterator&	operator++( void );
 		};

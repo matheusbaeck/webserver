@@ -51,6 +51,8 @@ void	Selector::putEventsToQ( const Worker &worker , std::queue<Request> &request
 	if (this->m_nfds == -1) {
 		perror("epoll_wait");
 		/* handle error */
+	} else {
+		std::cout << "epoll_wait returned " << this->m_nfds << " events." << std::endl;
 	}
 
 	for (int n = 0; n < this->m_nfds; ++n) {

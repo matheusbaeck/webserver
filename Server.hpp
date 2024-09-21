@@ -23,8 +23,8 @@ class Server
 		Server( std::vector<int> );
 		~Server( void );
 
-		void							addWorker( const Worker & );
-		std::vector<Worker>				&getWorkers( void );
+		void								addWorker( const Worker & );
+		std::vector<Worker>					&getWorkers( void );
 		std::vector<Worker>::const_iterator	workersBegin( void ) const;
 		std::vector<Worker>::const_iterator	workersEnd( void ) const;
 

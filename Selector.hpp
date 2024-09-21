@@ -15,7 +15,7 @@
 #include "Worker.hpp"
 
 #define MAX_EVENTS 10		//epoll_wait max events at time
-#define TIME_OUT -1			//epoll_wait max time
+#define TIME_OUT 200			//epoll_wait max time
 
 typedef struct epoll_event epoll_event;
 
