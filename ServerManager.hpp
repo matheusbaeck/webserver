@@ -47,6 +47,8 @@ class ServerManager : public ALogger
 		ServerManager( std::vector<std::vector<int> > );
 		~ServerManager( void );
 
+		ServerManager& operator=(const ServerManager& other);
+
 		void					addServer( const Server & );
 		std::vector<Server> 	&getServers( void );
 		std::queue<Request>		&getQueue(void);

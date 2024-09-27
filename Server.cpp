@@ -6,7 +6,7 @@ Server::Server(int count, ...)
 
 	va_start(args, count);
 	for (int i = 0; i < count; ++i)
-	{
+{
 		int port = va_arg(args, int);
 		this->addWorker(Worker(port));
 	}
@@ -21,6 +21,24 @@ Server::Server( std::vector<int> workers_port )
 }
 
 Server::~Server() {}
+
+Server& Server::operator=(const Server& other)
+{
+	if (this != &other) // Check for self-assignment
+	{
+		// Call base class assignment operator if necessary
+		ALogger::operator=(other);
+
+		// Copy data members
+		m_server_name = other.m_server_name;
+		m_workers = other.m_workers;
+
+		// Additional logging or handling if needed
+		LogMessage(DEBUG, "Server copy assignment operator called");
+	}
+	return *this;
+}
+
 
 void Server::addWorker(const Worker& worker)
 {

@@ -29,6 +29,8 @@ class Server : public ALogger
 		std::vector<Worker>::const_iterator	workersBegin( void ) const;
 		std::vector<Worker>::const_iterator	workersEnd( void ) const;
 
+		Server& operator=(const Server& other);
+
 		class AddWorkerFunctor {
 			private:
 				Server	*server;
