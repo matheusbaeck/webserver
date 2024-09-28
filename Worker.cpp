@@ -12,6 +12,7 @@ Worker::Worker( void ) : m_serv_port(SERVER_PORT), m_id(++m_instance_counter)
 	this->m_addrlen = sizeof(*this->addr());
 	this->m_serv_socket = create_server_socket(); /* handle error */
 	Selector::getSelector().addSocket(this->m_serv_socket);
+	std::cout << *this << std::endl;
 }
 
 Worker::Worker( const int port ) : m_serv_port(port), m_id(++m_instance_counter)
@@ -24,6 +25,7 @@ Worker::Worker( const int port ) : m_serv_port(port), m_id(++m_instance_counter)
 	this->m_addrlen = sizeof(*this->addr());
 	this->m_serv_socket = create_server_socket();
 	Selector::getSelector().addSocket(this->m_serv_socket);
+	std::cout << *this << std::endl;
 }
 
 Worker::Worker( const Worker &other ) : m_id(++m_instance_counter)
