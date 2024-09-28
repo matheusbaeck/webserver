@@ -1,22 +1,31 @@
 #include "Worker.hpp"
 #include "Request.hpp"
+#include "Server.hpp"
+#include "ServerManager.hpp"
+#include "Templates.hpp"
+#include "Log.hpp"
 
 int main( void )
 {
-	std::cout << "Server listening to 127.0.0.1:" << std::endl;
-	Worker					worker; /* use some container to have many workers (this can be handled in the Server class)*/
-	Worker					worker2(3000);
-	std::queue<Request>		requests;
-
-	for (;;) {
-		/*for each worker*/
-		Selector::getSelector().putEventsToQ(worker2, requests);
-		Selector::getSelector().putEventsToQ(worker, requests);
-		while (requests.size() > 0)
-		{
-			requests.front().handler();
-			requests.pop();
-		}
+	Log* logger = Log::getInstance("logfile.log");
+	//Selector &selector = Selector::getSelector();
+	std::vector<std::vector<int> >	server_ports;
+	std::string 					ports;
+	ServerManager 					manager("{ {2000, 8000, 4430}, {8080, 8443}, {3000, 3001} }");
+	Selector::Functor 				RequestToQueue(&Selector::putEventsToQ);
+	
+	logger->logMessage(NULL, INFO, "WebServer started");
+	for ( ; ; ) {
+		manager.LogMessage(TRACE, "MainLoop" );
+		manager.throwWorker(RequestToQueue); /* foreach (ServerManager::std::vector<Server::Worker::iterator> w) => Sellector::RequestToQueue(w, ServerManager::queue) */
+		// for (ServerIterator it = manager.getServers().begin() ; it != manager.getServers().end() ; ++it) {
+		// 	for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
+		// 		// std::cout << *w <<std::endl;
+		// 		selector.putEventsToQ(*w, manager.getQueue());
+		// 	}
+		// }
+		/* can add an bool on the manager to skip this if there is no new request ??*/
+		manager.RequestHandler();
 	}
-	return 0;
+	return(0);
 }

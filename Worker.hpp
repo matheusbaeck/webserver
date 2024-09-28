@@ -1,59 +1,83 @@
 
-#ifndef WORKER_HPP__
-# define WORKER_HPP__
+	#ifndef WORKER_HPP__
+	# define WORKER_HPP__
 
-#include <cstdio>
-#include <cstdlib> // malloc
-#include <cstring> // memset, bzero
-#include <arpa/inet.h> // inet_pton [convert string IP to binary]
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/epoll.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <string>
-#include <iomanip>
-#include <iostream>
-#include <queue>
+	#include <cstdio>
+	#include <cstdlib> // malloc
+	#include <cstring> // memset, bzero
+	#include <arpa/inet.h> // inet_pton [convert string IP to binary]
+	#include <sys/socket.h>
+	#include <sys/types.h>
+	#include <unistd.h>
+	#include <sys/epoll.h>
+	#include <fcntl.h>
+	#include <errno.h>
+	#include <string>
+	#include <iomanip>
+	#include <iostream>
+	#include <queue>
+	#include <sstream>
 
-#include "Request.hpp"
-#include "Selector.hpp"
 
-#define SERVER_PORT 2626
-#define BUFFERSIZE 4096
-#define MAX_EVENTS 10		//epoll_wait max events at time
-#define TIME_OUT -1			//epoll_wait max time
-#define BACKLOG 10			//listen param
+	#include "Request.hpp"
+	#include "Selector.hpp"
+	#include "ALogger.hpp"
 
-typedef struct sockaddr_in sockaddr_in;
-typedef struct sockaddr sockaddr;
-typedef struct epoll_event epoll_event;
+	#define SERVER_PORT 2626
+	#define BUFFERSIZE 4096
+	#define MAX_EVENTS 10		//epoll_wait max events at time
+	#define BACKLOG 10			//listen param
 
-class Selector;
+	typedef struct sockaddr_in sockaddr_in;
+	typedef struct sockaddr sockaddr;
+	typedef struct epoll_event epoll_event;
 
-class Worker
-{
-	private:
-		const int		m_serv_port;
-		sockaddr_in		m_addr;
-		socklen_t		m_addrlen;
-		int				m_serv_socket;
+	class Selector;
 
-	public:
-		/*after implementation of Server class, implement the following constructor*/
-		// Worker( Selector &, Server &, int Port );
-		Worker( void );
-		Worker( int );
-		~Worker( void );
+	class Worker : public ALogger
+	{
+		private:
+			int			m_serv_port;
+			static int	m_instance_counter;
+			int			m_id;
+			sockaddr_in	m_addr;
+			socklen_t	m_addrlen;
+			int			m_serv_socket;
 
-		sockaddr	*addr( void ) const;
-		socklen_t	addrlen( void ) const;
-		int			sock( void ) const;
-		int			port( void ) const;
-		int			create_server_socket( void );
-};
+		public:
+			/*after implementation of Server class, implement the following constructor*/
+			Worker( void );
+			Worker( int );
+			Worker( const Worker & );
+			~Worker( void );
 
-std::ostream	&operator<<( std::ostream &, const Worker & );
+			sockaddr	*addr( void ) const;
+			socklen_t	addrlen( void ) const;
+			int			id( void ) const;
+			int			sock( void ) const;
+			int			port( void ) const;
+			int			create_server_socket( void );
 
-#endif
+			Worker& operator=(const Worker& other);
+
+			void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL)
+			{
+				logger->logMessage(this, logLevel, message, ex);
+			}
+
+			void LogMessage(int logLevel, std::exception* ex = NULL)
+			{
+				logger->logMessage(this, logLevel, m_oss.str(), ex);
+			}
+
+			virtual std::string GetType() const
+			{
+				std::stringstream ss;
+				ss << "Worker:" << m_id;
+				return ss.str();
+			}
+	};
+
+	std::ostream	&operator<<( std::ostream &, const Worker & );
+
+	#endif
