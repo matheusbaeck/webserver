@@ -33,16 +33,10 @@ ServerManager::~ServerManager( void ) {}
 
 ServerManager& ServerManager::operator=(const ServerManager& other)
 {
-	if (this != &other) // Check for self-assignment
+	if (this != &other)
 	{
-		// Copy the base class assignment operator
-		ALogger::operator=(other);
-
-		// Copy member variables
 		this->servers = other.servers;
 		this->requests = other.requests;
-
-		// Optionally, log the assignment
 		LogMessage(DEBUG, "ServerManager copy assignment operator called");
 	}
 	return *this;

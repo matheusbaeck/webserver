@@ -20,7 +20,10 @@ enum LogLevel
 };
 
 # define OUTFILE_LOG_LEVEL TRACE
-# define COUT_LOG_LEVEL DEBUG
+
+# ifndef COUT_LOG_LEVEL
+#  define COUT_LOG_LEVEL ERROR
+# endif
 
 class Log
 {
@@ -55,7 +58,6 @@ class Log
 			return &logger;
 		}
 
-
 		void logMessage( const void* entity, int logLevel, const std::string& message, std::exception* ex = NULL)
 		{
 			std::ostringstream oss;
@@ -68,18 +70,18 @@ class Log
 			outputLog(entity, logLevel, oss.str());
 		}
 
-		template <typename T>
-		void logMessage( const void* entity, int logLevel, const std::string& message, const T& arg, std::exception* ex = NULL)
-		{
-			std::ostringstream oss;
-			oss << message << ": " << arg;
+		// template <typename T>
+		// void logMessage( const void* entity, int logLevel, const std::string& message, const T& arg, std::exception* ex = NULL)
+		// {
+		// 	std::ostringstream oss;
+		// 	oss << message << ": " << arg;
 
-			if (ex)
-			{
-				oss << " | Exception: " << ex->what();
-			}
-			outputLog(entity, logLevel, oss.str());
-		}
+		// 	if (ex)
+		// 	{
+		// 		oss << " | Exception: " << ex->what();
+		// 	}
+		// 	outputLog(entity, logLevel, oss.str());
+		// }
 
 		// template <typename T, typename... Args>
 		// void logMessage( const void* entity, int logLevel, const std::string& message, const T& firstArg, const Args&... args)
@@ -91,22 +93,22 @@ class Log
 		// 	}
 		// }
 
-		template <typename T>
-		void logMessage( const void* entity, int logLevel, const std::string& message, typename T::iterator it, typename T::iterator end, std::exception* ex = NULL)
-		{
-			std::ostringstream oss;
-			oss << message << ": ";
+		// template <typename T>
+		// void logMessage( const void* entity, int logLevel, const std::string& message, typename T::iterator it, typename T::iterator end, std::exception* ex = NULL)
+		// {
+		// 	std::ostringstream oss;
+		// 	oss << message << ": ";
 
-			for (; it != end; ++it) {
-				oss << *it << " ";
-			}
+		// 	for (; it != end; ++it) {
+		// 		oss << *it << " ";
+		// 	}
 
-			if (ex) {
-				oss << "| Exception: " << ex->what();
-			}
+		// 	if (ex) {
+		// 		oss << "| Exception: " << ex->what();
+		// 	}
 
-			outputLog(entity, logLevel, oss.str());
-		}
+		// 	outputLog(entity, logLevel, oss.str());
+		// }
 };
 
 #endif

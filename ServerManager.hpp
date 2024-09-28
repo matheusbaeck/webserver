@@ -83,6 +83,11 @@ class ServerManager : public ALogger
 			logger->logMessage(this, logLevel, message, ex);
 		}
 
+		void LogMessage(int logLevel, std::exception* ex = NULL)
+		{
+			logger->logMessage(this, logLevel, m_oss.str(), ex);
+		}
+
 		virtual std::string GetType() const
 		{
 			return "ServerManager";

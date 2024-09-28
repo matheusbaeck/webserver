@@ -19,16 +19,19 @@ SRCS        = $(wildcard $(SRCSDIR)/*.cpp)
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 
 CC          = g++
-CFLAGS      =  -g3 -Wall -Wextra -Werror -std=c++98
+CFLAGS      = -g3 -Wall -Wextra -Werror -std=c++98
+
+LOG_LEVEL   ?= 1
+DEFINES     = -DCOUT_LOG_LEVEL=$(LOG_LEVEL)
 
 all: $(NAME)
 
 $(NAME): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) $(DEFINES) -o $@ $^
 
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEFINES) -c $< -o $@
 
 clean:
 	rm -rf $(OBJDIR)

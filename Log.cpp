@@ -35,7 +35,7 @@ void Log::outputLog(const void* entity, int logLevel, const std::string& message
 
 Log::Log(const std::string& filePath) : fileAvailable(false)
 {
-	outFile.open(filePath.c_str(), std::ios::app); // Open in append mode
+	outFile.open(filePath.c_str(), std::ios::app);
 	if (outFile.is_open()) {
 		fileAvailable = true;
 	} else {
@@ -55,8 +55,6 @@ Log::Log(const std::string& filePath) : fileAvailable(false)
 	colors[4] = "\033[31m";  // ERROR - Red
 	colors[5] = "\033[35m";  // FATAL - Magenta
 	reset = "\033[0m"; // Reset color
-
-
 	}
 
 Log::~Log()
