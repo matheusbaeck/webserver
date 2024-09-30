@@ -45,10 +45,12 @@ void	Selector::putEventsToQ( const Worker &worker , std::queue<Request> &request
 	int conn_sock;
 	socklen_t len;
 	
-	oss() << "putEventsToQ:" << worker << "port " << worker.port() << " on socket " << worker.sock();
+	oss() << "putEventsToQ:" << worker << " on socket " << worker.sock();
 	LogMessage(TRACE);
 	len = worker.addrlen();
 	this->m_nfds = epoll_wait(this->m_epollfd, this->m_events, MAX_EVENTS, TIME_OUT);
+	oss() << "epoll wait return fd:" << this->m_nfds;
+	LogMessage(TRACE);
 	if (this->m_nfds == -1) {
 		perror("epoll_wait");
 		/* handle error */
@@ -64,17 +66,19 @@ void	Selector::putEventsToQ( const Worker &worker , std::queue<Request> &request
 				perror("accept");
 				continue;
 			}
+			oss() << "accept: conn_sock fd " << conn_sock;
+			LogMessage(TRACE);
 			setnonblocking(conn_sock);
 			this->m_ev.events = EPOLLIN | EPOLLET;
 			this->m_ev.data.fd = conn_sock;
-
 			if (epoll_ctl(this->m_epollfd, EPOLL_CTL_ADD, conn_sock, &this->m_ev) == -1) {
 				perror("epoll_ctl: conn_sock");
 				close(conn_sock);
 				continue;
 			}
 		} else {
-			LogMessage(INFO, "request add to queue");
+			oss() << "request add to queue port:fd " << worker.port() << this->m_events[n].data.fd; 
+			LogMessage(INFO);
 			requests.push(Request(this->m_events[n].data.fd, worker.port()));
 		}
 	}
