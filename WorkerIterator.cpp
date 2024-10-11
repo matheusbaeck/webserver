@@ -1,56 +1,69 @@
-#include "ServerManager.hpp"
+// #include "ServerManager.hpp"
 
-ServerManager::WorkerIterator::WorkerIterator(ServerIterator startServer, ServerIterator endServ) : currServ(startServer), endServ(endServ)
-{
-	if (currServ != endServ)
-	{
-		curr = currServ->workersBegin();
-		advanceToNextValid();
-	}
-}
 
-void ServerManager::WorkerIterator::advanceToNextValid()
-{
-	while (currServ != endServ && curr == currServ->workersEnd())
-	{
-		++currServ;
-		if (currServ != endServ)
-			curr = currServ->workersBegin();
-	}
-}
+// // void	ServerManager::WorkerIterator::forEachWorker( void (*f)( Worker & ) )
+// // {
+// // 	for (; *this != WorkerIterator(endServ, endServ); ++(*this))
+// // 		f(**this);
+// // }
 
-ServerIterator	ServerManager::WorkerIterator::curServer( void )
-{
-	return (this->currServ);
-}
+// // void	ServerManager::WorkerIterator::forEachWorker( void (*f)( Worker & , void *param ), void *param )
+// // {
+// // 	for (; *this != WorkerIterator(endServ, endServ); ++(*this))
+// // 		f(**this, param);
+// // }
 
-ServerIterator	ServerManager::WorkerIterator::endServer( void )
-{
-	return (this->endServ);
-}
+// bool ServerManager::WorkerIterator::operator!=( WorkerIterator& other) const
+// {
+// 	return (currServ != other.currServ || curr != other.curr);
+// }
 
-void	ServerManager::WorkerIterator::forEachWorker( void (*f)( const Worker & ) )
-{
-	for (; *this != WorkerIterator(endServ, endServ); ++(*this))
-		f(**this);
-}
+// Worker& ServerManager::WorkerIterator::operator*( void ) const { return (*curr); }
 
-void	ServerManager::WorkerIterator::forEachWorker( void (*f)( const Worker & , void *param ), void *param )
-{
-	for (; *this != WorkerIterator(endServ, endServ); ++(*this))
-		f(**this, param);
-}
+// ServerManager::WorkerIterator& ServerManager::WorkerIterator::operator++( void ) 
 
-bool ServerManager::WorkerIterator::operator!=(const WorkerIterator& other) const
-{
-	return (currServ != other.currServ || curr != other.curr);
-}
 
-const Worker& ServerManager::WorkerIterator::operator*( void ) const { return (*curr); }
+// /* division */
 
-ServerManager::WorkerIterator& ServerManager::WorkerIterator::operator++( void ) 
-{
-	++curr;
-	advanceToNextValid();
-	return (*this);
-}
+// ServerManager::ConstWorkerIterator::ConstWorkerIterator(ServerIterator startServer, ServerIterator endServ) : currServ(startServer), endServ(endServ)
+// {
+// 	if (currServ != endServ)
+// 	{
+// 		curr = currServ->workersBegin();
+// 		advanceToNextValid();
+// 	}
+// }
+
+// void ServerManager::ConstWorkerIterator::advanceToNextValid()
+// {
+// 	while (currServ != endServ && curr == currServ->workersEnd())
+// 	{
+// 		++currServ;
+// 		if (currServ != endServ)
+// 			curr = currServ->workersBegin();
+// 	}
+// }
+
+// ServerIterator	ServerManager::ConstWorkerIterator::curServer( void )
+// {
+// 	return (this->currServ);
+// }
+
+// ServerIterator	ServerManager::ConstWorkerIterator::endServer( void )
+// {
+// 	return (this->endServ);
+// }
+
+// bool ServerManager::ConstWorkerIterator::operator!=(const ConstWorkerIterator& other) const
+// {
+// 	return (currServ != other.currServ || curr != other.curr);
+// }
+
+// const Worker& ServerManager::ConstWorkerIterator::operator*( void ) const { return (*curr); }
+
+// ServerManager::ConstWorkerIterator& ServerManager::ConstWorkerIterator::operator++( void ) 
+// {
+// 	++curr;
+// 	advanceToNextValid();
+// 	return (*this);
+// }

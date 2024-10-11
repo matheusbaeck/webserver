@@ -9,8 +9,8 @@
 
 class Server;
 
-typedef std::vector<Server>::const_iterator ServerIterator;
-typedef std::vector<Worker>::const_iterator WorkerIteratorInternal;
+typedef std::vector<Server>::iterator ServerIterator;
+typedef std::vector<Worker>::iterator WorkerIteratorStd;
 
 class ServerManager : public ALogger
 {
@@ -21,52 +21,119 @@ class ServerManager : public ALogger
 		class WorkerIterator
 		{
 			private:
-				ServerIterator			currServ;
-				ServerIterator			endServ;
-				WorkerIteratorInternal	curr;
+				ServerIterator		currServ;
+				ServerIterator		endServ;
+				WorkerIteratorStd	curr;
 
-				void advanceToNextValid( void );
+				void advanceToNextValid()
+				{
+					while (currServ != endServ && (curr == currServ->workersEnd() || currServ->getWorkers().empty()))
+					{
+						++currServ;
+						if (currServ != endServ)
+							curr = currServ->workersBegin();
+					}
+				}
 
 			public:
-				WorkerIterator(ServerIterator startServer, ServerIterator endServ);
+				WorkerIterator(ServerIterator startServer, ServerIterator endServ)
+					: currServ(startServer), endServ(endServ)
+				{
+					if (currServ != endServ)
+					{
+						curr = currServ->workersBegin();
+						advanceToNextValid();
+					}
+				}
 
-				ServerIterator	curServer( void );
-				ServerIterator	endServer( void );
-				void			forEachWorker( void (*f)( const Worker & ) );
-				void			forEachWorker( void (*f)( const Worker & , void *param ), void *param );
+				bool	operator!=( const WorkerIterator& other ) const
+				{
+					return (currServ != other.currServ || (currServ != endServ && curr != other.curr));
+				}
 
-				bool 			operator!=( const WorkerIterator& other ) const;
-				const 	Worker& operator*( void ) const;
-				WorkerIterator&	operator++( void );
+				WorkerIterator& operator++()
+				{
+					if (currServ != endServ)
+					{
+						++curr;
+						advanceToNextValid();
+					}
+					return (*this);
+				}
+
+				Worker& operator*(void)
+				{
+					return (*curr);
+				}
+
+				const Worker& operator*(void) const
+				{
+					return (*curr);
+				}
+
+				bool operator==(const WorkerIterator& other) const
+				{
+					return !(*this != other);
+				}
+
+				WorkerIterator operator++(int)
+				{
+					WorkerIterator tmp = *this;
+					++(*this);
+					return tmp;
+				}
+
+				Worker* operator->()
+				{
+					return &(*curr);
+				}
 		};
 
 	public:
-		// ServerManager( void );
-		// ServerManager( int, ... );
+		ServerManager( void );
 		ServerManager( const std::string );
 		ServerManager( std::vector<std::vector<int> > );
 		~ServerManager( void );
 
+		/* Operator */
 		ServerManager& operator=(const ServerManager& other);
 
-		void					addServer( const Server & );
+		/* Acessors */
 		std::vector<Server> 	&getServers( void );
-		std::queue<Request>		&getQueue(void);
-		
-		void					RequestHandler( void );
-		void					forEachWorker(void (*f)( const Worker & )) const;
-		void					forEachWorker(void (*f)( const Worker & worker, void* param ), void* param);
-		void					throwWorker(void (*f)( const Worker & worker, std::queue<Request>& ));
+		std::queue<Request>		&getQueue( void );
+		WorkerIterator begin()
+		{
+			return WorkerIterator(servers.begin(), servers.end());
+		}
 
-		template <typename Func>
-		void throwWorker(Func func) {
-			for (ServerIterator it = servers.begin(); it != servers.end(); ++it) {
-				for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd(); ++w) {
-					func(*w, this->requests);
-				}
+		WorkerIterator end()
+		{
+			return WorkerIterator(servers.end(), servers.end());
+		}
+
+		/* Methods */
+		void							RequestHandler( void );
+		void							addServer( const Server &server );
+		std::vector<std::vector<int> >	createVector(const std::string& data);
+
+		/* Templates */
+		template<typename Func>
+		void forEachWorker(Func f)
+		{
+			for (WorkerIterator it = begin(); it != end() ; ++it) {
+				f(*it);
 			}
 		}
 
+		template <typename Func>
+		void forEachWorkerAndQueue(Func f)
+		{
+			for (WorkerIterator it = begin(); it != end() ; ++it) {
+				f(*it, this->requests);
+			}
+		}
+
+		/* Functors */
 		class AddServerFunctor {
 			private:
 				ServerManager* serverManager;
@@ -78,20 +145,10 @@ class ServerManager : public ALogger
 				}
 		};
 
-		void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL)
-		{
-			logger->logMessage(this, logLevel, message, ex);
-		}
-
-		void LogMessage(int logLevel, std::exception* ex = NULL)
-		{
-			logger->logMessage(this, logLevel, m_oss.str(), ex);
-		}
-
-		virtual std::string GetType() const
-		{
-			return "ServerManager";
-		}
+		/* Logger */
+		void				LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL);
+		void				LogMessage(int logLevel, std::exception* ex = NULL);
+		virtual std::string	GetType() const;
 };
 
 std::vector<std::vector<int> > createVector(const std::string& data);

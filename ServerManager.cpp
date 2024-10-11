@@ -1,20 +1,8 @@
 #include "ServerManager.hpp"
 
-// ServerManager::ServerManager( void ) {}
+ServerManager::ServerManager( void ) {}
 
-// ServerManager::ServerManager(int count, ...)
-// {
-// 	va_list args;
-// 	va_start(args, count);
-
-// 	for (int i = 0; i < count; ++i) {
-// 		Server server = va_arg(args, Server);
-// 		this->addServer(server);
-// 	}
-// 	va_end(args);
-// }
-
-ServerManager::ServerManager( std::string ports )
+ServerManager::ServerManager( const std::string ports )
 {
 	std::vector<std::vector<int> > server_ports;
 	AddServerFunctor functor(this);
@@ -43,10 +31,8 @@ ServerManager& ServerManager::operator=(const ServerManager& other)
 }
 
 
-void ServerManager::addServer(const Server& server) { servers.push_back(server); }
-
-std::vector<Server>		&ServerManager::getServers() { return (this->servers); }
-std::queue<Request>		&ServerManager::getQueue(void) { return this->requests; }
+std::vector<Server>	&ServerManager::getServers() { return (this->servers); }
+std::queue<Request>	&ServerManager::getQueue(void) { return this->requests; }
 
 void	ServerManager::RequestHandler( void )
 {
@@ -57,42 +43,12 @@ void	ServerManager::RequestHandler( void )
 	}
 }
 
-/* void ServerManager::forEachWorker(void (*f)( const Worker & worker )) const
-{
-	for (ServerManager::WorkerIterator it(servers.begin(), servers.end()) ; it.curServer() != it.endServer() ; ++it) {
-		f(*it);
-	}
-} */
-
-void ServerManager::forEachWorker(void (*f)( const Worker & worker )) const
-{
-	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
-		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
-			std::cout << "inside forEachWorker " << *w << std::endl;
-			f(*w);
-		}
-	}
+void ServerManager::addServer(const Server& server)
+{ 
+	servers.push_back(server);
 }
 
-void ServerManager::forEachWorker(void (*f)( const Worker & worker, void* param ), void* param)
-{
-	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
-		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
-			f(*w, param);
-		}
-	}
-}
-
-void	ServerManager::throwWorker(void (*f)( const Worker & worker, std::queue<Request>& ))
-{
-	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
-		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
-			f(*w, this->requests);
-		}
-	}
-}
-
-std::vector<std::vector<int> > createVector(const std::string& data)
+std::vector<std::vector<int> >	ServerManager::createVector(const std::string& data)
 {
 	std::vector<std::vector<int> > container;
 	std::istringstream stream(data);
@@ -121,4 +77,19 @@ std::vector<std::vector<int> > createVector(const std::string& data)
 			container.push_back(innerContainer);
 	}
 	return container;
+}
+
+void	ServerManager::LogMessage(int logLevel, const std::string& message, std::exception* ex)
+{
+	logger->logMessage(this, logLevel, message, ex);
+}
+
+void	ServerManager::LogMessage(int logLevel, std::exception* ex)
+{
+	logger->logMessage(this, logLevel, m_oss.str(), ex);
+}
+
+std::string	ServerManager::GetType( void ) const
+{
+	return "ServerManager";
 }

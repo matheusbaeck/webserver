@@ -25,7 +25,7 @@ Server::Server( std::vector<int> workers_port ) : m_id(++m_instance_counter)
 
 Server::Server( const Server &other ) : m_id(++m_instance_counter)
 {
-	oss() << "Copy constructor " << other;
+	oss() << "Copy constructor ";
 	LogMessage(DEBUG);
 	*this = other;
 }
@@ -36,14 +36,9 @@ Server::~Server()
 	LogMessage(DEBUG);
 }
 
-int Server::id( void ) const
-{
-	return (this->m_id);
-}
-
 Server& Server::operator=(const Server& other)
 {
-	oss() << "Copy assign " << *this << " = " << other;
+	oss() << "Copy assign "; //<< *this << " = " << other; >>> possible seg fault
 	LogMessage(DEBUG);
 	if (this != &other)
 	{
@@ -53,23 +48,29 @@ Server& Server::operator=(const Server& other)
 	return (*this);
 }
 
-void Server::addWorker(const Worker& worker)
+int	Server::id( void ) const { return (this->m_id); }
+std::vector<Worker>&	Server::getWorkers() { return (m_workers); }
+std::vector<Worker>::iterator	Server::workersBegin() { return (m_workers.begin()); }
+std::vector<Worker>::iterator	Server::workersEnd() { return (m_workers.end()); }
+std::vector<Worker>::const_iterator	Server::workersBegin() const { return (m_workers.begin()); }
+std::vector<Worker>::const_iterator	Server::workersEnd() const { return (m_workers.end()); }
+
+
+void	Server::LogMessage(int logLevel, const std::string& message, std::exception* ex)
 {
-	this->m_workers.push_back(worker);
+	logger->logMessage(this, logLevel, message, ex);
 }
 
-std::vector<Worker> &Server::getWorkers()
+void	Server::LogMessage(int logLevel, std::exception* ex)
 {
-	return (m_workers);
+	logger->logMessage(this, logLevel, m_oss.str(), ex);
 }
 
-std::vector<Worker>::const_iterator Server::workersBegin() const
+std::string	Server::GetType(void) const
 {
-	return (m_workers.begin());
-}
-std::vector<Worker>::const_iterator Server::workersEnd() const
-{
-	return (m_workers.end());
+	std::ostringstream oss;
+	oss << "Server:" << m_id;
+	return oss.str();
 }
 
 std::ostream &operator<<( std::ostream &os, const Server &obj )
