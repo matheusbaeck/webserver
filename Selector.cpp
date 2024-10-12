@@ -51,7 +51,8 @@ void Selector::processEvents(std::queue<Request>& requestQueue)
 
         Worker* worker = getWorkerByFd(event_fd);
         if (!worker) {
-            LogMessage(ERROR, "processEvents: No worker found for fd " + std::to_string(event_fd));
+            oss() << "processEvents: No worker found for fd " << event_fd;
+            LogMessage(ERROR);
             continue;
         }
 
@@ -96,7 +97,6 @@ void Selector::processEvents(std::queue<Request>& requestQueue)
         }
     }
 }
-
 Worker*	Selector::getWorkerByFd(int fd) const
 {
 	std::map<int, Worker*>::const_iterator it = m_fd_to_worker_map.find(fd);
