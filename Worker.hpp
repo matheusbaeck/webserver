@@ -18,8 +18,6 @@
 #include <queue>
 #include <sstream>
 
-
-#include "Request.hpp"
 #include "ALogger.hpp"
 
 #define SERVER_PORT 5000
@@ -73,11 +71,20 @@ class Worker : public ALogger
 				}
 		};
 
+		class PrintFdFunctor
+		{
+			public:
+				void operator()(Worker& worker)
+				{
+					std::cout << worker.m_serv_socket << std::endl;
+				}
+		};
+
+
 		/* Logger */
 		void				LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL);
 		void				LogMessage(int logLevel, std::exception* ex = NULL);
 		virtual std::string	GetType() const;
-
 
 };
 

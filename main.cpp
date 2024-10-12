@@ -1,48 +1,58 @@
 #include "Worker.hpp"
-#include "Request.hpp"
+#include "HttpRequest.hpp"
 #include "Server.hpp"
 #include "ServerManager.hpp"
 #include "Templates.hpp"
 #include "Log.hpp"
 #include "Selector.hpp"
 
-int main( void )
+int main(int argc, char **argv)
 {
 	Log* logger = Log::getInstance("logfile.log");
+	
+	const char *pathname = ConfigFile::pathname;
+
+	(void) pathname;
+	if (argc > 2)
+	{
+		logger->logMessage(NULL, ERROR, "too many arguments");
+		logger->logMessage(NULL, INFO, "Usage: ./webserv [config]");
+		return 1;
+	}
+	if (argc == 2)
+		pathname = argv[1];
+
+	ConfigFile configFile(pathname);
+
+	// TODO: Ahmed change it
+	std::vector<ConfigServer> configServers = configFile.getServers();
+	std::vector<std::vector<int> > ports;
+
+	for (size_t i = 0; i < configServers.size(); i += 1)
+	{
+		std::vector<int> tmp;
+		tmp.push_back(configServers[i].getPort());
+		ports.push_back(tmp);
+	}
+
+	ServerManager	manager(ports);
+
+	manager.setConfig(&configFile);
+
 	Selector& selector = Selector::getSelector();
-	std::vector<std::vector<int> >	server_ports;
-	ServerManager 					manager("{ {2000, 8000, 4430}, {8080, 8443}, {3000, 3001} }");
 	
 	manager.forEachWorker(Worker::CreateSocketFunctor());
 	manager.forEachWorker(Selector::AddSocketFunctor());
 
 	logger->logMessage(NULL, INFO, "WebServer started");
+
 	for ( ; ; ) {
 		manager.LogMessage(TRACE, "MainLoop" );
-		selector.processEvents(manager.getQueue());
-		manager.RequestHandler();
+		for (std::vector<Server>::iterator it = manager.getServers().begin() ; it != manager.getServers().end() ; ++it)
+		{
+			selector.processEvents(*it);
+		}
 	}
-	
+
 	return(0);
 }
-
-// int main(void)
-// {
-//     Log* logger = Log::getInstance("logfile.log");
-//     Selector& selector = Selector::getSelector();
-    
-//     // Create a single worker for port 8080
-//     Worker worker(8080);
-//     worker.create_server_socket();
-//     selector.addSocket(worker);
-
-//     logger->logMessage(NULL, INFO, "WebServer started on port 8080");
-    
-//     std::queue<Request> requestQueue;
-//     for (;;) {
-//         selector.processEvents(requestQueue);
-//         // Process any requests in the queue if needed
-//     }
-    
-//     return 0;
-// }

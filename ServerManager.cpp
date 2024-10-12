@@ -1,15 +1,8 @@
 #include "ServerManager.hpp"
 
+ConfigFile *ServerManager::configFile;
+
 ServerManager::ServerManager( void ) {}
-
-ServerManager::ServerManager( const std::string ports )
-{
-	std::vector<std::vector<int> > server_ports;
-	AddServerFunctor functor(this);
-
-	server_ports = createVector( ports );
-	std::for_each(server_ports.begin(), server_ports.end(), functor);
-}
 
 ServerManager::ServerManager( std::vector<std::vector<int> > server_ports )
 {
@@ -32,51 +25,26 @@ ServerManager& ServerManager::operator=(const ServerManager& other)
 
 
 std::vector<Server>	&ServerManager::getServers() { return (this->servers); }
-std::queue<Request>	&ServerManager::getQueue(void) { return this->requests; }
-
-void	ServerManager::RequestHandler( void )
-{
-	while (this->requests.size() > 0)
-	{
-		this->requests.front().handler();
-		this->requests.pop();
-	}
-}
+std::queue<HttpRequest>	&ServerManager::getQueue(void) { return this->requests; }
 
 void ServerManager::addServer(const Server& server)
 { 
 	servers.push_back(server);
 }
 
-std::vector<std::vector<int> >	ServerManager::createVector(const std::string& data)
+void	ServerManager::LogMessage(int logLevel, const std::string& message, std::exception* ex)
 {
-	std::vector<std::vector<int> > container;
-	std::istringstream stream(data);
-	std::string line;
+	logger->logMessage(this, logLevel, message, ex);
+}
 
-	std::getline(stream, line, '{');
-	while (std::getline(stream, line, '{'))
-	{
-		std::vector<int> innerContainer;
-		std::string element;
+void	ServerManager::LogMessage(int logLevel, std::exception* ex)
+{
+	logger->logMessage(this, logLevel, m_oss.str(), ex);
+}
 
-		while (std::getline(stream, element, ','))
-		{
-			size_t endPos = element.find('}');
-			if (endPos != std::string::npos)
-			{
-				element = element.substr(0, endPos);
-				innerContainer.push_back(atoi(element.c_str()));
-				break;
-			}
-			else
-				innerContainer.push_back(atoi(element.c_str()));
-		}
-
-		if (!innerContainer.empty())
-			container.push_back(innerContainer);
-	}
-	return container;
+std::string	ServerManager::GetType( void ) const
+{
+	return "ServerManager";
 }
 
 void	ServerManager::LogMessage(int logLevel, const std::string& message, std::exception* ex)

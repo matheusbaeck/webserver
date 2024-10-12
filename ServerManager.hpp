@@ -6,6 +6,7 @@
 
 #include "ALogger.hpp"
 #include "Server.hpp"
+#include "HttpRequest.hpp"
 
 class Server;
 
@@ -16,8 +17,12 @@ class ServerManager : public ALogger
 {
 	private:
 		std::vector<Server> servers;
-		std::queue<Request>	requests;
+		std::queue<HttpRequest>	requests;
 
+		static ConfigFile *configFile;
+
+
+	public:
 		class WorkerIterator
 		{
 			private:
@@ -88,10 +93,7 @@ class ServerManager : public ALogger
 					return &(*curr);
 				}
 		};
-
-	public:
 		ServerManager( void );
-		ServerManager( const std::string );
 		ServerManager( std::vector<std::vector<int> > );
 		~ServerManager( void );
 
@@ -100,7 +102,7 @@ class ServerManager : public ALogger
 
 		/* Acessors */
 		std::vector<Server> 	&getServers( void );
-		std::queue<Request>		&getQueue( void );
+		std::queue<HttpRequest>	&getQueue( void );
 		WorkerIterator begin()
 		{
 			return WorkerIterator(servers.begin(), servers.end());
@@ -112,9 +114,7 @@ class ServerManager : public ALogger
 		}
 
 		/* Methods */
-		void							RequestHandler( void );
 		void							addServer( const Server &server );
-		std::vector<std::vector<int> >	createVector(const std::string& data);
 
 		/* Templates */
 		template<typename Func>
@@ -131,6 +131,16 @@ class ServerManager : public ALogger
 			for (WorkerIterator it = begin(); it != end() ; ++it) {
 				f(*it, this->requests);
 			}
+		}
+
+		void setConfig(ConfigFile *config)
+		{
+			ServerManager::configFile = config;
+		}
+
+		static ConfigFile *getConfigFile(void)
+		{
+			return ServerManager::configFile;
 		}
 
 		/* Functors */

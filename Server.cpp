@@ -44,6 +44,7 @@ Server& Server::operator=(const Server& other)
 	{
 		m_server_name = other.m_server_name;
 		m_workers = other.m_workers;
+		m_id      = other.m_id;
 	}
 	return (*this);
 }

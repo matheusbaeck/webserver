@@ -22,22 +22,11 @@ Worker::Worker( const Worker &other ) :
 	m_serv_port(other.m_serv_port),
 	m_id(++m_instance_counter),
 	m_addr(other.m_addr),
-	m_addrlen(other.m_addrlen)
+	m_addrlen(other.m_addrlen),
+	m_serv_socket(other.m_serv_socket)
 {
 	oss() << "Worker copy constructor "; // << other; >>> segfault
 	LogMessage(DEBUG);
-	
-	m_serv_socket = dup(other.m_serv_socket);
-	if (m_serv_socket < 0)
-	{
-		oss() << "dup: " << /*other <<  >>> seg fault */" " << strerror(errno);
-		LogMessage(WARN);
-		m_serv_socket = create_server_socket();
-	}
-	if (m_serv_socket < 0)
-	{
-		LogMessage(FATAL, "Couldn't open a server socket, we lost a worker");
-	}
 }
 
 Worker::~Worker()
@@ -56,19 +45,7 @@ Worker& Worker::operator=(const Worker& other)
 		this->m_serv_port = other.m_serv_port;
 		this->m_addr = other.m_addr;
 		this->m_addrlen = other.m_addrlen;
-
-		close(this->m_serv_socket);
-		this->m_serv_socket = dup(other.m_serv_socket);
-		if (this->m_serv_socket < 0)
-		{
-			oss() << "dup: " << /*other <<    >>> seg fault*/ " " << strerror(errno);
-			LogMessage(WARN);
-			this->m_serv_socket = create_server_socket();
-		}
-		if (this->m_serv_socket < 0)
-		{
-			LogMessage(FATAL, "Could't open a server socket, we lost a worker");
-		}
+		this->m_serv_socket = other.m_serv_socket;
 	}
 	oss() << "Copy assign complete";
 	LogMessage(DEBUG);

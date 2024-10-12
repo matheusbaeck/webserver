@@ -12,8 +12,9 @@
 #include <iostream>			//std::cout
 
 #include "ALogger.hpp"
-#include "Request.hpp"
+#include "HttpRequest.hpp"
 #include "Worker.hpp"
+#include "Server.hpp"
 #include <map>
 
 #define MAX_EVENTS 10		//epoll_wait max events at time
@@ -21,7 +22,7 @@
 
 typedef struct epoll_event epoll_event;
 
-class Request;
+//class Request;
 
 
 // this class is a singleton (ensures that a class has only one instance and provides a global point of access to that instance)
@@ -43,7 +44,7 @@ class Selector : public ALogger
 
 		/* Methods */
 		void	addSocket( const Worker & );
-		void	processEvents( std::queue<Request>& );
+		void	processEvents( Server & );
 		Worker*	getWorkerByFd( int ) const;
 
 		class	AddSocketFunctor
