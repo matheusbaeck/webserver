@@ -46,3 +46,18 @@ std::string	ServerManager::GetType( void ) const
 {
 	return "ServerManager";
 }
+
+void	ServerManager::LogMessage(int logLevel, const std::string& message, std::exception* ex)
+{
+	logger->logMessage(this, logLevel, message, ex);
+}
+
+void	ServerManager::LogMessage(int logLevel, std::exception* ex)
+{
+	logger->logMessage(this, logLevel, m_oss.str(), ex);
+}
+
+std::string	ServerManager::GetType( void ) const
+{
+	return "ServerManager";
+}
