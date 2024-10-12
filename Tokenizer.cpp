@@ -1,76 +1,109 @@
 #include "Tokenizer.hpp"
 
-void	_toLower(char &c)
+/* ------------- Constructors --------------- */
+
+Tokenizer::Tokenizer(void) {}
+
+Tokenizer::Tokenizer(const char *buffer) : std::stringstream(buffer)
 {
-	c = tolower(c);
+	this->row = 0;
+	this->col = 0;
 }
 
-Tokenizer::Tokenizer(const char *buffer)
+Tokenizer	&Tokenizer::operator=(Tokenizer &other)
 {
-	this->ss << buffer;
-}
-Tokenizer::Tokenizer(std::stringstream &_ss)
-{
-	this->ss << _ss.rdbuf() << std::noskipws;
-}
-
-std::string	Tokenizer::toLower(std::string &str)
-{
-	std::for_each(str.begin(), str.end(), _toLower);	
-	return str;
-}
-
-bool	Tokenizer::isNewline(void)
-{
-	if (this->ss.peek() == '\r')
+	if (&other != this)
 	{
-		this->ss.get();
-		if (this->ss.peek() == '\n')
+		std::stringstream::str(other.str());
+	}
+	return *this;
+}
+
+// Tokenizer::Tokenizer(Tokenizer &other) : std::stringstream(other.str())
+// {
+// 	(void) other;
+// }
+
+Tokenizer::~Tokenizer(void) {}
+
+/* ------------- Methods --------------- */
+
+void	Tokenizer::setBuffer(const char *buffer)
+{
+	this->str(buffer);
+}
+
+bool	Tokenizer::isCRLF(void)
+{
+	if (this->peek() == '\r')
+	{
+		this->get();
+		if (this->peek() == '\n')
 		{
-			this->ss.get();
+			this->get();
 			return true;
 		}
 	}
 	return false;
 }
 
+bool	Tokenizer::end(void)
+{
+	return this->eof() || this->peek() == -1;
+}
+
+// TODO: trim make them as one function by passing delm
+
 void	Tokenizer::trim(void)
 {
-	while (!this->ss.eof() && isspace(this->ss.peek()))
+	while (!this->end() && isspace(this->peek()))
 	{
-		this->ss.get();
+		this->get();
 	}
 }
 
-bool Tokenizer::end(void) 
+void	Tokenizer::trimSpace(void)
 {
-	return ss.eof();
+	while (!this->end() && this->peek() == ' ')
+	{
+		this->get();
+	}
 }
 
-
-std::string Tokenizer::next(char c)
+void	Tokenizer::consume(void)
 {
-	//char c;
-	std::string token;
-	this->trim();
-	while (!this->end() && this->ss.peek() != -1)
+	while (!this->end() && this->peek() != '\n')
 	{
-		if (this->isNewline())
+		this->get();
+	}
+	if (this->peek() == '\n')
+	{
+		this->get();
+	}
+}
+
+void	Tokenizer::expected(int c, std::string const &chars)
+{
+	(void) chars;
+	if (this->peek() != c)
+	{
+		this->trim();
+		//std::cerr << "error: unexpected token: " << this->next(chars) << std::endl;
+		std::cerr << "error: expected token: `" << static_cast<char>(c) << "`" << std::endl;
+		exit(1);
+	}
+	this->get();
+}
+
+std::string	Tokenizer::next(std::string const &chars)
+{
+	std::string token;
+
+	while (!this->end())
+	{
+		if (chars.find(this->peek()) != std::string::npos)
 			break;
-
-		// TODO: pass it as argument
-		//std::cout << "[" << (char)this->ss.peek() << "]" << std::endl;
-		if (this->ss.peek() == c)
-		{
-			this->ss.get();
-			break;
-		}
-
-		//this->ss >> c >> std::noskipws;
-		token += this->ss.get();
-		
-
-		//token += this->ss.get();
+		token += this->get();
 	}
 	return token;
 }

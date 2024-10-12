@@ -3,19 +3,31 @@
 
 #include <sstream>
 #include <algorithm>
+#include <iostream>
 
-class Tokenizer
+class Tokenizer : public std::stringstream
 {
-	std::stringstream ss;
+	int	row;
+	int	col;
 public:
+	
 	Tokenizer(const char *buffer);
-	Tokenizer(std::stringstream &_ss);
+	Tokenizer(void);
+	~Tokenizer(void);
+	//Tokenizer(Tokenizer &other);
+	Tokenizer &operator=(Tokenizer &other);
 
-	std::string	toLower(std::string &str);
-	void		trim(void);
-	bool		end(void);
-	bool		isNewline(void);
-	std::string next(char c);
+	void				setBuffer(const char *buffer);
+
+	bool				isCRLF(void);
+	bool				end(void);
+	void				trim(void);
+	void				trimSpace(void);
+	void				consume(void);
+	void				expected(int c, std::string const &chars);
+	std::string	next(std::string const &chars);
+
 };
+
 
 #endif //TOKENIZER_HPP

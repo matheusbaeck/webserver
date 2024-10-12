@@ -2,38 +2,16 @@
 #define CONFIG_FILE_HPP
 
 #include <string>
-#include <vector>
 #include <map>
-#include <sstream>
 #include <fstream>
+#include <vector>
+#include <sstream>
 #include <iostream>
-#include <unistd.h>
-#include <string.h>
-#include <algorithm>
-#include <stdint.h>
+#include "Tokenizer.hpp"
 
-#define PORT_MIN	0
-#define PORT_MAX 	65535
-#define ARR_LEN(arr) sizeof(arr) / sizeof(arr[0])
+#define PEEK(e) std::cout << "peek -> " << (char)e << std::endl
 
-template<typename T>
-void	print(const T &e)
-{
-	std::cout << "    " << e << std::endl;
-}
-template<typename T, typename FNC>
-void	iter(const T &e, FNC fnc)
-{
-	for_each(e.begin(), e.end(), fnc);
-}
-
-template<typename T>
-void	printKeyValue(const T &e)
-{
-
-	std::cout << "        key  : " << e.first  << std::endl;
-	std::cout << "        value: " << e.second << std::endl;
-}
+// TODO: make route inherite from server config.
 
 enum StatusCode
 {
@@ -42,6 +20,7 @@ enum StatusCode
 	FORBIDDEN  = 403,
 	NFOUND     = 404,
 	NALLOWED   = 405,
+	CTOOLARGE  = 413,
 	NSUPPORTED = 505,
 };
 
@@ -51,94 +30,125 @@ enum Method {
 	DELETE,
 };
 
-class Route
-{
-	std::string path;
-	std::string root;
-	std::vector<Method> methods;
-	std::vector<std::string> default_files;
-	std::map<StatusCode, std::string> redirection;
-	bool autoIndex;
-public:
-	Route(void);
-	// Getters
-	
-	bool	getAutoIndex(void);
-	const std::string &getPath(void) const;
-	const std::string &getRoot(void) const;
-	std::vector<Method> &getMethods(void);
-	std::vector<std::string> &getDefaultFiles(void);
-	std::map<StatusCode, std::string> &getRedirection(void);
-
-
-	// Parsing
-	void	parseMethods(const std::string &line);
-	void	parseRedirection(const std::string &line);
-	void	parseRoot(const std::string &line);
-	void	parseAutoIndex(const std::string &line);
-	void	parseDefaultFile(const std::string &line);
-
-	void	setPath(const std::string &path);
-};
-
+class Route;
 
 
 class ConfigServer
 {
-	// General config
-	size_t								clientBodySize;
-	std::vector<uint16_t>				ports;
-	std::vector<std::string>			serverNames;
-	std::map<StatusCode, std::string>	error_pages;
+	// std::vector<size_t>	ports;
 
-	// Route config
 	std::vector<Route> routes;
+	Tokenizer *tokenizer;
+protected:
+
+	bool	isResized;
+	size_t			port;
+	size_t			client_max_body_size;
+	std::string root;
+	std::vector<std::string> 		 	 server_names;
+	std::vector<std::string>		 	 index;
+	std::map<StatusCode, std::string>	 error_pages;
+	std::map<StatusCode, std::string> 	 redirection;
 
 public:
+	/* ------- Constructors ------- */
 	ConfigServer(void);
+	~ConfigServer(void);
+	ConfigServer(ConfigServer const &other);
+	ConfigServer &operator=(ConfigServer const &other);
+
+	/* ------- Methods ------- */
+	Route	*getRoute(std::string const &path);
+	std::vector<Route>	&getRoutes(void);
+
+	void	parseListen(void);
+
+	void	parseServerName(std::vector<std::string> &vec);
+	void	parseIndex(void);
+
+	void	parseRoot(void);
+
+	void	parseErrorPage(void);
+
+	void	parseBodySize(void);
+
+	void	parseRoute(void);
+
+	void	parse(void);
 
 
-	// Getters
-	size_t getClientBodySize();
-	
-	std::vector<Route>		 			&getRoutes(void);
-	std::vector<uint16_t>				&getPorts(void);
-	std::vector<std::string> 			&getServerNames(void);
-	std::map<StatusCode, std::string>	&getErrorPages(void);
+	/* ------- Getters ------- */
+	size_t	getPort(void);
+	size_t	getClientMaxBodySize(void);
+	std::string	&getRoot(void);
+	std::vector<std::string> &getServerNames(void);
+	std::vector<std::string> &getIndex(void);
+	std::map<StatusCode, std::string> &getErrorPages(void);
 
 
-	// Parsing
-	void		parseRoute(std::string path, std::stringstream &ss);
-	void		parseClientBodySize(const std::string &line);
-	void		parseErrorPages(const std::string &line);
-	void		parsePorts(const std::string &line);
-	void		parseServerNames(const std::string &line);
-	std::string parseRoutePath(std::stringstream &ss);
+};
 
+class Route : public ConfigServer
+{
+	//bool isResized;
+	std::vector<Method>  methods;
+	bool				 autoindex;
+
+	Tokenizer *tokenizer;
+public:
+	// temp
+	std::string path;
+
+	Route(void);
+	~Route(void);
+	Route(Route const &other);
+	Route(ConfigServer const &other);
+	Route	&operator=(Route const &other);
+
+	void	parseMethods(void);
+	void	parseRedirection(void);
+	void	parseAutoIndex(void);
+	//void	parseIndex(void);
+
+	bool				getAutoIndex(void);
+	std::string 					&getRoot(void);
+	std::vector<Method>				  &getMethods(void);
+	std::map<StatusCode, std::string> &getRedirection(void);
+	//std::vector<std::string>		  &getIndices(void);
 };
 
 class ConfigFile
 {
-	std::stringstream 	ss;
-	std::ifstream 		file;
+  static Tokenizer tokenizer;
+	std::ifstream file;
 	std::vector<ConfigServer> servers;
 public:
+
+	static const char *delim;
+	static const char *pathname;
+
+	/* ------- Constructors ------- */
 	ConfigFile(void);
-	ConfigFile(const char *pathname);
 	~ConfigFile(void);
+	ConfigFile(const char *pathname);
+	ConfigFile(ConfigFile const &other);
+	ConfigFile	&operator=(ConfigFile const &other);
 
+
+	/* ------- Methods ------- */
+	void	parse(void);
 	std::vector<ConfigServer>	&getServers(void);
-	
-	static	int			toNumber(const std::string &str);
-	static	bool		isNumber(const std::string &str);
-	static	bool		isSpace(const std::string &str);
-	static	Method		isMethod(const std::string &method);
-	static	std::string	getLine(std::stringstream &ss);
-	static  std::string	getToken(std::stringstream &ss);
-	static  std::string cutComment(std::string &line);
 
-	void	printTree(void);
-	void	parseServer(void);
+
+	/* ------- Static Methods ------- */
+	static bool 	 isNumber(std::string const &str);
+	static size_t	 toNumber(std::string const &str);
+	static Method 	 isMethod(std::string const &method);
+	static Tokenizer &getTokenizer(void);
+	
 };
+
+std::ostream	&operator<<(std::ostream &os, ConfigFile &obj);
+
 
 #endif  // CONFIG_FILE_HPP
