@@ -12,7 +12,7 @@
 #include <iostream>			//std::cout
 
 #include "ALogger.hpp"
-#include "Request.hpp"
+#include "HttpRequest.hpp"
 #include "Worker.hpp"
 
 #define MAX_EVENTS 10		//epoll_wait max events at time
@@ -20,7 +20,7 @@
 
 typedef struct epoll_event epoll_event;
 
-class Request;
+//class Request;
 
 class Worker;
 
@@ -40,19 +40,20 @@ class Selector : public ALogger
 		static Selector& getSelector() { return selector; }
 
 		void	addSocket( int ); //This adds the listening socket to the list of file descriptors being monitored by the epoll instance.
-		void	putEventsToQ( const Worker &, std::queue<Request> & );
+		void	putEventsToQ( const Worker &, std::queue<HttpRequest> & );
 		void	setnonblocking(int conn_sock);
 
 		class Functor
 		{
 			private:
 				Selector*	selector;
-				void (Selector::*putEventsToQ)(const Worker &, std::queue<Request> &);
+				void (Selector::*putEventsToQ)(const Worker &, std::queue<HttpRequest> &);
 			public:
-				Functor(void (Selector::*f)(const Worker &, std::queue<Request> &))
+				Functor(void (Selector::*f)(const Worker &, std::queue<HttpRequest> &))
 					: selector(&Selector::getSelector()), putEventsToQ(f) {}
 
-				void operator()(const Worker &worker, std::queue<Request> &queue) const
+				//void operator()(const Worker &worker, std::queue<Request> &queue) const
+				void operator()(const Worker &worker, std::queue<HttpRequest> &queue) const
 				{
 					
 					(selector->*putEventsToQ)(worker, queue);

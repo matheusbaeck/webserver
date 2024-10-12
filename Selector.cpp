@@ -40,8 +40,9 @@ void	Selector::setnonblocking(int conn_sock)
 	}
 }
 
-void	Selector::putEventsToQ( const Worker &worker , std::queue<Request> &requests )
+void	Selector::putEventsToQ( const Worker &worker , std::queue<HttpRequest> &requests )
 {
+	(void) requests;
 	int conn_sock;
 	socklen_t len;
 	
@@ -53,9 +54,8 @@ void	Selector::putEventsToQ( const Worker &worker , std::queue<Request> &request
 		perror("epoll_wait");
 		/* handle error */
 	}
-	// else {
-	// 	std::cout << "epoll_wait returned " << this->m_nfds << " events." << std::endl;
-	// }
+
+	std::cout << "number of fd: " << this->m_nfds << std::endl;
 
 	for (int n = 0; n < this->m_nfds; ++n) {
 		if (this->m_events[n].data.fd == worker.sock()) {
@@ -75,7 +75,9 @@ void	Selector::putEventsToQ( const Worker &worker , std::queue<Request> &request
 			}
 		} else {
 			LogMessage(INFO, "request add to queue");
-			requests.push(Request(this->m_events[n].data.fd, worker.port()));
+			
+
+			//requests.push(Request(this->m_events[n].data.fd, worker.port()));
 		}
 	}
 }

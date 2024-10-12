@@ -39,7 +39,7 @@ Worker::~Worker()
 {
 	oss() << "Shutdown!";
 	LogMessage(DEBUG);
-	close(this->m_serv_socket);
+	//close(this->m_serv_socket);
 }
 
 Worker& Worker::operator=(const Worker& other)
@@ -51,7 +51,9 @@ Worker& Worker::operator=(const Worker& other)
 		this->m_serv_port = other.m_serv_port;
 		this->m_addr = other.m_addr;
 		this->m_addrlen = other.m_addrlen;
+		this->m_serv_socket = other.m_serv_socket;
 
+		/*
 		close(this->m_serv_socket);
 		this->m_serv_socket = dup(other.m_serv_socket);
 		if (this->m_serv_socket < 0)
@@ -63,7 +65,7 @@ Worker& Worker::operator=(const Worker& other)
 		if (this->m_serv_socket < 0)
 		{
 			LogMessage(FATAL, "Could't open a server socket, we lost a worker");
-		}
+		}*/
 	}
 	oss() << "Copy assign complete";
 	LogMessage(DEBUG);
