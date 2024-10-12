@@ -1,27 +1,8 @@
 #include "ServerManager.hpp"
 
-// ServerManager::ServerManager( void ) {}
+ConfigFile *ServerManager::configFile;
 
-// ServerManager::ServerManager(int count, ...)
-// {
-// 	va_list args;
-// 	va_start(args, count);
-
-// 	for (int i = 0; i < count; ++i) {
-// 		Server server = va_arg(args, Server);
-// 		this->addServer(server);
-// 	}
-// 	va_end(args);
-// }
-
-ServerManager::ServerManager( std::string ports )
-{
-	std::vector<std::vector<int> > server_ports;
-	AddServerFunctor functor(this);
-
-	server_ports = createVector( ports );
-	std::for_each(server_ports.begin(), server_ports.end(), functor);
-}
+ServerManager::ServerManager( void ) {}
 
 ServerManager::ServerManager( std::vector<std::vector<int> > server_ports )
 {
@@ -43,84 +24,25 @@ ServerManager& ServerManager::operator=(const ServerManager& other)
 }
 
 
-void ServerManager::addServer(const Server& server) { servers.push_back(server); }
+std::vector<Server>	&ServerManager::getServers() { return (this->servers); }
+std::queue<HttpRequest>	&ServerManager::getQueue(void) { return this->requests; }
 
-std::vector<Server>		&ServerManager::getServers() { return (this->servers); }
-std::queue<HttpRequest>		&ServerManager::getQueue(void) { return this->requests; }
-
-void	ServerManager::RequestHandler( void )
-{
-	while (this->requests.size() > 0)
-	{
-		this->requests.front().handler();
-		this->requests.pop();
-	}
+void ServerManager::addServer(const Server& server)
+{ 
+	servers.push_back(server);
 }
 
-/* void ServerManager::forEachWorker(void (*f)( const Worker & worker )) const
+void	ServerManager::LogMessage(int logLevel, const std::string& message, std::exception* ex)
 {
-	for (ServerManager::WorkerIterator it(servers.begin(), servers.end()) ; it.curServer() != it.endServer() ; ++it) {
-		f(*it);
-	}
-} */
-
-void ServerManager::forEachWorker(void (*f)( const Worker & worker )) const
-{
-	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
-		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
-			std::cout << "inside forEachWorker " << *w << std::endl;
-			f(*w);
-		}
-	}
+	logger->logMessage(this, logLevel, message, ex);
 }
 
-void ServerManager::forEachWorker(void (*f)( const Worker & worker, void* param ), void* param)
+void	ServerManager::LogMessage(int logLevel, std::exception* ex)
 {
-	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
-		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
-			f(*w, param);
-		}
-	}
+	logger->logMessage(this, logLevel, m_oss.str(), ex);
 }
 
-void	ServerManager::throwWorker(void (*f)( const Worker & worker, std::queue<HttpRequest>& ))
+std::string	ServerManager::GetType( void ) const
 {
-	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
-		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w )
-		{
-			std::cout << "server id: " << it->id() << ", worker fd: " << w->sock() << std::endl;
-			f(*w, this->requests);
-		}
-	}
-}
-
-std::vector<std::vector<int> > createVector(const std::string& data)
-{
-	std::vector<std::vector<int> > container;
-	std::istringstream stream(data);
-	std::string line;
-
-	std::getline(stream, line, '{');
-	while (std::getline(stream, line, '{'))
-	{
-		std::vector<int> innerContainer;
-		std::string element;
-
-		while (std::getline(stream, element, ','))
-		{
-			size_t endPos = element.find('}');
-			if (endPos != std::string::npos)
-			{
-				element = element.substr(0, endPos);
-				innerContainer.push_back(atoi(element.c_str()));
-				break;
-			}
-			else
-				innerContainer.push_back(atoi(element.c_str()));
-		}
-
-		if (!innerContainer.empty())
-			container.push_back(innerContainer);
-	}
-	return container;
+	return "ServerManager";
 }

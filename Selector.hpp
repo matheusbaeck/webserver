@@ -14,6 +14,8 @@
 #include "ALogger.hpp"
 #include "HttpRequest.hpp"
 #include "Worker.hpp"
+#include "Server.hpp"
+#include <map>
 
 #define MAX_EVENTS 10		//epoll_wait max events at time
 #define TIME_OUT 200			//epoll_wait max time
@@ -22,7 +24,6 @@ typedef struct epoll_event epoll_event;
 
 //class Request;
 
-class Worker;
 
 // this class is a singleton (ensures that a class has only one instance and provides a global point of access to that instance)
 class Selector : public ALogger
@@ -32,49 +33,38 @@ class Selector : public ALogger
 		epoll_event		m_ev;
 		epoll_event		m_events[MAX_EVENTS];
 		int				m_nfds, m_epollfd;
-		
+
+		std::map<int, Worker*>	m_fd_to_worker_map;
+
 		Selector( void );
+
 	public:
 		~Selector( void );
+		static Selector& getSelector( void ) { return selector; }
 
-		static Selector& getSelector() { return selector; }
+		/* Methods */
+		void	addSocket( const Worker & );
+		void	processEvents( Server & );
+		Worker*	getWorkerByFd( int ) const;
 
-		void	addSocket( int ); //This adds the listening socket to the list of file descriptors being monitored by the epoll instance.
-		void	putEventsToQ( const Worker &, std::queue<HttpRequest> & );
-		void	setnonblocking(int conn_sock);
-
-		class Functor
+		class	AddSocketFunctor
 		{
 			private:
-				Selector*	selector;
-				void (Selector::*putEventsToQ)(const Worker &, std::queue<HttpRequest> &);
+				Selector* selector;
 			public:
-				Functor(void (Selector::*f)(const Worker &, std::queue<HttpRequest> &))
-					: selector(&Selector::getSelector()), putEventsToQ(f) {}
+				AddSocketFunctor() : selector(&Selector::getSelector()) {}
 
-				//void operator()(const Worker &worker, std::queue<Request> &queue) const
-				void operator()(const Worker &worker, std::queue<HttpRequest> &queue) const
+				void operator()(const Worker &worker) const
 				{
-					
-					(selector->*putEventsToQ)(worker, queue);
+					selector->addSocket(worker);
 				}
 		};
 
-		void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL)
-		{
-			logger->logMessage(this, logLevel, message, ex);
-		}
 
-		void LogMessage(int logLevel, std::exception* ex = NULL)
-		{
-			logger->logMessage(this, logLevel, m_oss.str(), ex);
-		}
-
-		virtual std::string GetType() const
-		{
-			return "Selector";
-		}
-
+		/* Logger */
+		void	LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL);
+		void	LogMessage(int logLevel, std::exception* ex = NULL);
+		virtual	std::string GetType() const;
 };
 
 #endif

@@ -14,7 +14,6 @@ public:
 	Tokenizer(const char *buffer);
 	Tokenizer(void);
 	~Tokenizer(void);
-	//Tokenizer(Tokenizer &other);
 	Tokenizer &operator=(Tokenizer &other);
 
 	void				setBuffer(const char *buffer);

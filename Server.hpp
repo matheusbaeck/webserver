@@ -27,14 +27,41 @@ class Server : public ALogger
 		Server( const Server & );
 		~Server( void );
 
-		void								addWorker( const Worker & );
+		/* Operators */
+		Server& operator=(const Server& );
+
+		/* Acessors */
+		int									id( void ) const;
 		std::vector<Worker>					&getWorkers( void );
+		std::vector<Worker>::iterator		workersBegin( void );
+		std::vector<Worker>::iterator		workersEnd( void );
 		std::vector<Worker>::const_iterator	workersBegin( void ) const;
 		std::vector<Worker>::const_iterator	workersEnd( void ) const;
 
-		int		id( void ) const;
-
-		Server& operator=(const Server& other);
+		/* Methods */
+		void addWorker( const Worker &w )
+		{
+			Worker temp;
+			temp = w;
+			oss() << "About to push_back. Vector size: " << m_workers.size();
+			LogMessage(DEBUG);
+			try 
+			{
+				m_workers.push_back(temp);
+				oss() << "push_back successful. New size: " << m_workers.size();
+				LogMessage(DEBUG);
+			}
+			catch (const std::exception& e)
+			{
+				oss() << "Exception during push_back: " << e.what();
+				LogMessage(ERROR);
+			}
+			catch (...)
+			{
+				oss() << "Unknown exception during push_back";
+				LogMessage(ERROR);
+			}
+		}
 
 		class AddWorkerFunctor {
 			private:
@@ -43,26 +70,14 @@ class Server : public ALogger
 				AddWorkerFunctor(Server *srv) : server(srv) {}
 
 				void operator()(int port) {
-					server->addWorker(Worker(port));
+					Worker w(port);
+					server->addWorker(w);
 				}
 		};
 
-		void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL)
-		{
-			logger->logMessage(this, logLevel, message, ex);
-		}
-
-		void LogMessage(int logLevel, std::exception* ex = NULL)
-		{
-			logger->logMessage(this, logLevel, m_oss.str(), ex);
-		}
-
-		virtual std::string GetType() const
-		{
-			std::ostringstream oss;
-			oss << "Server:" << m_id;
-			return oss.str();
-		}
+		void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL);
+		void LogMessage(int logLevel, std::exception* ex = NULL);
+		virtual std::string GetType() const;
 };
 
 std::ostream &operator<<( std::ostream &, const Server & );

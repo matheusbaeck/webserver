@@ -79,8 +79,8 @@ void	ConfigFile::parse(void)
 		{
 			error("unexpected token");
 		}
+		this->servers.push_back(server);
 	}
-	this->servers.push_back(server);
 }
 
 std::vector<ConfigServer>	&ConfigFile::getServers(void)
@@ -130,7 +130,7 @@ Method ConfigFile::isMethod(std::string const &method)
 ConfigServer::ConfigServer(void)
 {
 	this->isResized = false;
-	this->index.push_back("index.html");
+	//this->index.push_back("index.html");
 	this->port      = 80; // default one
 	this->client_max_body_size = 1024;
 	this->tokenizer = &ConfigFile::getTokenizer();

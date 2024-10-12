@@ -124,6 +124,7 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 
 HttpRequest::HttpRequest(const char *buffer)
 {
+	std::cout << "created http request" << std::endl;
 	this->tokenizer.setBuffer(buffer);
 }
 

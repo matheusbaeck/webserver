@@ -19,11 +19,6 @@ Tokenizer	&Tokenizer::operator=(Tokenizer &other)
 	return *this;
 }
 
-// Tokenizer::Tokenizer(Tokenizer &other) : std::stringstream(other.str())
-// {
-// 	(void) other;
-// }
-
 Tokenizer::~Tokenizer(void) {}
 
 /* ------------- Methods --------------- */
