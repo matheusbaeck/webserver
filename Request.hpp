@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <unistd.h>
+#include <stdio.h>
+#include <errno.h>
 #include <cstring>
 #include <stdio.h>
 

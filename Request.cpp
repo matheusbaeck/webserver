@@ -34,6 +34,8 @@ void	Request::handler( void )
 							"\r\n"
 							"Hello World!";
 	write(this->m_fd, response, strlen(response));
+	std:: cout << "request sent" << std::endl;
+
 	//close(fd);
 }
 

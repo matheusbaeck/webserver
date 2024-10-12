@@ -6,7 +6,7 @@
 #    By: math <math@student.42.fr>                  +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/08/30 18:37:26 by aabourri         ###   ########.fr        #
+#    Updated: 2024/10/12 00:30:51 by math             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -19,16 +19,19 @@ SRCS        = $(wildcard $(SRCSDIR)/*.cpp)
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 
 CC          = g++
-CFLAGS      = -Wall -Wextra -Werror # -std=c++98
+CFLAGS      = -g3 -Wall -Wextra -Werror -std=c++98
+
+LOG_LEVEL   ?= 1
+DEFINES     = -DCOUT_LOG_LEVEL=$(LOG_LEVEL)
 
 all: $(NAME)
 
 $(NAME): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) $(DEFINES) -o $@ $^
 
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEFINES) -c $< -o $@
 
 clean:
 	rm -rf $(OBJDIR)
