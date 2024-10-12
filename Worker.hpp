@@ -19,7 +19,7 @@
 	#include <sstream>
 
 
-	#include "Request.hpp"
+	#include "HttpRequest.hpp"
 	#include "Selector.hpp"
 	#include "ALogger.hpp"
 

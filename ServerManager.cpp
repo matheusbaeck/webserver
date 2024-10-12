@@ -46,7 +46,7 @@ ServerManager& ServerManager::operator=(const ServerManager& other)
 void ServerManager::addServer(const Server& server) { servers.push_back(server); }
 
 std::vector<Server>		&ServerManager::getServers() { return (this->servers); }
-std::queue<Request>		&ServerManager::getQueue(void) { return this->requests; }
+std::queue<HttpRequest>		&ServerManager::getQueue(void) { return this->requests; }
 
 void	ServerManager::RequestHandler( void )
 {
@@ -83,10 +83,12 @@ void ServerManager::forEachWorker(void (*f)( const Worker & worker, void* param 
 	}
 }
 
-void	ServerManager::throwWorker(void (*f)( const Worker & worker, std::queue<Request>& ))
+void	ServerManager::throwWorker(void (*f)( const Worker & worker, std::queue<HttpRequest>& ))
 {
 	for (ServerIterator it = this->servers.begin() ; it != servers.end() ; ++it) {
-		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w ) {
+		for (WorkerIteratorInternal w = it->workersBegin(); w != it->workersEnd() ; ++w )
+		{
+			std::cout << "server id: " << it->id() << ", worker fd: " << w->sock() << std::endl;
 			f(*w, this->requests);
 		}
 	}

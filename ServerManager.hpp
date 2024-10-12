@@ -16,7 +16,7 @@ class ServerManager : public ALogger
 {
 	private:
 		std::vector<Server> servers;
-		std::queue<Request>	requests;
+		std::queue<HttpRequest>	requests;
 
 		class WorkerIterator
 		{
@@ -51,12 +51,12 @@ class ServerManager : public ALogger
 
 		void					addServer( const Server & );
 		std::vector<Server> 	&getServers( void );
-		std::queue<Request>		&getQueue(void);
+		std::queue<HttpRequest>		&getQueue(void);
 		
 		void					RequestHandler( void );
 		void					forEachWorker(void (*f)( const Worker & )) const;
 		void					forEachWorker(void (*f)( const Worker & worker, void* param ), void* param);
-		void					throwWorker(void (*f)( const Worker & worker, std::queue<Request>& ));
+		void					throwWorker(void (*f)( const Worker & worker, std::queue<HttpRequest>& ));
 
 		template <typename Func>
 		void throwWorker(Func func) {
