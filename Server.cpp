@@ -15,7 +15,7 @@ Server::Server(int count, ...)
 	va_end(args);
 }
 
-Server::Server( std::vector<int> workers_port ) : m_id(++m_instance_counter)
+Server::Server( std::vector<uint16_t> workers_port ) : m_id(++m_instance_counter)
 {
 	oss() << "Server constructor";
 	LogMessage(DEBUG);

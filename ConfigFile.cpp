@@ -54,12 +54,22 @@ ConfigFile	&ConfigFile::operator=(ConfigFile const &other)
 
 /* ------------- Methods --------------- */
 
+std::vector<std::vector<uint16_t> >	ConfigFile::getPorts(void)
+{
+	std::vector<std::vector<uint16_t> > ports;
+	for (size_t i = 0; i < servers.size(); i += 1)
+	{
+		ports.push_back(servers[i].getPorts());
+	}
+	return ports;
+}
+
 void	ConfigFile::parse(void)
 {
-	ConfigServer server;
 	
 	while (!this->tokenizer.end())
 	{
+		ConfigServer server;
 		this->tokenizer.trim();
 
 		if (this->tokenizer.peek() == '#')
@@ -131,7 +141,8 @@ ConfigServer::ConfigServer(void)
 {
 	this->isResized = false;
 	//this->index.push_back("index.html");
-	this->port      = 80; // default one
+	
+	//this->ports.push_back(80); // default one
 	this->client_max_body_size = 1024;
 	this->tokenizer = &ConfigFile::getTokenizer();
 }
@@ -147,7 +158,7 @@ ConfigServer &ConfigServer::operator=(ConfigServer const &other)
 {
 	if (this != &other)
 	{
-		this->port = other.port;
+		this->ports  = other.ports;
 		this->client_max_body_size = other.client_max_body_size;
 		this->root = other.root;
 		this->server_names = other.server_names;
@@ -162,34 +173,36 @@ ConfigServer &ConfigServer::operator=(ConfigServer const &other)
 /* ------------- Methods --------------- */
 void	ConfigServer::parseListen(void)
 {
-	// TODO: try to parse multiple ports
+	int	port;
 	std::string token;
 
-	this->tokenizer->trim();
+	while (!this->tokenizer->end())
+	{
+		this->tokenizer->trim();
+		if (this->tokenizer->peek() == '#')
+		{
+			this->tokenizer->consume();
+		}
+		if (std::string("{}\n;").find(this->tokenizer->peek()) != std::string::npos)
+			break;
 
-	if (this->tokenizer->peek() == '#')
-	{
-		this->tokenizer->consume();
-	}
-	token = this->tokenizer->next(ConfigFile::delim);
-	if (token.empty())
-	{
-		error("invalid argument");
-	}
-	if (!ConfigFile::isNumber(token))
-	{
-		error("invalid port number: " + token);
-	}
-	this->port = ConfigFile::toNumber(token);
-	
-	if (this->port > 65535)
-	{
-		error("port " + token + " must be between 0 - 65535");
-	}
-	this->tokenizer->trim();
-	if (this->tokenizer->peek() == '#')
-	{
-		this->tokenizer->consume();
+		token = this->tokenizer->next(ConfigFile::delim);
+		if (token.empty())
+		{
+			error("invalid argument");
+		}
+		if (!ConfigFile::isNumber(token))
+		{
+			error("invalid port number: " + token);
+		}
+
+		port = ConfigFile::toNumber(token);
+
+		if (port > 65535)
+		{
+			error("port " + token + " must be between 0 - 65535");
+		}
+		this->ports.push_back(port);
 	}
 
 	this->tokenizer->trim();
@@ -494,12 +507,18 @@ void	ConfigServer::parse(void)
 	this->tokenizer->expected('}', ConfigFile::delim);
 }
 
+void	ConfigServer::clear(void)
+{
+		
+}
+
 /* ------------- Getters --------------- */
 
-size_t	ConfigServer::getPort(void)
+std::vector<uint16_t>	&ConfigServer::getPorts(void)
 {
-	return this->port;
+	return this->ports;
 }
+
 size_t	ConfigServer::getClientMaxBodySize(void)
 {
 	return this->client_max_body_size;
@@ -565,13 +584,9 @@ Route	&Route::operator=(Route const &other)
 		this->path    = other.path;
 		this->methods = other.methods;
 		this->root = other.root;
-
 		this->autoindex = other.autoindex;
 		this->tokenizer = other.tokenizer;
 		this->index = other.index;
-		//this->index   = other.index;
-		//this->indices = other.indices;
-		//this->redirection = other.redirection;
 	}
 	return *this;
 }
@@ -748,26 +763,47 @@ std::map<StatusCode, std::string> &Route::getRedirection(void)
 	return this->redirection;
 }
 
-// std::vector<std::string>	&Route::getIndices(void)
+template<typename T>
+void	print(const T &e)
+{
+	std::cout << e << " ";
+}
+
+
+// std::ostream	&operator<<(std::ostream &os, ConfigFile &obj)
 // {
-// 	return this->index;
+// 	std::vector<ConfigServer> servers = obj.getServers();
+
+// 	for (size_t i = 0; i < servers.size(); i += 1)
+// 	{
+// 		std::cout << "listen: ";
+// 		std::for_each(servers[i].getPorts().begin(), servers[i].getPorts().end(), print<uint16_t>);
+// 		PUT("\nserver_name: ", servers[i].getServerNames()[0]);
+// 		std::vector<Route> routes = servers[i].getRoutes();
+// 		for (size_t i = 0; i < routes.size(); i += 1)
+// 		{
+// 			PUT("location: ", routes[i].path);
+// 			PUT("size of index: ", routes[i].getIndex().size());
+// 			//PUT("index: ", routes[i].getIndices()[0]);
+// 		}
+// 	}
+// 	std::cout << std::endl;
+// 	return os;
 // }
 
-std::ostream	&operator<<(std::ostream &os, ConfigFile &obj)
+std::ostream	&operator<<(std::ostream &os, ConfigServer &obj)
 {
-	std::vector<ConfigServer> servers = obj.getServers();
-	for (size_t i = 0; i < servers.size(); i += 1)
-	{
-		PUT("listen     : ", servers[i].getPort());
-		PUT("server_name: ", servers[i].getServerNames()[0]);
-		std::vector<Route> routes = servers[i].getRoutes();
-		for (size_t i = 0; i < routes.size(); i += 1)
-		{
-			PUT("location: ", routes[i].path);
-			PUT("size of index: ", routes[i].getIndex().size());
-			//PUT("index: ", routes[i].getIndices()[0]);
-		}
-	}
+	std::cout << "ports: ";
+	std::for_each(obj.getPorts().begin(), obj.getPorts().end(), print<uint16_t>);
 	std::cout << std::endl;
+	
+	std::cout << "server_names: ";
+	std::for_each(obj.getServerNames().begin(), obj.getServerNames().end(), print<std::string>);
+	std::cout << std::endl;
+
+	std::cout << "index: ";
+	std::for_each(obj.getIndex().begin(), obj.getIndex().end(), print<std::string>);
+	std::cout << std::endl;
+
 	return os;
 }

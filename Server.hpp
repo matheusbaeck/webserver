@@ -23,7 +23,7 @@ class Server : public ALogger
 
 	public:
 		Server( int, ... );
-		Server( std::vector<int> );
+		Server( std::vector<uint16_t> );
 		Server( const Server & );
 		~Server( void );
 

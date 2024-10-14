@@ -94,7 +94,7 @@ class ServerManager : public ALogger
 				}
 		};
 		ServerManager( void );
-		ServerManager( std::vector<std::vector<int> > );
+		ServerManager( std::vector<std::vector<uint16_t> > );
 		~ServerManager( void );
 
 		/* Operator */
@@ -150,7 +150,7 @@ class ServerManager : public ALogger
 			public:
 				AddServerFunctor(ServerManager* sm) : serverManager(sm) {}
 
-				void operator()(const std::vector<int>& ports) {
+				void operator()(const std::vector<uint16_t>& ports) {
 					serverManager->addServer(Server(ports));
 				}
 		};

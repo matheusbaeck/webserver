@@ -8,6 +8,7 @@
 #include <sstream>
 #include <iostream>
 #include "Tokenizer.hpp"
+#include "stdint.h"
 
 #define PEEK(e) std::cout << "peek -> " << (char)e << std::endl
 
@@ -35,14 +36,13 @@ class Route;
 
 class ConfigServer
 {
-	// std::vector<size_t>	ports;
-
 	std::vector<Route> routes;
 	Tokenizer *tokenizer;
 protected:
-
 	bool	isResized;
-	size_t			port;
+
+	std::vector<uint16_t> ports;
+
 	size_t			client_max_body_size;
 	std::string root;
 	std::vector<std::string> 		 	 server_names;
@@ -61,6 +61,8 @@ public:
 	Route	*getRoute(std::string const &path);
 	std::vector<Route>	&getRoutes(void);
 
+	void	clear(void);
+
 	void	parseListen(void);
 
 	void	parseServerName(std::vector<std::string> &vec);
@@ -77,8 +79,9 @@ public:
 	void	parse(void);
 
 
+
 	/* ------- Getters ------- */
-	size_t	getPort(void);
+	std::vector<uint16_t>	&getPorts(void);
 	size_t	getClientMaxBodySize(void);
 	std::string	&getRoot(void);
 	std::vector<std::string> &getServerNames(void);
@@ -138,6 +141,7 @@ public:
 	/* ------- Methods ------- */
 	void	parse(void);
 	std::vector<ConfigServer>	&getServers(void);
+	std::vector<std::vector<uint16_t> > getPorts(void);
 
 
 	/* ------- Static Methods ------- */
@@ -148,7 +152,7 @@ public:
 	
 };
 
-std::ostream	&operator<<(std::ostream &os, ConfigFile &obj);
+std::ostream	&operator<<(std::ostream &os, ConfigServer &obj);
 
 
 #endif  // CONFIG_FILE_HPP
