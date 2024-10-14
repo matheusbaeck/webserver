@@ -45,6 +45,7 @@ class Selector : public ALogger
 		/* Methods */
 		void	addSocket( const Worker & );
 		void	processEvents( Server & );
+        void    executeMethod(char* buffer, int fd, Server& server);
 		Worker*	getWorkerByFd( int ) const;
 
 		class	AddSocketFunctor
