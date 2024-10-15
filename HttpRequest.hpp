@@ -10,7 +10,10 @@ class HttpRequest
 	static const char *CRLF;
 	static const char *delim;
 	static const size_t bufferSize = 4096;
-	static ConfigFile *configFile;
+	//static ConfigFile *configFile;
+
+	static ConfigServer *configServer;
+
 	//ConfigFile configFile;
 	
 	Tokenizer tokenizer;
@@ -33,7 +36,6 @@ class HttpRequest
 
 public:
 	HttpRequest(void) {}
-	HttpRequest(int clientFd, int port);
 	HttpRequest(const char *buffer);
 	HttpRequest &operator=(const HttpRequest &other);
 	HttpRequest(const HttpRequest &other);
@@ -53,9 +55,9 @@ public:
 	std::string	dirList(std::string const &dirpath);
 
 
-	void	setConfigFile(ConfigFile &_configFile)
+	void	setConfig(ConfigServer &_configServer)
 	{
-		HttpRequest::configFile = &_configFile;
+		HttpRequest::configServer = &_configServer;
 	}
 
 

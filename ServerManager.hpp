@@ -16,11 +16,10 @@ typedef std::vector<Worker>::iterator WorkerIteratorStd;
 class ServerManager : public ALogger
 {
 	private:
+
 		std::vector<Server> servers;
 		std::queue<HttpRequest>	requests;
-
-		static ConfigFile *configFile;
-
+// 		static ConfigFile *configFile;
 
 	public:
 		class WorkerIterator
@@ -93,8 +92,10 @@ class ServerManager : public ALogger
 					return &(*curr);
 				}
 		};
+
+		ServerManager( std::vector<ConfigServer> &ConfigServers);
 		ServerManager( void );
-		ServerManager( std::vector<std::vector<uint16_t> > );
+		//ServerManager( std::vector<std::vector<uint16_t> > );
 		~ServerManager( void );
 
 		/* Operator */
@@ -118,30 +119,30 @@ class ServerManager : public ALogger
 
 		/* Templates */
 		template<typename Func>
-		void forEachWorker(Func f)
-		{
-			for (WorkerIterator it = begin(); it != end() ; ++it) {
-				f(*it);
+			void forEachWorker(Func f)
+			{
+				for (WorkerIterator it = begin(); it != end() ; ++it) {
+					f(*it);
+				}
 			}
-		}
 
 		template <typename Func>
-		void forEachWorkerAndQueue(Func f)
-		{
-			for (WorkerIterator it = begin(); it != end() ; ++it) {
-				f(*it, this->requests);
+			void forEachWorkerAndQueue(Func f)
+			{
+				for (WorkerIterator it = begin(); it != end() ; ++it) {
+					f(*it, this->requests);
+				}
 			}
-		}
 
-		void setConfig(ConfigFile *config)
-		{
-			ServerManager::configFile = config;
-		}
+// 		void setConfig(ConfigFile *config)
+// 		{
+// 			ServerManager::configFile = config;
+// 		}
 
-		static ConfigFile *getConfigFile(void)
-		{
-			return ServerManager::configFile;
-		}
+// 		static ConfigFile *getConfigFile(void)
+// 		{
+// 			return ServerManager::configFile;
+// 		}
 
 		/* Functors */
 		class AddServerFunctor {
@@ -150,8 +151,12 @@ class ServerManager : public ALogger
 			public:
 				AddServerFunctor(ServerManager* sm) : serverManager(sm) {}
 
-				void operator()(const std::vector<uint16_t>& ports) {
-					serverManager->addServer(Server(ports));
+// 				void operator()(const std::vector<uint16_t>& ports) {
+// 					serverManager->addServer(Server(ports));
+// 				}
+
+				void operator()(ConfigServer &configServer) {
+					serverManager->addServer(Server(configServer));
 				}
 		};
 

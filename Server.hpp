@@ -9,6 +9,7 @@
 
 #include "Worker.hpp"
 #include "ALogger.hpp"
+#include "ConfigFile.hpp"
 
 class Worker;
 
@@ -17,13 +18,18 @@ class Server : public ALogger
 	private:
 		static int			m_instance_counter;
 		int					m_id;
+		
+		ConfigServer		m_configServer;
+
 		std::string			m_server_name;
 		std::vector<Worker>	m_workers;
 		/* all other att of the server */
 
 	public:
+
 		Server( int, ... );
 		Server( std::vector<uint16_t> );
+		Server( ConfigServer & );
 		Server( const Server & );
 		~Server( void );
 
@@ -37,6 +43,7 @@ class Server : public ALogger
 		std::vector<Worker>::iterator		workersEnd( void );
 		std::vector<Worker>::const_iterator	workersBegin( void ) const;
 		std::vector<Worker>::const_iterator	workersEnd( void ) const;
+		ConfigServer						&getConfig( void );
 
 		/* Methods */
 		void addWorker( const Worker &w )

@@ -10,7 +10,8 @@
 // NOTE: connection closes if there is BAD REQUEST, otherwise depend on Connection header.
 
 const char  *METHODS[] = {"GET", "POST", "DELETE"};
-ConfigFile  *HttpRequest::configFile;
+//ConfigFile   *HttpRequest::configFile;
+ConfigServer *HttpRequest::configServer;
 const char	*HttpRequest::delim = " \r\n";
 const char	*HttpRequest::CRLF  = "\r\n";
 
@@ -35,14 +36,6 @@ bool	isDir(const char *pathname)
 	struct stat statbuf;
 	stat(pathname, &statbuf);
 	return S_ISDIR(statbuf.st_mode);
-}
-
-HttpRequest::HttpRequest(int _clientFd, int _port)
-{
-	// TODO: pass the file path from main function.
-	HttpRequest::configFile = new ConfigFile(ConfigFile::pathname);
-	this->clientFd = _clientFd;
-	this->port = _port;
 }
 
 std::vector<std::string>::const_iterator checkIndex(const std::vector<std::string> &indices)
@@ -181,7 +174,8 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 			/*
 		 	*	TODO: Now let' handle one server and multiple routes.
 		 	* */
-		route = this->configFile->getServers()[0].getRoute(requestTarget);
+		route = HttpRequest::configServer->getRoute(requestTarget);
+		//route = this->configFile->getServers()[0].getRoute(requestTarget);
 		std::cout << "requestTarget: " << requestTarget << std::endl;
 		if (!route)
 		{
@@ -329,7 +323,9 @@ bool HttpRequest::matchHost(const std::string &host)
 	size_t found = host.find(":"); // skipping port
 	if (found != std::string::npos)
 		t = host.substr(0, found);
-	std::vector<std::string> serverNames  = this->configFile->getServers()[0].getServerNames();
+	
+	//std::vector<std::string> serverNames  = this->configFile->getServers()[0].getServerNames();
+	std::vector<std::string> serverNames = HttpRequest::configServer->getServerNames();
 	return std::find(serverNames.begin(), serverNames.end(), t) != serverNames.end();
 }
 
@@ -370,86 +366,13 @@ void	HttpRequest::parse(void)
 
 }
 
-
-#if 0
-void	HttpRequest::handler(void)
-{
-	ssize_t nbytes;
-	std::string response;
-#if 1
-	char buffer[this->bufferSize];
-
-	std::fill(buffer, buffer + this->bufferSize, 0);
-	nbytes = recv(this->clientFd, buffer, this->bufferSize, 0);
-
-	std::cout << "-------------------\n";
-	std::cout << "clientFd: `" << this->clientFd << "`" << std::endl;
-	std::cout << "-------------------\n";
-
-	if (nbytes <= 0)
-	{
-		if (nbytes != -1)
-			perror("recv");
-		close(this->clientFd);
-		return;
-	}
-	std::cout << "server recieved: `" << nbytes << "`" << std::endl;
-
-	std::cout << "Request of `" << this->clientFd << "` -> `" << buffer << "`" << std::endl;
-
-#endif
-
-	// TODO: try to make it as operator overload
-	this->tokenizer.setBuffer(buffer);
-	this->parse();
-
-	Route *route = this->configFile->getServers()[0].getRoute(this->path);
-
-	switch (this->statusCode)
-	{
-		case BREQUEST: response = badRequest(); break;
-		case NFOUND  : response = notFound();   break;
-		case NALLOWED: response = notAllowed(); break;
-		case OK:
-			switch (this->method)
-			{
-				case GET:    response = this->GETmethod(this->path);            break;
-				case POST:   std::invalid_argument("NOT IMPLEMENTED - POST");   break;
-				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
-				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
-			}
-			break;
-		case FORBIDDEN:
-			if (route->getAutoIndex() && this->method == GET)
-				response = this->dirList(this->path);
-			else
-				response = forbidden();
-			break;
-		default: std::invalid_argument("NOT IMPLEMENTED - STATUS CODE");
-	}
-
-	std::cerr << "response: " << response << std::endl;
-
-
-	nbytes = send(this->clientFd, response.c_str(), response.size(), 0);
-	//close(this->clientFd);
-	// TODO: ask mathues 
-// 	if (nbytes <= 0)
-// 	{
-// 		if (nbytes == -1)
-// 			perror("send");
-// 		close(this->clientFd);
-// 	}
-}
-#endif
-
 std::string	HttpRequest::handler(void)
 {
 	std::string response;
 
 	this->parse();
 
-	Route *route = this->configFile->getServers()[0].getRoute(this->path);
+	Route *route = HttpRequest::configServer->getRoute(this->path);
 
 	switch (this->statusCode)
 	{
@@ -460,7 +383,7 @@ std::string	HttpRequest::handler(void)
 			switch (this->method)
 			{
 				case GET:    response = this->GETmethod(this->path);            break;
-				case POST:   std::invalid_argument("NOT IMPLEMENTED - POST");   break;
+				case POST:   response = notAllowed(); /*std::invalid_argument("NOT IMPLEMENTED - POST")*/;   break;
 				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
 			}

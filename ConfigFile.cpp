@@ -12,9 +12,6 @@ void	error(std::string const &errMsg)
 }
 
 /* ------------------------- ConfigFile ------------------------- */
-#define PUT(str, str2) std::cout << str << "`" << str2 << "`" << std::endl;
-
-
 /* ------------- Constructors --------------- */
 
 const char *ConfigFile::delim = "#{};\f\n\r\t\v ";
@@ -77,10 +74,8 @@ void	ConfigFile::parse(void)
 			this->tokenizer.consume();
 			continue;
 		}
-
 		std::string token = this->tokenizer.next(ConfigFile::delim);
 		if (token.empty()) continue;
-		std::cout << "`" << token << "`" << std::endl;
 		if (token == "server")
 		{
 			server.parse();
@@ -139,10 +134,8 @@ Method ConfigFile::isMethod(std::string const &method)
 
 ConfigServer::ConfigServer(void)
 {
+	// TODO: add default config here.
 	this->isResized = false;
-	//this->index.push_back("index.html");
-	
-	//this->ports.push_back(80); // default one
 	this->client_max_body_size = 1024;
 	this->tokenizer = &ConfigFile::getTokenizer();
 }
@@ -428,20 +421,12 @@ void	ConfigServer::parseRoute(void)
 		}
 		if (token == "index")
 		{
-			//route.parseServerName(route.index);
 			route.parseIndex();
-			std::cout << "index of Route:\n";
-			std::for_each(route.index.begin(), route.index.end(), print);
-			std::cout << "index of Server:\n";
-
-			
 		}
-		//	break;
+		// TODO: check for invalid keyword.
 	}
 
 	this->routes.push_back(route);
-	//this->routes[path] = route;
-
 	this->tokenizer->trim();
 	this->tokenizer->expected('}', ConfigFile::delim);
 }
@@ -475,9 +460,6 @@ void	ConfigServer::parse(void)
 		else if (token == "index")
 		{
 			this->parseIndex();
-			std::cout << "index of Server:" << std::endl;
-			std::for_each(index.begin(), index.end(), print);
-			//this->parseServerName(this->index);
 		}
 		else if (token == "root")
 		{
@@ -674,22 +656,6 @@ void	Route::parseRedirection(void)
 	this->tokenizer->expected(';', ConfigFile::delim);
 }
 
-// void	Route::parseRoot(void)
-// {
-// 	this->tokenizer->trim();
-// 	if (this->tokenizer->peek() == '#')
-// 	{
-// 		this->tokenizer->consume();
-// 	}
-// 	this->root = this->tokenizer->next(ConfigFile::delim);
-// 	if (this->root.empty())
-// 	{
-// 		error("root: invalid argument");
-// 	}
-// 	this->tokenizer->trim();
-// 	this->tokenizer->expected(';', ConfigFile::delim);
-// }
-
 void	Route::parseAutoIndex(void)
 {
 	std::string token;
@@ -720,29 +686,6 @@ void	Route::parseAutoIndex(void)
 	this->tokenizer->expected(';', ConfigFile::delim);
 }
 
-// void	Route::parseIndex(void)
-// {
-// 	int	c;
-// 	this->tokenizer->trim();
-// 	while (!this->tokenizer->end())
-// 	{
-// 		c = this->tokenizer->peek();
-// 		if (std::string("{}\n;").find(c) != std::string::npos)
-// 			break;
-// 		if (c == '#')
-// 		{
-// 			this->tokenizer->consume();
-// 			continue;
-// 		}
-// 		this->index.push_back(this->tokenizer->next(ConfigFile::delim));
-// 	}
-// 	if (this->index.size() == 0) error("index: invalid argument");
-// 	
-// 	// TODO: add default one
-
-// 	this->tokenizer->expected(';', ConfigFile::delim);
-// }
-
 /* ------------- Getters --------------- */
 
 bool				Route::getAutoIndex(void)
@@ -768,28 +711,6 @@ void	print(const T &e)
 {
 	std::cout << e << " ";
 }
-
-
-// std::ostream	&operator<<(std::ostream &os, ConfigFile &obj)
-// {
-// 	std::vector<ConfigServer> servers = obj.getServers();
-
-// 	for (size_t i = 0; i < servers.size(); i += 1)
-// 	{
-// 		std::cout << "listen: ";
-// 		std::for_each(servers[i].getPorts().begin(), servers[i].getPorts().end(), print<uint16_t>);
-// 		PUT("\nserver_name: ", servers[i].getServerNames()[0]);
-// 		std::vector<Route> routes = servers[i].getRoutes();
-// 		for (size_t i = 0; i < routes.size(); i += 1)
-// 		{
-// 			PUT("location: ", routes[i].path);
-// 			PUT("size of index: ", routes[i].getIndex().size());
-// 			//PUT("index: ", routes[i].getIndices()[0]);
-// 		}
-// 	}
-// 	std::cout << std::endl;
-// 	return os;
-// }
 
 std::ostream	&operator<<(std::ostream &os, ConfigServer &obj)
 {

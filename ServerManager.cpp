@@ -1,13 +1,13 @@
 #include "ServerManager.hpp"
 
-ConfigFile *ServerManager::configFile;
+//ConfigFile *ServerManager::configFile;
 
 ServerManager::ServerManager( void ) {}
 
-ServerManager::ServerManager( std::vector<std::vector<uint16_t> > server_ports )
+ServerManager::ServerManager(std::vector<ConfigServer> &configServers)
 {
 	AddServerFunctor functor(this);
-	std::for_each(server_ports.begin(), server_ports.end(), functor);
+	std::for_each(configServers.begin(), configServers.end(), functor);
 }
 
 ServerManager::~ServerManager( void ) {}

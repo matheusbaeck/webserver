@@ -9,8 +9,6 @@
 
 int main(int argc, char **argv)
 {
-
-
 	Log* logger = Log::getInstance("logfile.log");
 	
 	const char *pathname = ConfigFile::pathname;
@@ -30,20 +28,14 @@ int main(int argc, char **argv)
 	// TODO: each worker should has it's own server config.
 	//
 
+	//std::vector<ConfigServer> configServers = configFile.getServers();
 
-	std::vector<ConfigServer> configServers = configFile.getServers();
-
-	for (size_t i = 0; i < configServers.size(); i += 1)
-	{
-		std::cout << "server[" << (i+1) << "]" << std::endl;
-		std::cout << configServers[i] << std::endl;
-	}
+	ServerManager	manager(configFile.getServers());
 
 
-	return 0;
-	ServerManager	manager(configFile.getPorts());
 
-	manager.setConfig(&configFile);
+#if 1
+	//return 0;
 
 	Selector& selector = Selector::getSelector();
 	
@@ -59,6 +51,7 @@ int main(int argc, char **argv)
 			selector.processEvents(*it);
 		}
 	}
+#endif
 
 	return(0);
 }

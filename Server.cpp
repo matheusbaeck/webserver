@@ -15,19 +15,31 @@ Server::Server(int count, ...)
 	va_end(args);
 }
 
-Server::Server( std::vector<uint16_t> workers_port ) : m_id(++m_instance_counter)
+// Server::Server( std::vector<uint16_t> workers_port ) : m_id(++m_instance_counter)
+// {
+// 	oss() << "Server constructor";
+// 	LogMessage(DEBUG);
+// 	AddWorkerFunctor functor(this);
+// 	std::for_each(workers_port.begin(), workers_port.end(), functor);
+// }
+
+Server::Server( ConfigServer &configServer) : m_id(++m_instance_counter)
 {
 	oss() << "Server constructor";
+
 	LogMessage(DEBUG);
+
 	AddWorkerFunctor functor(this);
-	std::for_each(workers_port.begin(), workers_port.end(), functor);
+
+	std::for_each(configServer.getPorts().begin(), configServer.getPorts().end(), functor);
+	m_configServer = configServer;
 }
 
 Server::Server( const Server &other ) : m_id(++m_instance_counter)
 {
 	oss() << "Copy constructor ";
 	LogMessage(DEBUG);
-	*this = other;
+	Server::operator=(other);
 }
 
 Server::~Server()
@@ -45,6 +57,7 @@ Server& Server::operator=(const Server& other)
 		m_server_name = other.m_server_name;
 		m_workers = other.m_workers;
 		m_id      = other.m_id;
+		m_configServer =  other.m_configServer;
 	}
 	return (*this);
 }
@@ -72,6 +85,11 @@ std::string	Server::GetType(void) const
 	std::ostringstream oss;
 	oss << "Server:" << m_id;
 	return oss.str();
+}
+
+ConfigServer	&Server::getConfig(void)
+{
+	return m_configServer;
 }
 
 std::ostream &operator<<( std::ostream &os, const Server &obj )

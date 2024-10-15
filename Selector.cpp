@@ -102,8 +102,7 @@ void Selector::processEvents( Server & server )
 
 
 					HttpRequest httpRequest(buffer);
-					httpRequest.setConfigFile(*ServerManager::getConfigFile());
-
+					httpRequest.setConfig(server.getConfig());
 					std::string response = httpRequest.handler();
 
 					int sent_bytes = send(m_events[n].data.fd, response.c_str(), response.size(), 0);
