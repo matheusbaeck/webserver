@@ -1,5 +1,11 @@
 #include "Selector.hpp"
 #include "ServerManager.hpp"
+#include "ConfigFile.hpp"
+
+struct Client
+{
+	int	fd;
+};
 
 Selector Selector::selector;
 
@@ -40,66 +46,76 @@ void Selector::addSocket(const Worker &worker)
 
 void Selector::processEvents( Server & server )
 {
-	m_nfds = epoll_wait(m_epollfd, m_events, MAX_EVENTS, TIME_OUT);
-	if (m_nfds == -1) {
-		oss() << "epoll_wait failed: " << strerror(errno);
-		LogMessage(ERROR);
-		return;
-	}
+    m_nfds = epoll_wait(m_epollfd, m_events, MAX_EVENTS, TIME_OUT);
+    if (m_nfds == -1) {
+        oss() << "epoll_wait failed: " << strerror(errno);
+        LogMessage(ERROR);
+        return;
+    }
+    //std::cout << "fds ready for I/O: " << m_nfds << std::endl;
+    //std::cout << "nb of workers: " << server.getWorkers().size() << " for server " << &server << std::endl;
+    for (std::vector<Worker>::iterator it = server.workersBegin() ; it != server.workersEnd() ; ++it)
+    {
+        for (int n = 0; n < m_nfds; ++n)
+        {
+            //int  client_fd = m_events[n].data.fd;
+            if (m_events[n].events & EPOLLIN)
+            {
+                int	client_fd;
+                if ( m_events[n].data.fd == it->sock())
+                {
+                    client_fd = accept(it->sock(), NULL, NULL);
+                    oss() << "client_fd: " << client_fd << " connected" << std::endl;
+                    oss() << " m_events[n].data.fd: " <<  m_events[n].data.fd << " | worker.sock: " << it->sock() << std::endl;
+                    LogMessage(INFO);
 
-	//std::cout << "number of fd: " << m_nfds << std::endl;
-	for (int n = 0; n < m_nfds; ++n) 
-	{
-		int event_fd = m_events[n].data.fd;
-		if (m_events[n].events & EPOLLIN) {
-			for (std::vector<Worker>::iterator it = server.workersBegin() ; it != server.workersEnd() ; ++it)
-			{
-				int	client_fd;
-				if (event_fd == it->sock()) {
-			
-					
-					client_fd = accept(it->sock(), NULL, NULL);
+                    if (client_fd < 0)
+                    {
+                        oss() << "Failed to accept new connection: " << strerror(errno);
+                        LogMessage(ERROR);
+                        continue;
+                    }
+                    // Add the new client socket to epoll
+                    epoll_event ev;
+                    ev.events = EPOLLIN | EPOLLET;  // Edge-triggered mode
+                    ev.data.fd = client_fd;
+                    if (epoll_ctl(m_epollfd, EPOLL_CTL_ADD, client_fd, &ev) == -1) {
+                        oss() << "Failed to add client socket to epoll: " << strerror(errno);
+                        LogMessage(ERROR);
+                        close(client_fd);
+                        continue;
+                    }
 
-					std::cout << "client fd: " << client_fd << " connected" << std::endl;
+                    oss() << "Accepted new client_fd: " << client_fd << "for m_events[n].data.fd: " << m_events[n].data.fd << std::endl;
+                    LogMessage(INFO);
+                }
+                else
+                {
 
-					if (client_fd < 0) {
-						oss() << "Failed to accept new connection: " << strerror(errno);
-						LogMessage(ERROR);
-						continue;
-					}
+					std::cout << "-----------------------------------------\n";
+					std::cout << server.getConfig() << std::endl;
+					std::cout << "-----------------------------------------\n";
 
-					// Add the new client socket to epoll
-					epoll_event ev;
-					ev.events = EPOLLIN | EPOLLET;  // Edge-triggered mode
-					ev.data.fd = client_fd;
-					if (epoll_ctl(m_epollfd, EPOLL_CTL_ADD, client_fd, &ev) == -1) {
-						oss() << "Failed to add client socket to epoll: " << strerror(errno);
-						LogMessage(ERROR);
-						close(client_fd);
-						continue;
-					}
+                    // This is a client socket, create a request
+                    char buffer[1024] = {0};
 
-					oss() << "Accepted new connection on fd " << client_fd;
-					LogMessage(INFO);
-				} else {
-					// This is a client socket, create a request
-					char buffer[1024] = {0};
-
-					int received_bytes = recv(m_events[n].data.fd, buffer, sizeof(buffer), 0);
-					if (received_bytes == 0)
-					{
-						//epoll_ctl(m_epollfd, EPOLL_CTL_DEL, m_events[n].data.fd, &ev)
-						oss() << "Client disconnected " << m_events[n].data.fd;
-						LogMessage(INFO);
-						close(m_events[n].data.fd); 
-					}
-					std::cout << buffer << std::endl;
-
-					
-					// TODO: handle if recv fails or client disconnected.
-					if (received_bytes <= 0)
-						continue;
-
+                    int received_bytes = recv(m_events[n].data.fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+                    if (received_bytes == 0)
+                    {
+                        epoll_ctl(m_epollfd, EPOLL_CTL_DEL, m_events[n].data.fd, m_events);
+                        close(m_events[n].data.fd);
+                        oss() << "Client disconnected " << m_events[n].data.fd;
+                      /*  epoll_ctl(m_epollfd, EPOLL_CTL_DEL, client_fd, m_events);
+                        close(client_fd);
+                        oss() << "Client disconnected " << client_fd;*/
+                        LogMessage(INFO);
+                    }
+                    if (received_bytes < 0)
+                    {
+                        oss() << "Error in received bytes:" <<strerror(errno);
+                        LogMessage(ERROR);
+                        continue;
+                    }
 
 					HttpRequest httpRequest(buffer);
 					httpRequest.setConfig(server.getConfig());
@@ -109,21 +125,21 @@ void Selector::processEvents( Server & server )
 					(void) sent_bytes;
 					
 					// TODO: handle if send fails and close connection after handling all requests.
+                    // TODO: handle if send fails and close connection after handling all requests.
+                    if (m_events[n].events & (EPOLLERR| EPOLLHUP))
+                    {
+                        oss() << "Error on fd " <<  m_events[n].data.fd << ": " << strerror(errno);
+                        LogMessage(ERROR);
+                        epoll_ctl(m_epollfd, EPOLL_CTL_DEL,  m_events[n].data.fd, NULL);
+                        close( m_events[n].data.fd);
+                    }
+                }
+            }
 
-					oss() << "processEvents: Added request for fd " << event_fd << " to queue";
-					LogMessage(INFO);
-				}
-			}
-		}
-		
-		/*if (m_events[n].events & (EPOLLERR | EPOLLHUP)) {
-			oss() << "Error or hangup on fd " << event_fd << ": " << strerror(errno);
-			LogMessage(ERROR);
-			epoll_ctl(m_epollfd, EPOLL_CTL_DEL, event_fd, NULL);
-			close(event_fd);
-		}*/
-	}
+        }
+    }
 }
+
 Worker*	Selector::getWorkerByFd(int fd) const
 {
 	std::map<int, Worker*>::const_iterator it = m_fd_to_worker_map.find(fd);

@@ -117,7 +117,6 @@ public:
 	std::string 					&getRoot(void);
 	std::vector<Method>				  &getMethods(void);
 	std::map<StatusCode, std::string> &getRedirection(void);
-	//std::vector<std::string>		  &getIndices(void);
 };
 
 class ConfigFile
@@ -141,7 +140,7 @@ public:
 	/* ------- Methods ------- */
 	void	parse(void);
 	std::vector<ConfigServer>	&getServers(void);
-	std::vector<std::vector<uint16_t> > getPorts(void);
+	//std::vector<std::vector<uint16_t> > getPorts(void);
 
 
 	/* ------- Static Methods ------- */

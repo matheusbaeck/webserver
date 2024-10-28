@@ -6,7 +6,7 @@
 #    By: math <math@student.42.fr>                  +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/10/15 17:56:25 by aabourri         ###   ########.fr        #
+#    Updated: 2024/10/28 17:00:08 by aabourri         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -21,7 +21,7 @@ OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 CC          = g++
 CFLAGS      = -g3 -Wall -Wextra -Werror -std=c++98 -fsanitize=address
 
-LOG_LEVEL   ?= 1
+LOG_LEVEL   ?= 6
 DEFINES     = -DCOUT_LOG_LEVEL=$(LOG_LEVEL)
 
 all: $(NAME)

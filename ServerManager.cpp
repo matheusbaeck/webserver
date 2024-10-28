@@ -24,6 +24,8 @@ ServerManager& ServerManager::operator=(const ServerManager& other)
 }
 
 
+
+
 std::vector<Server>	&ServerManager::getServers() { return (this->servers); }
 std::queue<HttpRequest>	&ServerManager::getQueue(void) { return this->requests; }
 

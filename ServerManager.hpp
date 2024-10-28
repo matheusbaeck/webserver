@@ -18,10 +18,23 @@ class ServerManager : public ALogger
 	private:
 
 		std::vector<Server> servers;
-		std::queue<HttpRequest>	requests;
-// 		static ConfigFile *configFile;
+		std::queue<HttpRequest> requests;
 
 	public:
+		Worker *getWorkerByFd(int fd)
+		{
+			for (size_t i = 0; i < servers.size(); i += 1)
+			{
+				size_t sz = servers[i].getWorkers().size();
+				for (size_t j = 0; j < sz; j += 1)
+				{
+					if (fd == servers[i].getWorkers()[j].sock())
+						return &servers[i].getWorkers()[j];
+				}
+			}
+			return NULL;
+		}
+
 		class WorkerIterator
 		{
 			private:

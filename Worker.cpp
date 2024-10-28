@@ -12,6 +12,9 @@ Worker::Worker( void ) : m_serv_port(SERVER_PORT), m_id(++m_instance_counter)
 
 Worker::Worker( const int port ): m_serv_port(port), m_id(++m_instance_counter)
 {
+	std::cout << "Server listennig on localhost:" << port << std::endl;
+
+
 	this->m_addr.sin_family = AF_INET;
 	this->m_addr.sin_port = htons(port);
 	this->m_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -92,6 +95,7 @@ int Worker::create_server_socket( void )
 	{
 		oss() << "create_serv_socket: " << strerror(errno);
 		LogMessage(ERROR);
+		exit(1);
 	}
 	if (listen(this->m_serv_socket, BACKLOG) < 0)
 	{

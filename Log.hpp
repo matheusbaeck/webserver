@@ -16,7 +16,8 @@ enum LogLevel
 	INFO,
 	WARN,
 	ERROR,
-	FATAL
+	FATAL,
+	NONE
 };
 
 # define OUTFILE_LOG_LEVEL TRACE
@@ -60,6 +61,7 @@ class Log
 
 		void logMessage( const void* entity, int logLevel, const std::string& message, std::exception* ex = NULL)
 		{
+			if (logLevel == NONE) return;
 			std::ostringstream oss;
 			oss << message;
 

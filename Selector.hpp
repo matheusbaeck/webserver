@@ -16,6 +16,7 @@
 #include "Worker.hpp"
 #include "Server.hpp"
 #include <map>
+#include "ServerManager.hpp"
 
 #define MAX_EVENTS 10		//epoll_wait max events at time
 #define TIME_OUT 200			//epoll_wait max time
@@ -45,6 +46,7 @@ class Selector : public ALogger
 		/* Methods */
 		void	addSocket( const Worker & );
 		void	processEvents( Server & );
+		void	processEvents( ServerManager &);
 		Worker*	getWorkerByFd( int ) const;
 
 		class	AddSocketFunctor
