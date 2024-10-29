@@ -93,6 +93,12 @@ std::vector<ConfigServer>	&ConfigFile::getServers(void)
 	return this->servers;
 }
 
+
+ConfigServer	&ConfigFile::getServer(int pos)
+{
+	return this->servers[pos];
+}
+
 /* ------------- Static Methods --------------- */
 
 bool	ConfigFile::isNumber(std::string const &str)

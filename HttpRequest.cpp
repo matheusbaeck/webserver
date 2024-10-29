@@ -11,7 +11,7 @@
 
 const char  *METHODS[] = {"GET", "POST", "DELETE"};
 //ConfigFile   *HttpRequest::configFile;
-ConfigServer *HttpRequest::configServer;
+//ConfigServer *HttpRequest::configServer;
 const char	*HttpRequest::delim = " \r\n";
 const char	*HttpRequest::CRLF  = "\r\n";
 
@@ -461,7 +461,15 @@ std::string	HttpRequest::handler(void)
 
 	this->parse();
 
-	Route *route = HttpRequest::configServer->getRoute(this->path);
+	Route *route = this->configServer->getRoute(this->path);
+
+
+
+    std::cout << "port: " << this->configServer->getPorts()[0] << std::endl;
+    if (route)
+    {
+        std::cout << "autoindex: " << (route->getAutoIndex() ? "on" : "off") << std::endl;
+    }
 
 	//fileUpload(this->tokenizer.str(), this->path);
 

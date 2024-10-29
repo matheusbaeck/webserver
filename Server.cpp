@@ -1,96 +1,135 @@
 #include "Server.hpp"
 
-int Server::m_instance_counter = 0;
-
-Server::Server(int count, ...)
+Server::Server( ConfigServer &configServer )
 {
-	va_list	args;
+    std::vector<uint16_t> ports = configServer.getPorts();
+    //WATCH OUT WITH ports[0], we can have multiple ports
+	std::cout << "Server listening on localhost:" << ports[0] << std::endl;
 
-	va_start(args, count);
-	for (int i = 0; i < count; ++i)
-	{
-		int port = va_arg(args, int);
-		this->addWorker(Worker(port));
+    this->m_serv_port = ports[0];
+    this->m_configServer = configServer;
+	this->m_addr.sin_family = AF_INET;
+	this->m_addr.sin_port = htons(ports[0]);
+	this->m_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	this->m_addrlen = sizeof(*this->addr());
+    this->create_server_socket();
+}
+
+sockaddr* Server::addr( void ) const 
+{ 
+    return ((sockaddr *)&this->m_addr); 
+}
+
+socklen_t   Server::addrlen( void ) const 
+{
+    return (this->m_addrlen); 
+}
+
+int Server::id( void ) const 
+{ 
+    return (this->m_id); 
+}
+
+int Server::sock( void ) const 
+{ 
+    return (this->m_serv_socket); 
+}
+
+int	Server::port( void ) const 
+{ 
+    return (this->m_serv_port); 
+}
+
+int Server::create_server_socket( void )
+{
+	int addrlen = sizeof(*this->addr());
+	this->m_serv_socket = socket(AF_INET, SOCK_STREAM, 0);
+	std::cout << "create_serv_socket: open socket on fd " << this->m_serv_socket << std::endl;
+	if (this->m_serv_socket < 0)
+    {
+		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
+		return -1;
 	}
-	va_end(args);
+	int reuse = 1;
+	if (setsockopt(this->m_serv_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) 
+    {
+		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
+		return -1;
+	}
+	if (setsockopt(this->m_serv_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
+		return -1;
+	}
+	// bzero(this->m_addr, addrlen);
+	this->m_addr.sin_family = AF_INET;
+	this->m_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	this->m_addr.sin_port = htons(m_serv_port);
+	if (bind(this->m_serv_socket, this->addr(), addrlen) == -1)
+	{
+		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
+		exit(1);
+	}
+	if (listen(this->m_serv_socket, BACKLOG) < 0)
+		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
+	return (this->m_serv_socket);
 }
 
-// Server::Server( std::vector<uint16_t> workers_port ) : m_id(++m_instance_counter)
-// {
-// 	oss() << "Server constructor";
-// 	LogMessage(DEBUG);
-// 	AddWorkerFunctor functor(this);
-// 	std::for_each(workers_port.begin(), workers_port.end(), functor);
-// }
-
-Server::Server( ConfigServer &configServer) : m_id(++m_instance_counter)
+int Server::setnonblocking(int sockfd)
 {
-	oss() << "Server constructor";
-
-	LogMessage(DEBUG);
-
-	AddWorkerFunctor functor(this);
-
-	std::for_each(configServer.getPorts().begin(), configServer.getPorts().end(), functor);
-	m_configServer = configServer;
+	int	flags;
+	
+	flags = fcntl(sockfd, F_GETFL, 0);
+	if (flags == -1)
+		return -1;
+	return (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK));
 }
 
-Server::Server( const Server &other ) : m_id(++m_instance_counter)
+int Server::handle_read(int client_socket)
 {
-	oss() << "Copy constructor ";
-	LogMessage(DEBUG);
+	char	buffer[BUFFERSIZE];
+	int		bytes_read;
+	
+	bytes_read = recv(client_socket, buffer, sizeof(buffer), 0);
+	if (bytes_read < 0)
+	{
+		std::cerr << "read failed: " << strerror(errno) << std::endl;
+	} 
+	else if (bytes_read == 0)
+	{
+        std::cerr << "Client disconnected on socket " << client_socket << std::endl;
+		close(client_socket);
+	} 
+	else
+	{
+		std::cout << "Received " << bytes_read << " bytes: " << std::string(buffer, bytes_read) << std::endl;
+	}
+	return (bytes_read);
+}
+
+Server::Server( const Server &other )
+{
 	Server::operator=(other);
 }
 
-Server::~Server()
-{ 
-	oss() << "shutdown!";
-	LogMessage(DEBUG);
-}
 
 Server& Server::operator=(const Server& other)
 {
-	oss() << "Copy assign "; //<< *this << " = " << other; >>> possible seg fault
-	LogMessage(DEBUG);
 	if (this != &other)
 	{
 		m_server_name = other.m_server_name;
-		m_workers = other.m_workers;
 		m_id      = other.m_id;
 		m_configServer =  other.m_configServer;
 	}
 	return (*this);
 }
 
-int	Server::id( void ) const { return (this->m_id); }
-std::vector<Worker>&	Server::getWorkers() { return (m_workers); }
-std::vector<Worker>::iterator	Server::workersBegin() { return (m_workers.begin()); }
-std::vector<Worker>::iterator	Server::workersEnd() { return (m_workers.end()); }
-std::vector<Worker>::const_iterator	Server::workersBegin() const { return (m_workers.begin()); }
-std::vector<Worker>::const_iterator	Server::workersEnd() const { return (m_workers.end()); }
 
-
-void	Server::LogMessage(int logLevel, const std::string& message, std::exception* ex)
-{
-	logger->logMessage(this, logLevel, message, ex);
-}
-
-void	Server::LogMessage(int logLevel, std::exception* ex)
-{
-	logger->logMessage(this, logLevel, m_oss.str(), ex);
-}
-
-std::string	Server::GetType(void) const
-{
-	std::ostringstream oss;
-	oss << "Server:" << m_id;
-	return oss.str();
-}
-
-ConfigServer	&Server::getConfig(void)
+ConfigServer&   Server::getConfig(void)
 {
 	return m_configServer;
 }
+
+Server::~Server() {}
 
 std::ostream &operator<<( std::ostream &os, const Server &obj )
 {

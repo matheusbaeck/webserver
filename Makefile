@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: math <math@student.42.fr>                  +#+  +:+       +#+         #
+#    By: glacroix <PGCL>                            +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/10/28 17:00:08 by aabourri         ###   ########.fr        #
+#    Updated: 2024/10/29 18:13:14 by glacroix         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -15,7 +15,14 @@ SRCSDIR     = .
 INCLUDES    = .
 OBJDIR      = .obj
 
-SRCS        = $(wildcard $(SRCSDIR)/*.cpp)
+SRCS        = $(SRCSDIR)/HttpRequest.cpp \
+				$(SRCSDIR)/Selector.cpp \
+				$(SRCSDIR)/main.cpp \
+				$(SRCSDIR)/Server.cpp \
+				$(SRCSDIR)/ConfigFile.cpp \
+				$(SRCSDIR)/Tokenizer.cpp \
+				$(SRCSDIR)/HttpRequest.cpp 
+
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 
 CC          = g++
