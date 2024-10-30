@@ -9,7 +9,6 @@
 #include <sys/types.h>		//accept
 #include <sys/socket.h>		//aceppt
 
-#include "HttpRequest.hpp"
 #include "Server.hpp"
 
 #define MAX_EVENTS 10		//epoll_wait max events at time
@@ -17,7 +16,6 @@
 
 typedef struct epoll_event epoll_event;
 
-//class Request;
 
 
 // this class is a singleton (ensures that a class has only one instance and provides a global point of access to that instance)
@@ -25,29 +23,24 @@ class Selector
 {
 	private:
 		static Selector	selector;
-		epoll_event		m_ev;
-		epoll_event		m_events[MAX_EVENTS];
-		int				m_nfds, m_epollfd;
+		epoll_event		_ev;
+		epoll_event		_events[MAX_EVENTS];
+		int				_nfds;
+        int             _epollfd;
 
 		Selector( void );
 
 	public:
 		~Selector( void );
 		static Selector& getSelector( void ) { return selector; }
-
+        
 		/* Methods */
-		void	addSocket( const Server * );
-		void	processEvents (std::vector<Server*> & servers);
+		void	addSocket(const Server *);
+		void	processEvents (const std::vector<Server*> & servers);
 
-		class	AddSocketFunctor
-		{
-			private:
-				Selector* selector;
-			public:
-				AddSocketFunctor() : selector(&Selector::getSelector()) {}
-
-		};
-
+       /* class epollInstanceFail : public std::exception{
+            const char* what() const throw();
+        };*/
 
 };
 

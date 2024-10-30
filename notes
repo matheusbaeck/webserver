@@ -1,3 +1,7 @@
+Problem: when switching tabs quickly and refreshing the configfile gets mixed up
+    why: because HTTPrequest is the same for all instances
+
+
 EPOLLIN: Data is available to read.
 EPOLLOUT: Ready for writing without blocking.
 EPOLLET: Enable edge-triggered behavior for the associated file descriptor.

@@ -6,7 +6,7 @@
 #    By: glacroix <PGCL>                            +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/10/29 18:13:14 by glacroix         ###   ########.fr        #
+#    Updated: 2024/10/30 10:39:09 by glacroix         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -20,6 +20,7 @@ SRCS        = $(SRCSDIR)/HttpRequest.cpp \
 				$(SRCSDIR)/main.cpp \
 				$(SRCSDIR)/Server.cpp \
 				$(SRCSDIR)/ConfigFile.cpp \
+				$(SRCSDIR)/ServerManager.cpp \
 				$(SRCSDIR)/Tokenizer.cpp \
 				$(SRCSDIR)/HttpRequest.cpp 
 

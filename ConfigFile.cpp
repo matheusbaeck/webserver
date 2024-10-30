@@ -88,16 +88,11 @@ void	ConfigFile::parse(void)
 	}
 }
 
-std::vector<ConfigServer>	&ConfigFile::getServers(void)
+std::vector<ConfigServer>	&ConfigFile::getServersConfig(void)
 {
 	return this->servers;
 }
 
-
-ConfigServer	&ConfigFile::getServer(int pos)
-{
-	return this->servers[pos];
-}
 
 /* ------------- Static Methods --------------- */
 

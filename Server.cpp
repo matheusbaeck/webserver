@@ -1,77 +1,73 @@
 #include "Server.hpp"
 
-Server::Server( ConfigServer &configServer )
+//WATCH OUT WITH ports[0], we can have multiple ports
+Server::Server(ConfigServer &configServer)
 {
-    std::vector<uint16_t> ports = configServer.getPorts();
-    //WATCH OUT WITH ports[0], we can have multiple ports
-	std::cout << "Server listening on localhost:" << ports[0] << std::endl;
+   // int nb_ports = configServer.getPorts().size();
+   std::vector<uint16_t> ports = configServer.getPorts();
+    std::cout << "Server listening on localhost:" << ports[0] << std::endl;
 
-    this->m_serv_port = ports[0];
-    this->m_configServer = configServer;
-	this->m_addr.sin_family = AF_INET;
-	this->m_addr.sin_port = htons(ports[0]);
-	this->m_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	this->m_addrlen = sizeof(*this->addr());
+    this->_serv_port = ports[0]; 
+    this->_configServer = configServer;
+    this->_addr.sin_family = AF_INET;
+    this->_addr.sin_port = htons(ports[0]);
+    this->_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    this->_addrlen = sizeof(*this->getAddr());
     this->create_server_socket();
 }
 
-sockaddr* Server::addr( void ) const 
+sockaddr* Server::getAddr(void) const 
 { 
-    return ((sockaddr *)&this->m_addr); 
+    return ((sockaddr *)&this->_addr); 
 }
 
-socklen_t   Server::addrlen( void ) const 
+socklen_t   Server::getAddrlen(void) const 
 {
-    return (this->m_addrlen); 
+    return (this->_addrlen); 
 }
 
-int Server::id( void ) const 
+int Server::getSock(void) const 
 { 
-    return (this->m_id); 
+    return (this->_serv_socket); 
 }
 
-int Server::sock( void ) const 
+int	Server::getPorts(void) const 
 { 
-    return (this->m_serv_socket); 
+    return (this->_serv_port); 
 }
 
-int	Server::port( void ) const 
-{ 
-    return (this->m_serv_port); 
-}
-
-int Server::create_server_socket( void )
+int Server::create_server_socket(void)
 {
-	int addrlen = sizeof(*this->addr());
-	this->m_serv_socket = socket(AF_INET, SOCK_STREAM, 0);
-	std::cout << "create_serv_socket: open socket on fd " << this->m_serv_socket << std::endl;
-	if (this->m_serv_socket < 0)
+	int addrlen = sizeof(*this->getAddr());
+	this->_serv_socket = socket(AF_INET, SOCK_STREAM, 0);
+	std::cout << "create_serv_socket: open socket on fd " << this->_serv_socket << std::endl;
+	if (this->_serv_socket < 0)
     {
 		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
 		return -1;
 	}
 	int reuse = 1;
-	if (setsockopt(this->m_serv_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) 
+	if (setsockopt(this->_serv_socket, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) 
     {
 		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
 		return -1;
 	}
-	if (setsockopt(this->m_serv_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+	if (setsockopt(this->_serv_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
 		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
 		return -1;
 	}
-	// bzero(this->m_addr, addrlen);
-	this->m_addr.sin_family = AF_INET;
-	this->m_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	this->m_addr.sin_port = htons(m_serv_port);
-	if (bind(this->m_serv_socket, this->addr(), addrlen) == -1)
+	// bzero(this->_addr, addrlen);
+	this->_addr.sin_family = AF_INET;
+	this->_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	this->_addr.sin_port = htons(_serv_port);
+	if (bind(this->_serv_socket, this->getAddr(), addrlen) == -1)
 	{
 		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
 		exit(1);
 	}
-	if (listen(this->m_serv_socket, BACKLOG) < 0)
+	if (listen(this->_serv_socket, BACKLOG) < 0)
 		std::cerr << "create_serv_socket: " << strerror(errno) << std::endl;
-	return (this->m_serv_socket);
+	return (this->_serv_socket);
 }
 
 int Server::setnonblocking(int sockfd)
@@ -116,9 +112,8 @@ Server& Server::operator=(const Server& other)
 {
 	if (this != &other)
 	{
-		m_server_name = other.m_server_name;
-		m_id      = other.m_id;
-		m_configServer =  other.m_configServer;
+		_server_name = other._server_name;
+		_configServer =  other._configServer;
 	}
 	return (*this);
 }
@@ -126,14 +121,9 @@ Server& Server::operator=(const Server& other)
 
 ConfigServer&   Server::getConfig(void)
 {
-	return m_configServer;
+	return _configServer;
 }
 
 Server::~Server() {}
 
-std::ostream &operator<<( std::ostream &os, const Server &obj )
-{
-	os << "server:" << obj.id();
-	return (os);
-}
 

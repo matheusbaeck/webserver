@@ -409,7 +409,7 @@ bool HttpRequest::matchHost(const std::string &host)
 //void	HttpRequest::parse(const char *buffer)
 void	HttpRequest::parse(void)
 {
-	// TODO: how do i generate a HTTP responde?
+	// TODO: how do i generate a HTTP response?
 
 	/* ----------- Start Line ----------- */
 	this->statusCode = this->parseStartLine();
@@ -462,9 +462,6 @@ std::string	HttpRequest::handler(void)
 	this->parse();
 
 	Route *route = this->configServer->getRoute(this->path);
-
-
-
     std::cout << "port: " << this->configServer->getPorts()[0] << std::endl;
     if (route)
     {

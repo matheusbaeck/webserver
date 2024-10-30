@@ -139,8 +139,7 @@ public:
 
 	/* ------- Methods ------- */
 	void	parse(void);
-	std::vector<ConfigServer>	&getServers(void);
-	ConfigServer	&getServer(int pos);
+	std::vector<ConfigServer>	&getServersConfig(void);
 	//std::vector<std::vector<uint16_t> > getPorts(void);
 
 
