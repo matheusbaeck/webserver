@@ -34,41 +34,37 @@ void Selector::addSocket(const Server *server)
         std::cerr << "addSocket: Failed to add socket fd " << socket_fd << " to epoll: " << strerror(errno) << std::endl;
 		return;
 	}
-    std::cout << "addSocket: Successfully added socket fd " << socket_fd << " to epoll" << std::endl;
-    std::cout << std::endl;
 }
 
 void Selector::processEvents(const std::vector<Server*>& servers )
 {
-//    std::map<int, ConfigServer> fd_2_serverConfig;
-    _nfds = epoll_wait(_epollfd, _events, MAX_EVENTS, TIME_OUT);
-    if (_nfds == 0)
+    HttpRequest *incomingRequestHTTP;
+
+    _eventCount = epoll_wait(_epollfd, _events, MAX_EVENTS, -1); //old timeout 200
+    if (_eventCount == 0)
         return;
-    if (_nfds == -1) 
+    if (_eventCount == -1) 
     {
         std::cerr << "epoll_wait failed: " << strerror(errno) << std::endl;
         return;
     }
     for (size_t i = 0; i < servers.size(); i += 1)
     {
-        for (int n = 0; n < _nfds; ++n)
+        for (int n = 0; n < _eventCount; ++n)
         {
+
             if (_events[n].events & EPOLLIN)
             {
-              //  HttpRequest *httpRequest = new HttpRequest();
-                HttpRequest incomingRequestHTTP;
-                std::cout << "incoming Request HTTP: " << &incomingRequestHTTP << std::endl;
                 int	client_fd;
-
                 if ( _events[n].data.fd == servers[i]->getSock())
                 {
 
-                   // fd_2_serverConfig[_events[n].data.fd] = servers[i]->getConfig();
                     client_fd = accept(servers[i]->getSock(), NULL, NULL);
-                    incomingRequestHTTP.setConfig(servers[i]->getConfig());
-                    std::cout << "Accepted on port: " << servers[i]->getPorts() << std::endl;
-                    std::cout << "client_fd: " << client_fd << " connected" << std::endl;
+                    _clientConfig[client_fd] = servers[i]->getConfig();
+                    incomingRequestHTTP = new HttpRequest();
 
+                    std::cout << "incoming Request HTTP: " << incomingRequestHTTP << std::endl;
+                    std::cout << "New client_fd " << client_fd << " accepted on port: " << servers[i]->getPorts() << std::endl;
                     if (client_fd < 0)
                     {
                         std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
@@ -76,7 +72,7 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                     }
                     // Add the new client socket to epoll
                     epoll_event ev;
-                    ev.events = EPOLLIN | EPOLLET;  // wtf is Edge-triggered mode
+                    ev.events = EPOLLIN | EPOLLET; 
                     ev.data.fd = client_fd;
                     if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, client_fd, &ev) == -1) 
                     {
@@ -84,32 +80,37 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                         close(client_fd);
                         continue;
                     }
-
                 }
-                else
+                else 
                 {
+                    std::cout << "_events[n].data.fd: " << _events[n].data.fd <<  std::endl;
                     char buffer[1024] = {0};
                     int received_bytes = recv(_events[n].data.fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+                    std::cout << "bytes read: " << received_bytes  << " from fd " << _events[n].data.fd << std::endl;
                     if (received_bytes == 0)
                     {
                         epoll_ctl(_epollfd, EPOLL_CTL_DEL, _events[n].data.fd, NULL);
+                        _clientConfig.erase(_events[n].data.fd);
                         close(_events[n].data.fd);
+                        continue;
                     }
                     if (received_bytes < 0)
                         continue;
 
-                    incomingRequestHTTP.setBuffer(buffer);
-        /*            std::map<int, ConfigServer>::iterator it;
-                    it = fd_2_serverConfig.find(_events[n].data.fd);
-                    if (it != fd_2_serverConfig.end())
-                    {
-                        incomingRequestHTTP->setConfig(fd_2_serverConfig[_events[n].data.fd]);
-                    }
-          */        std::string response = incomingRequestHTTP.handler();
+                    if (_clientConfig.find(_events[n].data.fd) == _clientConfig.end())
+                        exit(1);
+                    incomingRequestHTTP->setConfig(_clientConfig[_events[n].data.fd]);
+                    incomingRequestHTTP->setBuffer(buffer);
+                    std::string response = incomingRequestHTTP->handler();
+                    std::cout << "_events[n].data.fd: " << _events[n].data.fd << " for ports: " << _clientConfig[_events[n].data.fd].getPorts()[0] <<  std::endl;
+                    std::cout << "RESPONSE---------------------------------------" << std::endl;
+                    std::cout << "response: " << response << std::endl;
                     int sent_bytes = send(_events[n].data.fd, response.c_str(), response.size(), 0);
                     if (sent_bytes < 0) 
                     {
                         epoll_ctl(_epollfd, EPOLL_CTL_DEL, _events[n].data.fd, NULL);
+                        _clientConfig.erase(_events[n].data.fd);
+                        delete incomingRequestHTTP;
                         close(_events[n].data.fd);
                         continue;
                     }
@@ -119,10 +120,11 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                     {
                         std::cerr << "Error on fd " <<  _events[n].data.fd << ": " << strerror(errno) << std::endl;
                         epoll_ctl(_epollfd, EPOLL_CTL_DEL,  _events[n].data.fd, NULL);
+                        _clientConfig.erase(_events[n].data.fd);
+                        delete incomingRequestHTTP;
                         close( _events[n].data.fd);
                     }
                 }
-             //   delete incomingRequestHTTP;
             }
 
         }

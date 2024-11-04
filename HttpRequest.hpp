@@ -55,7 +55,7 @@ public:
 
 	void	setConfig(ConfigServer &_configServer)
 	{
-        std::cout << _configServer << std::endl;
+        //std::cout << _configServer << std::endl;
         this->configServer = new ConfigServer(_configServer);
 		//*this->configServer = _configServer;
 	}

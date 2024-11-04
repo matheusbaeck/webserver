@@ -43,6 +43,7 @@ ConfigFile	&ConfigFile::operator=(ConfigFile const &other)
 {
 	if (this != &other)
 	{
+
 		this->servers = other.servers;
 	}
 	return *this;
@@ -152,7 +153,7 @@ ConfigServer &ConfigServer::operator=(ConfigServer const &other)
 {
 	if (this != &other)
 	{
-		this->ports  = other.ports;
+        this->ports = other.ports;
 		this->client_max_body_size = other.client_max_body_size;
 		this->root = other.root;
 		this->server_names = other.server_names;
@@ -728,7 +729,7 @@ std::ostream	&operator<<(std::ostream &os, ConfigServer &obj)
 
 	std::cout << "root: " << obj.getRoot() << std::endl;
 
-	std::map<StatusCode, std::string> errs = obj.getErrorPages();
+	std::map<StatusCode, std::string> errs(obj.getErrorPages());
 	if (errs.size() > 0)
 	{
 		std::cout << "error_page: " << errs.begin()->first << ", " << errs.begin()->second << std::endl;
@@ -737,7 +738,7 @@ std::ostream	&operator<<(std::ostream &os, ConfigServer &obj)
 	std::cout << "client_max_body_size: " << obj.getClientMaxBodySize() << std::endl;
 	
 
-	std::vector<Route> routes = obj.getRoutes();
+	std::vector<Route> routes(obj.getRoutes());
 	for (size_t i = 0; i < routes.size(); i += 1)
 	{
 		std::cout << "location " << routes[i].path << std::endl;;
@@ -750,8 +751,5 @@ std::ostream	&operator<<(std::ostream &os, ConfigServer &obj)
 
 		std::cout << "    root: " << routes[i].getRoot() << std::endl;
 	}
-
-
-
 	return os;
 }

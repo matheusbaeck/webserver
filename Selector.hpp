@@ -23,10 +23,11 @@ class Selector
 {
 	private:
 		static Selector	selector;
-		epoll_event		_ev;
-		epoll_event		_events[MAX_EVENTS];
-		int				_nfds;
-        int             _epollfd;
+		epoll_event                 _ev;
+		epoll_event                 _events[MAX_EVENTS];
+		int                         _eventCount;
+        int                         _epollfd;
+        std::map<int, ConfigServer> _clientConfig;
 
 		Selector( void );
 

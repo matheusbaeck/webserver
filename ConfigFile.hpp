@@ -105,7 +105,7 @@ public:
 	Route(void);
 	~Route(void);
 	Route(Route const &other);
-	Route(ConfigServer const &other);
+	//Route(ConfigServer const &other); ---- why do you call ConfigServer
 	Route	&operator=(Route const &other);
 
 	void	parseMethods(void);

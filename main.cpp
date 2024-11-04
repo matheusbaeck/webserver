@@ -19,6 +19,7 @@ int main(int argc, char **argv)
     ServerManager manager(pathname);
     Selector& selector = Selector::getSelector();
     manager.addSockets(selector);
+    std::cout << "--------------------------------------------------> Starting infinite loop\n" << std::endl;
     for ( ; ; )
         selector.processEvents(manager.getServers());
 }
