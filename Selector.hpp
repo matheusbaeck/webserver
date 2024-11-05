@@ -39,6 +39,7 @@ class Selector
 		void	addSocket(const Server *);
 		void	processEvents (const std::vector<Server*> & servers);
 
+
         /* Getters */
         epoll_event*                    getEvents();
         std::map<int, ConfigServer>&    getClientConfig();
