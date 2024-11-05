@@ -24,16 +24,20 @@ Selector::~Selector( void )
 
 void Selector::addSocket(const Server *server)
 {
-	int socket_fd = server->getSock();
-    std::cout << "addSocket: Adding socket fd " << socket_fd << " to epoll instance" << std::endl;
-	_ev.events = EPOLLIN;
-	_ev.data.fd = socket_fd;
-
-	if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, socket_fd, &_ev) == -1) 
+    for (size_t i = 0; i < server->getSockets().size(); i += 1)
     {
-        std::cerr << "addSocket: Failed to add socket fd " << socket_fd << " to epoll: " << strerror(errno) << std::endl;
-		return;
-	}
+        int socket_fd = server->getSockets()[i];
+        std::cout << "addSocket: Adding socket fd " << socket_fd << " to epoll instance" << std::endl;
+        _ev.events = EPOLLIN;
+        _ev.data.fd = socket_fd;
+
+        if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, socket_fd, &_ev) == -1) 
+        {
+            std::cerr << "addSocket: Failed to add socket fd " << socket_fd << " to epoll: " << strerror(errno) << std::endl;
+            return;
+        }
+
+    }
 }
 
 void Selector::processEvents(const std::vector<Server*>& servers )
@@ -49,80 +53,84 @@ void Selector::processEvents(const std::vector<Server*>& servers )
     }
     for (size_t i = 0; i < servers.size(); i += 1)
     {
-        for (int n = 0; n < _eventCount; ++n)
+        for (size_t j = 0; j < servers[i]->getSockets().size(); j += 1)
         {
-
-            if (_events[n].events & EPOLLIN)
+            for (int n = 0; n < _eventCount; ++n)
             {
-                int	client_fd;
-                if ( _events[n].data.fd == servers[i]->getSock())
+                
+                if (_events[n].events & EPOLLIN)
                 {
+                    int	client_fd;
+                    if ( _events[n].data.fd == servers[i]->getSockets()[j])
+                    {
 
-                    client_fd = accept(servers[i]->getSock(), NULL, NULL);
-                    _clientConfig[client_fd] = servers[i]->getConfig();
+                        client_fd = accept(servers[i]->getSockets()[j], NULL, NULL);
+                        _clientConfig[client_fd] = servers[i]->getConfig();
 
-                    std::cout << "New client_fd " << client_fd << " accepted on port: " << servers[i]->getPorts() << std::endl;
-                    if (client_fd < 0)
-                    {
-                        std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
-                        continue;
+                        std::cout << "New client_fd " << client_fd << " accepted on port: " << servers[i]->getPorts()[j] << std::endl;
+                        if (client_fd < 0)
+                        {
+                            std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
+                            continue;
+                        }
+                        // Add the new client socket to epoll
+                        epoll_event ev;
+                        ev.events = EPOLLIN | EPOLLET; 
+                        ev.data.fd = client_fd;
+                        if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, client_fd, &ev) == -1) 
+                        {
+                            std::cerr << "Failed to add client socket to epoll: " << strerror(errno) << std::endl;
+                            close(client_fd);
+                            continue;
+                        }
                     }
-                    // Add the new client socket to epoll
-                    epoll_event ev;
-                    ev.events = EPOLLIN | EPOLLET; 
-                    ev.data.fd = client_fd;
-                    if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, client_fd, &ev) == -1) 
+                    else 
                     {
-                        std::cerr << "Failed to add client socket to epoll: " << strerror(errno) << std::endl;
-                        close(client_fd);
-                        continue;
-                    }
-                }
-                else 
-                {
-                    std::cout << "_events[n].data.fd: " << _events[n].data.fd <<  std::endl;
-                    char buffer[1024] = {0};
-                    int received_bytes = recv(_events[n].data.fd, buffer, sizeof(buffer), MSG_DONTWAIT);
-                    std::cout << "bytes read: " << received_bytes  << " from fd " << _events[n].data.fd << std::endl;
-                    if (received_bytes == 0)
-                    {
-                        epoll_ctl(_epollfd, EPOLL_CTL_DEL, _events[n].data.fd, NULL);
-                        _clientConfig.erase(_events[n].data.fd);
-                        close(_events[n].data.fd);
-                        continue;
-                    }
-                    if (received_bytes < 0)
-                        continue;
+                        std::cout << "_events[n].data.fd: " << _events[n].data.fd <<  std::endl;
+                        char buffer[1024] = {0};
+                        int received_bytes = recv(_events[n].data.fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+                        std::cout << "bytes read: " << received_bytes  << " from fd " << _events[n].data.fd << std::endl;
+                        if (received_bytes == 0)
+                        {
+                            epoll_ctl(_epollfd, EPOLL_CTL_DEL, _events[n].data.fd, NULL);
+                            _clientConfig.erase(_events[n].data.fd);
+                            close(_events[n].data.fd);
+                            continue;
+                        }
+                        if (received_bytes < 0)
+                            continue;
 
-                    if (_clientConfig.find(_events[n].data.fd) == _clientConfig.end())
-                        exit(1);
-                    HttpRequest* incomingRequestHTTP = new HttpRequest();
-                    incomingRequestHTTP->setConfig(_clientConfig[_events[n].data.fd]);
-                    incomingRequestHTTP->setBuffer(buffer);
-                    std::string response = incomingRequestHTTP->handler();
-                    std::cout << "_events[n].data.fd: " << _events[n].data.fd << " for ports: " << _clientConfig[_events[n].data.fd].getPorts()[0] <<  std::endl;
-                    std::cout << "RESPONSE---------------------------------------" << std::endl;
-                    std::cout << "response: " << response << std::endl;
-                    int sent_bytes = send(_events[n].data.fd, response.c_str(), response.size(), 0);
-                    if (sent_bytes < 0) 
-                    {
-                        epoll_ctl(_epollfd, EPOLL_CTL_DEL, _events[n].data.fd, NULL);
-                        _clientConfig.erase(_events[n].data.fd);
+                        if (_clientConfig.find(_events[n].data.fd) == _clientConfig.end())
+                            exit(1);
+                        HttpRequest* incomingRequestHTTP = new HttpRequest();
+                        incomingRequestHTTP->setConfig(_clientConfig[_events[n].data.fd]);
+                        incomingRequestHTTP->setBuffer(buffer);
+                        std::string response = incomingRequestHTTP->handler();
+                        std::cout << "_events[n].data.fd: " << _events[n].data.fd << " for ports: " << _clientConfig[_events[n].data.fd].getPorts()[j] <<  std::endl;
+                        std::cout << "RESPONSE---------------------------------------" << std::endl;
+                        std::cout << "response: " << response << std::endl;
+                        int sent_bytes = send(_events[n].data.fd, response.c_str(), response.size(), 0);
+                        if (sent_bytes < 0) 
+                        {
+                            epoll_ctl(_epollfd, EPOLL_CTL_DEL, _events[n].data.fd, NULL);
+                            _clientConfig.erase(_events[n].data.fd);
+                            delete incomingRequestHTTP;
+                            close(_events[n].data.fd);
+                            continue;
+                        }
+
+                        // TODO: handle if send fails and close connection after handling all requests.
+                        if (_events[n].events & (EPOLLERR| EPOLLHUP))
+                        {
+                            std::cerr << "Error on fd " <<  _events[n].data.fd << ": " << strerror(errno) << std::endl;
+                            epoll_ctl(_epollfd, EPOLL_CTL_DEL,  _events[n].data.fd, NULL);
+                            _clientConfig.erase(_events[n].data.fd);
+                            close( _events[n].data.fd);
+                        }
                         delete incomingRequestHTTP;
-                        close(_events[n].data.fd);
-                        continue;
                     }
-
-                    // TODO: handle if send fails and close connection after handling all requests.
-                    if (_events[n].events & (EPOLLERR| EPOLLHUP))
-                    {
-                        std::cerr << "Error on fd " <<  _events[n].data.fd << ": " << strerror(errno) << std::endl;
-                        epoll_ctl(_epollfd, EPOLL_CTL_DEL,  _events[n].data.fd, NULL);
-                        _clientConfig.erase(_events[n].data.fd);
-                        close( _events[n].data.fd);
-                    }
-                    delete incomingRequestHTTP;
                 }
+
             }
 
         }

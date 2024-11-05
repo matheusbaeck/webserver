@@ -18,13 +18,13 @@ class Server
 {
 	private:
 
-        ConfigServer		_configServer;
+        ConfigServer		                _configServer;
 
-        std::string			_server_name;
-        int                 _serv_port;
-        sockaddr_in         _addr;
-        socklen_t           _addrlen;
-        int                 _serv_socket;
+        std::string			                _server_name;
+        std::vector<uint16_t>               _serv_ports;
+        std::vector<sockaddr_in>            _addrs;
+        std::vector<socklen_t>              _addrlens;
+        std::vector<int>                    _serv_sockets;
 
 	public:
 
@@ -40,14 +40,14 @@ class Server
 
         
 		/* New Getters */
-        sockaddr*           getAddr() const;
-        socklen_t           getAddrlen() const;
-        int                 getSock() const;
-        int                 getPorts() const;
-		ConfigServer&       getConfig( void );
+        sockaddr*               getAddr(int pos) const;
+        socklen_t               getAddrlen(int pos) const;
+        std::vector<int>        getSockets() const;
+        std::vector<uint16_t>   getPorts() const;
+		ConfigServer&           getConfig( void );
 
         /* Methods */
-		int			create_server_socket( void );
+		int			create_server_socket(int pos);
 		int			setnonblocking( int );
 		int			handle_read( int );
 };
