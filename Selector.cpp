@@ -69,20 +69,21 @@ void Selector::processEvents(const std::vector<Server*>& servers )
     {
         for (size_t j = 0; j < servers[i]->getSockets().size(); j += 1)
         {
+            Server *server = servers[i];
             for (int n = 0; n < _eventCount; ++n)
             {
                 
                 if (_events[n].events & EPOLLIN)
                 {
-                    if ( _events[n].data.fd == servers[i]->getSockets()[j])
+                    if ( _events[n].data.fd == server->getSockets()[j])
                     {
-                        int err = servers[i]->acceptClient(selector, j);
+                        int err = server->acceptClient(selector, server->getSockets()[j], server->getPorts()[j]);
                         if (err == -1)
                             continue;
                     }
                     else 
                     {
-                        int err = servers[i]->handle_read(*this, _events[n].data.fd);
+                        int err = server->handle_read(*this, _events[n].data.fd);
                         if (err == -1) 
                             continue;
                     }

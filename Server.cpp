@@ -86,12 +86,12 @@ int Server::setnonblocking(int sockfd)
 	return (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK));
 }
 
-int Server::acceptClient(Selector& selector, int pos)
+int Server::acceptClient(Selector& selector, int socketFD, int portFD)
 {
-    int client_fd = accept(this->getSockets()[pos], NULL, NULL);
+    int client_fd = accept(socketFD, NULL, NULL);
     selector.getClientConfig()[client_fd] = this->getConfig();
 
-    std::cout << "New client_fd " << client_fd << " accepted on port: " << this->getPorts()[pos] << std::endl;
+    std::cout << "New client_fd " << client_fd << " accepted on port: " << portFD << std::endl;
     if (client_fd < 0)
     {
         std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
@@ -112,7 +112,6 @@ int Server::acceptClient(Selector& selector, int pos)
 
 int Server::handle_read(Selector& selector, int client_socket)
 {
-    std::cout << "_events[n].data.fd: " << client_socket <<  std::endl;
     char buffer[1024] = {0};
     int received_bytes = recv(client_socket, buffer, sizeof(buffer), MSG_DONTWAIT);
     std::cout << "bytes read: " << received_bytes  << " from fd " << client_socket << std::endl;

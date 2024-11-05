@@ -37,6 +37,7 @@ public:
 	HttpRequest(const char *buffer);
 	HttpRequest &operator=(const HttpRequest &other);
 	HttpRequest(const HttpRequest &other);
+    ~HttpRequest();
 
 	static std::string	readFile(const char *pathname);
 	static bool 				isUpperCase(const std::string &str);

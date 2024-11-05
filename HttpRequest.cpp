@@ -119,6 +119,11 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 	return *this;
 }
 
+HttpRequest::~HttpRequest()
+{
+    delete this->configServer;
+}
+
 HttpRequest::HttpRequest(const char *buffer)
 {
 	this->tokenizer.setBuffer(buffer);
