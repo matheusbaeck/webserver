@@ -1,12 +1,13 @@
 #include "Server.hpp"
+#include "Selector.hpp"
+#include "HttpRequest.hpp"
 
-//WATCH OUT WITH ports[0], we can have multiple ports
 Server::Server(ConfigServer &configServer)
 {
    for (size_t i = 0; i < configServer.getPorts().size(); i += 1)
    {
         this->_serv_ports.push_back(configServer.getPorts()[i]);
-        std::cout << "Server listening on localhost:" << this->_serv_ports[i] << std::endl;
+        std::cout << "Server listening on localhost: " << this->_serv_ports[i] << std::endl;
         this->_configServer = configServer;
 
         sockaddr_in element;
@@ -85,26 +86,70 @@ int Server::setnonblocking(int sockfd)
 	return (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK));
 }
 
-
-int Server::handle_read(int client_socket)
+int Server::acceptClient(Selector& selector, int pos)
 {
-	char	buffer[BUFFERSIZE];
-	int		bytes_read;
-	
-	bytes_read = recv(client_socket, buffer, sizeof(buffer), 0);
-	if (bytes_read < 0)
-	{
-		std::cerr << "read failed: " << strerror(errno) << std::endl;
-	} 
-	else if (bytes_read == 0)
-	{
-        std::cerr << "Client disconnected on socket " << client_socket << std::endl;
-		close(client_socket);
-	} 
-	else
-	{
-		std::cout << "Received " << bytes_read << " bytes: " << std::string(buffer, bytes_read) << std::endl;
-	}return (bytes_read);
+    int client_fd = accept(this->getSockets()[pos], NULL, NULL);
+    selector.getClientConfig()[client_fd] = this->getConfig();
+
+    std::cout << "New client_fd " << client_fd << " accepted on port: " << this->getPorts()[pos] << std::endl;
+    if (client_fd < 0)
+    {
+        std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
+        return (-1);
+    }
+    // Add the new client socket to epoll
+    epoll_event ev;
+    ev.events = EPOLLIN | EPOLLET; 
+    ev.data.fd = client_fd;
+    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, client_fd, &ev) == -1) 
+    {
+        std::cerr << "Failed to add client socket to epoll: " << strerror(errno) << std::endl;
+        close(client_fd);
+        return (-1);
+    }
+    return (0);
+}
+
+int Server::handle_read(Selector& selector, int client_socket)
+{
+    std::cout << "_events[n].data.fd: " << client_socket <<  std::endl;
+    char buffer[1024] = {0};
+    int received_bytes = recv(client_socket, buffer, sizeof(buffer), MSG_DONTWAIT);
+    std::cout << "bytes read: " << received_bytes  << " from fd " << client_socket << std::endl;
+    if (received_bytes == 0)
+    {
+        epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL);
+        selector.getClientConfig().erase(client_socket);
+        close(client_socket);
+        return (-1);
+    }
+    if (received_bytes < 0)
+        return (-1);
+
+    HttpRequest* incomingRequestHTTP = new HttpRequest();
+    incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
+    incomingRequestHTTP->setBuffer(buffer);
+    std::string response = incomingRequestHTTP->handler();
+    int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
+    if (sent_bytes < 0) 
+    {
+        epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL);
+        selector.getClientConfig().erase(client_socket);
+        delete incomingRequestHTTP;
+        close(client_socket);
+        return (-1);
+    }
+
+    // TODO: handle if send fails and close connection after handling all requests.
+    if (client_socket & (EPOLLERR| EPOLLHUP))
+    {
+        std::cerr << "Error on fd " <<  client_socket << ": " << strerror(errno) << std::endl;
+        epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL,  client_socket, NULL);
+        selector.getClientConfig().erase(client_socket);
+        close(client_socket);
+    }
+    delete incomingRequestHTTP;
+    return (0);
 }
 
 Server::Server( const Server &other )

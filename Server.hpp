@@ -1,18 +1,20 @@
 #ifndef SERVER_HPP__
 # define SERVER_HPP__
 
+#include "ConfigFile.hpp"
 #include <vector>
 #include <iostream>
 #include <cstdarg>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <cstring>
-#include "ConfigFile.hpp"
 #include <fcntl.h>
 #include <unistd.h>
 
 #define BACKLOG 10
 #define BUFFERSIZE 4096
+
+class Selector;
 
 class Server 
 {
@@ -49,7 +51,8 @@ class Server
         /* Methods */
 		int			create_server_socket(int pos);
 		int			setnonblocking( int );
-		int			handle_read( int );
+        int         acceptClient(Selector& selector, int pos);
+		int			handle_read(Selector& selector, int clientSocket);
 };
 
 #endif
