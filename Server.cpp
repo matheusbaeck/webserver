@@ -80,6 +80,7 @@ int Server::setnonblocking(int sockfd)
 	return (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK));
 }
 
+
 int Server::handle_read(int client_socket)
 {
 	char	buffer[BUFFERSIZE];

@@ -38,9 +38,8 @@ void Selector::addSocket(const Server *server)
 
 void Selector::processEvents(const std::vector<Server*>& servers )
 {
-    HttpRequest *incomingRequestHTTP;
 
-    _eventCount = epoll_wait(_epollfd, _events, MAX_EVENTS, -1); //old timeout 200
+    _eventCount = epoll_wait(_epollfd, _events, MAX_EVENTS, 200); //old timeout 200
     if (_eventCount == 0)
         return;
     if (_eventCount == -1) 
@@ -61,9 +60,7 @@ void Selector::processEvents(const std::vector<Server*>& servers )
 
                     client_fd = accept(servers[i]->getSock(), NULL, NULL);
                     _clientConfig[client_fd] = servers[i]->getConfig();
-                    incomingRequestHTTP = new HttpRequest();
 
-                    std::cout << "incoming Request HTTP: " << incomingRequestHTTP << std::endl;
                     std::cout << "New client_fd " << client_fd << " accepted on port: " << servers[i]->getPorts() << std::endl;
                     if (client_fd < 0)
                     {
@@ -99,6 +96,7 @@ void Selector::processEvents(const std::vector<Server*>& servers )
 
                     if (_clientConfig.find(_events[n].data.fd) == _clientConfig.end())
                         exit(1);
+                    HttpRequest* incomingRequestHTTP = new HttpRequest();
                     incomingRequestHTTP->setConfig(_clientConfig[_events[n].data.fd]);
                     incomingRequestHTTP->setBuffer(buffer);
                     std::string response = incomingRequestHTTP->handler();
@@ -121,9 +119,9 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                         std::cerr << "Error on fd " <<  _events[n].data.fd << ": " << strerror(errno) << std::endl;
                         epoll_ctl(_epollfd, EPOLL_CTL_DEL,  _events[n].data.fd, NULL);
                         _clientConfig.erase(_events[n].data.fd);
-                        delete incomingRequestHTTP;
                         close( _events[n].data.fd);
                     }
+                    delete incomingRequestHTTP;
                 }
             }
 
