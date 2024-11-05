@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: math <math@student.42.fr>                  +#+  +:+       +#+         #
+#    By: glacroix <PGCL>                            +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/10/15 17:56:25 by aabourri         ###   ########.fr        #
+#    Updated: 2024/11/04 17:17:39 by glacroix         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -15,13 +15,21 @@ SRCSDIR     = .
 INCLUDES    = .
 OBJDIR      = .obj
 
-SRCS        = $(wildcard $(SRCSDIR)/*.cpp)
+SRCS        = $(SRCSDIR)/HttpRequest.cpp \
+				$(SRCSDIR)/Selector.cpp \
+				$(SRCSDIR)/main.cpp \
+				$(SRCSDIR)/Server.cpp \
+				$(SRCSDIR)/ConfigFile.cpp \
+				$(SRCSDIR)/ServerManager.cpp \
+				$(SRCSDIR)/Tokenizer.cpp \
+				$(SRCSDIR)/HttpRequest.cpp 
+
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 
 CC          = g++
-CFLAGS      = -g3 -Wall -Wextra -Werror -std=c++98 -fsanitize=address
+CFLAGS      = -g3 -Wall -Wextra -Werror -std=c++98 # -fsanitize=address
 
-LOG_LEVEL   ?= 1
+LOG_LEVEL   ?= 6
 DEFINES     = -DCOUT_LOG_LEVEL=$(LOG_LEVEL)
 
 all: $(NAME)

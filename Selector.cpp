@@ -1,151 +1,97 @@
 #include "Selector.hpp"
-#include "ServerManager.hpp"
+#include "HttpRequest.hpp"
+#include <cstring>
+#include <map>
 
 Selector Selector::selector;
 
+//TODO: replace all logs with std::cerr or std::cout
+//TODO: what happens if epollfd fails
 Selector::Selector( void )
 {
-	this->m_epollfd = epoll_create1(0);
-	if (this->m_epollfd == -1){
-		LogMessage(ERROR, "epoll_create1");
+	this->_epollfd = epoll_create(1);
+	if (this->_epollfd == -1)
+    {
+        std::cerr << "Failed to create epoll_instance: " << strerror(errno) << std::endl;
 	}
 }
 
 Selector::~Selector( void )
 {
-	if (this->m_epollfd != -1)
-		close(this->m_epollfd);
+	if (this->_epollfd != -1)
+		close(this->_epollfd);
 }
 
-void Selector::addSocket(const Worker &worker)
+epoll_event* Selector::getEvents()
 {
-	int socket_fd = worker.sock();
-	m_ev.events = EPOLLIN;
-	m_ev.data.fd = socket_fd;
+    return (this->_events);
+}
 
-	oss() << "addSocket: Adding socket fd " << socket_fd << " to epoll instance";
-	LogMessage(DEBUG);
+std::map<int, ConfigServer>& Selector::getClientConfig()
+{
+    return (this->_clientConfig);
+}
 
-	if (epoll_ctl(m_epollfd, EPOLL_CTL_ADD, socket_fd, &m_ev) == -1) {
-		oss() << "addSocket: Failed to add socket fd " << socket_fd << " to epoll: " << strerror(errno);
-		LogMessage(ERROR);
-		return;
-	}
-
-	m_fd_to_worker_map[socket_fd] = const_cast<Worker*>(&worker);
-
-	oss() << "addSocket: Successfully added socket fd " << socket_fd << " to epoll";
-	LogMessage(DEBUG);
+int& Selector::getEpollFD()
+{
+    return (this->_epollfd);
 }
 
 
-void Selector::executeMethod(char* buffer, int fd, Server& server)
+void Selector::addSocket(const Server *server)
 {
-    (void)server;
-    HttpRequest httpRequest(buffer);
-    httpRequest.setConfigFile(*ServerManager::getConfigFile());
+    for (size_t i = 0; i < server->getSockets().size(); i += 1)
+    {
+        int socket_fd = server->getSockets()[i];
+        _ev.events = EPOLLIN;
+        _ev.data.fd = socket_fd;
 
-    std::string response = httpRequest.handler();
-    int sent_bytes = send(fd, response.c_str(), response.size(), 0);
-    (void) sent_bytes;
+        if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, socket_fd, &_ev) == -1) 
+        {
+            std::cerr << "addSocket: Failed to add socket fd " << socket_fd << " to epoll: " << strerror(errno) << std::endl;
+            return;
+        }
+
+    }
 }
 
-void Selector::processEvents( Server & server )
+void Selector::processEvents(const std::vector<Server*>& servers )
 {
-    m_nfds = epoll_wait(m_epollfd, m_events, MAX_EVENTS, TIME_OUT);
-    if (m_nfds == -1) {
-        oss() << "epoll_wait failed: " << strerror(errno);
-        LogMessage(ERROR);
+    _eventCount = epoll_wait(_epollfd, _events, MAX_EVENTS, 200); //old timeout 200
+    if (_eventCount == 0)
+        return;
+    if (_eventCount == -1) 
+    {
+        std::cerr << "epoll_wait failed: " << strerror(errno) << std::endl;
         return;
     }
-	for (int n = 0; n < m_nfds; ++n) 
-	{
-		int event_fd = m_events[n].data.fd;
-		if (m_events[n].events & EPOLLIN) 
+    for (size_t i = 0; i < servers.size(); i += 1)
+    {
+        for (size_t j = 0; j < servers[i]->getSockets().size(); j += 1)
         {
-			for (std::vector<Worker>::iterator it = server.workersBegin() ; it != server.workersEnd() ; ++it)
-			{
-				int	client_fd;
-                if (event_fd == it->sock())
+            Server *server = servers[i];
+            for (int n = 0; n < _eventCount; ++n)
+            {
+                
+                if (_events[n].events & EPOLLIN)
                 {
-                    client_fd = accept(it->sock(), NULL, NULL);
-                    oss() << "client fd: " << client_fd << " connected" << std::endl;
-                    LogMessage(INFO);
-
-                    if (client_fd < 0) {
-                        oss() << "Failed to accept new connection: " << strerror(errno);
-                        LogMessage(ERROR);
-                        continue;
-                    }
-                    // Add the new client socket to epoll
-                    epoll_event ev;
-                    ev.events = EPOLLIN | EPOLLET;  // Edge-triggered mode
-                    ev.data.fd = client_fd;
-                    if (epoll_ctl(m_epollfd, EPOLL_CTL_ADD, client_fd, &ev) == -1) {
-                        oss() << "Failed to add client socket to epoll: " << strerror(errno);
-                        LogMessage(ERROR);
-                        close(client_fd);
-                        continue;
-                    }
-
-                    oss() << "Accepted new connection on fd " << client_fd;
-                    LogMessage(INFO);
-                } 
-                else 
-                {
-                    // This is a client socket, create a request
-                    char buffer[1024] = {0};
-
-                    int received_bytes = recv(m_events[n].data.fd, buffer, sizeof(buffer), MSG_DONTWAIT);
-                    if (received_bytes == 0)
+                    if ( _events[n].data.fd == server->getSockets()[j])
                     {
-                        epoll_ctl(m_epollfd, EPOLL_CTL_DEL, m_events[n].data.fd, m_events);
-                        close(m_events[n].data.fd);
-                        oss() << "Client disconnected " << m_events[n].data.fd;
-                        LogMessage(INFO);
+                        int err = server->acceptClient(selector, server->getSockets()[j], server->getPorts()[j]);
+                        if (err == -1)
+                            continue;
                     }
-                    if (received_bytes < 0)
+                    else 
                     {
-                        oss() << "Error in received bytes:" <<strerror(errno);
-                        LogMessage(ERROR);
-                        continue;
+                        int err = server->handle_read(*this, _events[n].data.fd);
+                        if (err == -1) 
+                            continue;
                     }
-                    selector.executeMethod(buffer, m_events[n].data.fd, server);
                 }
 
-                // TODO: handle if send fails and close connection after handling all requests.
-                if (m_events[n].events & (EPOLLERR| EPOLLHUP)) 
-                {
-                    oss() << "Error on fd " << event_fd << ": " << strerror(errno);
-                    LogMessage(ERROR);
-                    epoll_ctl(m_epollfd, EPOLL_CTL_DEL, event_fd, NULL);
-                    close(event_fd);
-                }
             }
-		}
-		
-	}
-}
-Worker*	Selector::getWorkerByFd(int fd) const
-{
-	std::map<int, Worker*>::const_iterator it = m_fd_to_worker_map.find(fd);
-	if (it != m_fd_to_worker_map.end()) {
-		return it->second;
-	}
-	return NULL;
+
+        }
+    }
 }
 
-void	Selector::LogMessage(int logLevel, const std::string& message, std::exception* ex)
-{
-	logger->logMessage(this, logLevel, message, ex);
-}
-
-void	Selector::LogMessage(int logLevel, std::exception* ex)
-{
-	logger->logMessage(this, logLevel, m_oss.str(), ex);
-}
-
-std::string	Selector::GetType() const
-{
-	return "Selector";
-}

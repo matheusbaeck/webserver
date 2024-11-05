@@ -105,7 +105,7 @@ public:
 	Route(void);
 	~Route(void);
 	Route(Route const &other);
-	Route(ConfigServer const &other);
+	//Route(ConfigServer const &other); ---- why do you call ConfigServer
 	Route	&operator=(Route const &other);
 
 	void	parseMethods(void);
@@ -117,7 +117,6 @@ public:
 	std::string 					&getRoot(void);
 	std::vector<Method>				  &getMethods(void);
 	std::map<StatusCode, std::string> &getRedirection(void);
-	//std::vector<std::string>		  &getIndices(void);
 };
 
 class ConfigFile
@@ -140,8 +139,8 @@ public:
 
 	/* ------- Methods ------- */
 	void	parse(void);
-	std::vector<ConfigServer>	&getServers(void);
-	std::vector<std::vector<uint16_t> > getPorts(void);
+	std::vector<ConfigServer>	&getServersConfig(void);
+	//std::vector<std::vector<uint16_t> > getPorts(void);
 
 
 	/* ------- Static Methods ------- */

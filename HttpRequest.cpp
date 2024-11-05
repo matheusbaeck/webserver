@@ -1,6 +1,6 @@
 #include "HttpRequest.hpp"
-#include <cstring>
 
+#include <cstring>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -11,7 +11,7 @@
 
 const char  *METHODS[] = {"GET", "POST", "DELETE"};
 //ConfigFile   *HttpRequest::configFile;
-ConfigServer *HttpRequest::configServer;
+//ConfigServer *HttpRequest::configServer;
 const char	*HttpRequest::delim = " \r\n";
 const char	*HttpRequest::CRLF  = "\r\n";
 
@@ -51,10 +51,14 @@ std::vector<std::string>::const_iterator checkIndex(const std::vector<std::strin
 
 
 #if 1
-std::string	notAllowed(void)
+std::string	notAllowed(std::string const &str)
 {
 	const std::string statusLine = "HTTP/1.1 405 Not Allowed\r\n";
-	std::string headers = "Server: webserv/0.42\r\nAllow: GET, POST, DELETE\r\nContent-Type: text/html\r\n";
+
+	std::string headers = "Server: webserv/0.42\r\n";
+	headers += str + "\r\n";
+	headers += "Content-Type: text/html\r\n";
+
 	std::string body = HttpRequest::readFile("./err_pages/405.html");
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
 	headers += "Connection: keep-alive\r\n\r\n";
@@ -115,9 +119,13 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 	return *this;
 }
 
+HttpRequest::~HttpRequest()
+{
+    delete this->configServer;
+}
+
 HttpRequest::HttpRequest(const char *buffer)
 {
-	std::cout << "created http request" << std::endl;
 	this->tokenizer.setBuffer(buffer);
 }
 
@@ -134,6 +142,9 @@ StatusCode HttpRequest::parseStartLine(void)
 	for (size_t i = 0; i < 3; i += 1)
 	{
 		std::string token = this->tokenizer.next(HttpRequest::delim);
+		
+		//std::cerr << "token -> " << token << std::endl;
+
 		this->statusCode  = (this->*calls[i])(token);
 		// TODO: make sure this condition is correct.
 		if (this->statusCode != OK) return this->statusCode;
@@ -175,7 +186,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 		 	*	TODO: Now let' handle one server and multiple routes.
 		 	* */
 		route = HttpRequest::configServer->getRoute(requestTarget);
-		//route = this->configFile->getServers()[0].getRoute(requestTarget);
 		std::cout << "requestTarget: " << requestTarget << std::endl;
 		if (!route)
 		{
@@ -193,7 +203,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 #if 1
 		if (isDir(tmp.c_str()))
 		{
-			//std::vector<std::string> indices            = route->getIndices();
 			std::vector<std::string> indices            = route->getIndex();
 			std::vector<std::string>::const_iterator it = checkIndex(indices);
 
@@ -220,17 +229,22 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 
 void	HttpRequest::parseQuery(const std::string &path)
 {
-	std::stringstream ss(path);
-	std::string token;
+	Tokenizer t(path.c_str());
 
-	while (!ss.eof())
+	while (!t.end())
 	{
-		std::getline(ss, token, '&');
-		size_t found = token.find("=");
-		if (found != std::string::npos)
+		// TODO: make a list of delimeters
+		std::string key   = t.next("=");
+		if (t.peek() == '=')
 		{
-			this->queries[token.substr(0, found)] = token.substr(found + 1, token.size());
+			t.get();
 		}
+		std::string value = t.next("&");
+		if (t.peek() == '&')
+		{
+			t.get();
+		}
+		this->queries[key] = value;
 	}
 }
 
@@ -256,9 +270,70 @@ StatusCode HttpRequest::getStatusCode(void) const
 	return this->statusCode;
 }
 
+struct BodyRequest
+{
+	enum Type {RAW, URLENCODED};
+	union {
+		std::string *raw;
+		std::map<std::string, std::string> *urlencoded;
+	};
+
+};
+
+
 StatusCode HttpRequest::parseBody(void)
 {
-	throw std::invalid_argument("NOT IMPLEMENTED");
+	BodyRequest bodyRequest;
+	(void) bodyRequest;
+
+	// TODO: try to return if size 0
+	if (this->method != POST)
+		return OK;
+
+
+	std::cout << "length: " << this->headers["content-length"] << std::endl;;
+
+	// TODO: be careful from overflow
+	const size_t size = ConfigFile::toNumber(this->headers["content-length"]) + 1;
+	const std::string contentType = this->headers["content-type"];
+	char body[size];
+
+
+	this->tokenizer.get(body, size);
+	if (contentType == "application/x-www-form-urlencoded")
+	{
+		bodyRequest.urlencoded = new std::map<std::string, std::string>;
+		Tokenizer t(body);
+		while (!t.end())
+		{
+			// TODO: make a list of delimeters
+			std::string key   = t.next("=");
+			if (t.peek() == '=')
+			{
+				t.get();
+			}
+			std::string value = t.next("&");
+			if (t.peek() == '&')
+			{
+				t.get();
+			}
+			// TODO: try to access by []
+			bodyRequest.urlencoded->insert(std::make_pair(key, value));
+		}
+
+		std::cout << "-> " << body << std::endl;
+		exit(1);
+	}
+	else if (contentType == "multipart/form-data")
+	{
+		std::cout << "------------------------------------------------------------------------------------\n";
+		std::cout << body << std::endl;
+		std::cout << "------------------------------------------------------------------------------------\n";
+	}
+	else if (contentType == "text/plain")
+	{
+		bodyRequest.raw = new std::string(body);
+	}
 	return OK;
 }
 
@@ -270,11 +345,13 @@ StatusCode HttpRequest::parseHeaders(void)
 	while (!tokenizer.end())
 	{
 		key = tokenizer.next(":\r\n");
-		if (tokenizer.peek() == ':')
-			tokenizer.get();
+		if (tokenizer.peek() == ':') tokenizer.get();
 		HttpRequest::lower(key);
 		tokenizer.trimSpace();
-		value = tokenizer.next(HttpRequest::delim);
+		value = tokenizer.next(HttpRequest::CRLF/*HttpRequest::delim*/);
+
+		std::cout << "key  : " << key << std::endl;
+		std::cout << "value: " << value << std::endl;
 
 		if (key == "host")
 		{
@@ -283,7 +360,9 @@ StatusCode HttpRequest::parseHeaders(void)
 // 			if (!this->matchHost(value))
 // 				return NFOUND;
 
-			this->headers[key] = value;
+			std::cout << "host: " << value << std::endl;
+
+			this->headers[key] = tokenizer.next(HttpRequest::CRLF);
 		}
 		if (key == "connection")
 		{
@@ -291,7 +370,7 @@ StatusCode HttpRequest::parseHeaders(void)
 			
 			if (value == "close")
 			{
-				this->headers[key] = value;
+				this->headers[key] = value;//tokenizer.next(HttpRequest::CRLF);
 			}
 		}
 		if (key == "content-length")
@@ -301,14 +380,19 @@ StatusCode HttpRequest::parseHeaders(void)
 // 			{
 // 				return CTOOLARGE;
 // 			}
-			this->headers[key] = value;
+			this->headers[key] = value;//tokenizer.next(HttpRequest::CRLF);
+		}
+		if (key == "content-type")
+		{
+			this->headers[key] = value;//tokenizer.next(";\r\n");
 		}
 		if (key == "user-agent")
 		{
-			this->headers[key] = value;
+			this->headers[key] = value;//tokenizer.next(HttpRequest::CRLF);
 		}
-		
-		this->tokenizer.isCRLF(); // checking "\r\n" and skip them
+
+		if (this->tokenizer.isCRLF()) // checking "\r\n" and skip them
+			if (this->tokenizer.isCRLF()) break;
 	}
 	// *NOTE: client must send one host header.
 	if (this->headers.count("host") == 0) return BREQUEST;
@@ -318,13 +402,10 @@ StatusCode HttpRequest::parseHeaders(void)
 // TODO: try to put this function in configFile class
 bool HttpRequest::matchHost(const std::string &host)
 {
-	// TODO: handle multiple servers
 	std::string t = host;
-	size_t found = host.find(":"); // skipping port
+	size_t found = host.find(":");
 	if (found != std::string::npos)
 		t = host.substr(0, found);
-	
-	//std::vector<std::string> serverNames  = this->configFile->getServers()[0].getServerNames();
 	std::vector<std::string> serverNames = HttpRequest::configServer->getServerNames();
 	return std::find(serverNames.begin(), serverNames.end(), t) != serverNames.end();
 }
@@ -333,7 +414,7 @@ bool HttpRequest::matchHost(const std::string &host)
 //void	HttpRequest::parse(const char *buffer)
 void	HttpRequest::parse(void)
 {
-	// TODO: how do i generate a HTTP responde?
+	// TODO: how do i generate a HTTP response?
 
 	/* ----------- Start Line ----------- */
 	this->statusCode = this->parseStartLine();
@@ -360,10 +441,23 @@ void	HttpRequest::parse(void)
 		 *		 rest of the body request should start parsing it again as new request!!
 		 * */
 
-	//this->parseBody();
+
+	this->parseBody();
 
 	/* -----------   generate response  ----------- */
 
+}
+
+std::string	fileUpload(std::string const &body, std::string const &filename)
+{
+	///std::ofstream file()
+
+	(void) body;
+
+	std::cout << "body    : " << body << std::endl;
+	std::cout << "filename: " << filename << std::endl;
+
+	return std::string("HTTP/1.1 201 Created\r\n\r\n");	
 }
 
 std::string	HttpRequest::handler(void)
@@ -372,18 +466,26 @@ std::string	HttpRequest::handler(void)
 
 	this->parse();
 
-	Route *route = HttpRequest::configServer->getRoute(this->path);
+	Route *route = this->configServer->getRoute(this->path);
+    std::cout << "port: " << this->configServer->getPorts()[0] << std::endl;
+    if (route)
+    {
+        std::cout << "autoindex: " << (route->getAutoIndex() ? "on" : "off") << std::endl;
+    }
+
+	//fileUpload(this->tokenizer.str(), this->path);
+
 
 	switch (this->statusCode)
 	{
 		case BREQUEST: response = badRequest(); break;
 		case NFOUND  : response = notFound();   break;
-		case NALLOWED: response = notAllowed(); break;
+		case NALLOWED: response = notAllowed("Allow: GET, POST, DELETE"); break;
 		case OK:
 			switch (this->method)
 			{
 				case GET:    response = this->GETmethod(this->path);            break;
-				case POST:   response = notAllowed(); /*std::invalid_argument("NOT IMPLEMENTED - POST")*/;   break;
+				case POST:   response = notAllowed("");							break;
 				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
 			}
@@ -405,22 +507,19 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 	struct stat	  statbuf;
 	DIR	*dir;
 	char buff[100];
+
 	
 
 	std::string startLine = "HTTP/1.1 200 OK\r\n";
 	std::string headers   = "Server: webserver/0.42\r\nContent-Type: text/html\r\n";
 
-    std::string s = "Index of " + dirpath;
+    std::string s = "Index of " + dirpath.substr(1, dirpath.size());
     std::string body = "<html>\n<head><title>" + s + "</title></head>\n";
     body += "<body>\n<h1>" + s + "</h1><hr><pre>";
 
     dir = opendir(dirpath.c_str());
-	//dir = opendir(std::string("." + dirpath).c_str());
     if (dir)
     {
-		// TODO: do i need to pass absolute path or just relative and than i change directory?
-// 		if (chdir(dirpath.c_str()) == -1)
-// 			perror("chdir");
         dirnt = readdir(dir);
         while ((dirnt = readdir(dir)))
         {
@@ -441,7 +540,7 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 				if (stat(dirnt->d_name, &statbuf) == -1)
 					perror("stat");
 				struct tm timestamp = *localtime(&statbuf.st_mtim.tv_sec);
-				strftime(buff, sizeof(buff), "%d-%b-%y %h:%m ", &timestamp);
+				strftime(buff, sizeof(buff), "%d-%b-%y %H:%M ", &timestamp);
 				body += buff;
 
                 if (DT_DIR == dirnt->d_type)
@@ -467,17 +566,11 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 
 std::string	HttpRequest::GETmethod(const std::string &pathname)
 {
-	//std::string tmp = "." + pathname;
-
-	std::cout << "pathname: " << pathname << std::endl;
-
 	std::string statusLine = "HTTP/1.1 200 OK\r\n";
 	std::string body       = HttpRequest::readFile(pathname.c_str());
 	std::string headers    = "Server: webserver/0.42\r\n";
-	//headers += "Date: " + 
 	headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
-
 	return statusLine + headers + body;
 }
 
@@ -560,3 +653,10 @@ std::string	HttpRequest::getMimeType(std::string const &file)
 	return "application/octet-stream";
 }
 
+std::string execCGI(void)
+{
+	std::string response;
+	// TODO: unchunked data
+	throw std::invalid_argument("TODO: " + std::string(__FUNCTION__));
+	return response;
+}

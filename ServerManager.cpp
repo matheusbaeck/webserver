@@ -1,48 +1,47 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   ServerManager.cpp                                  :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2024/10/30 10:09:53 by glacroix          #+#    #+#             */
+/*   Updated: 2024/11/05 12:43:00 by glacroix         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "ServerManager.hpp"
+#include "Selector.hpp"
 
-//ConfigFile *ServerManager::configFile;
-
-ServerManager::ServerManager( void ) {}
-
-ServerManager::ServerManager(std::vector<ConfigServer> &configServers)
+//TODO: if pathConfigFile doesn't exist; exception
+ServerManager::ServerManager(const char *pathConfigFile) : _configFile(pathConfigFile) 
 {
-	AddServerFunctor functor(this);
-	std::for_each(configServers.begin(), configServers.end(), functor);
+    _nb_servers = (int)_configFile.getServersConfig().size();
+    for (int i = 0; i < _nb_servers; i += 1)
+    {
+        Server* server = new Server(_configFile.getServersConfig()[i]);
+        _servers.push_back(server);
+    }
 }
 
-ServerManager::~ServerManager( void ) {}
-
-ServerManager& ServerManager::operator=(const ServerManager& other)
+const std::vector<Server *> ServerManager::getServers() const
 {
-	if (this != &other)
-	{
-		this->servers = other.servers;
-		this->requests = other.requests;
-		LogMessage(DEBUG, "ServerManager copy assignment operator called");
-	}
-	return *this;
+    return (_servers);
 }
 
-
-std::vector<Server>	&ServerManager::getServers() { return (this->servers); }
-std::queue<HttpRequest>	&ServerManager::getQueue(void) { return this->requests; }
-
-void ServerManager::addServer(const Server& server)
-{ 
-	servers.push_back(server);
+int ServerManager::getSize() const
+{
+    return (_nb_servers);
 }
 
-void	ServerManager::LogMessage(int logLevel, const std::string& message, std::exception* ex)
+void ServerManager::addSockets(Selector& selector)
 {
-	logger->logMessage(this, logLevel, message, ex);
+    for (int i = 0; i < this->getSize(); i += 1)
+        selector.addSocket(this->getServers()[i]);
 }
 
-void	ServerManager::LogMessage(int logLevel, std::exception* ex)
+ServerManager::~ServerManager() 
 {
-	logger->logMessage(this, logLevel, m_oss.str(), ex);
-}
-
-std::string	ServerManager::GetType( void ) const
-{
-	return "ServerManager";
+    for (int i = 0; i < _nb_servers; i += 1)
+        delete _servers[i];
 }

@@ -1,33 +1,37 @@
-
 #ifndef SERVER_HPP__
 # define SERVER_HPP__
 
+#include "ConfigFile.hpp"
 #include <vector>
-#include <algorithm>
 #include <iostream>
 #include <cstdarg>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <cstring>
+#include <fcntl.h>
+#include <unistd.h>
 
-#include "Worker.hpp"
-#include "ALogger.hpp"
-#include "ConfigFile.hpp"
+#define BACKLOG 10
+#define BUFFERSIZE 4096
 
-class Worker;
+class Selector;
 
-class Server : public ALogger
+class Server 
 {
 	private:
-		static int			m_instance_counter;
-		int					m_id;
-		
-		ConfigServer		m_configServer;
 
-		std::string			m_server_name;
-		std::vector<Worker>	m_workers;
-		/* all other att of the server */
+        ConfigServer		                _configServer;
+
+        std::string			                _server_name;
+        std::vector<uint16_t>               _serv_ports;
+        std::vector<sockaddr_in>            _addrs;
+        std::vector<socklen_t>              _addrlens;
+        std::vector<int>                    _serv_sockets;
 
 	public:
 
-		Server( int, ... );
+        Server( const int port );
+        /*Old Constructors*/
 		Server( std::vector<uint16_t> );
 		Server( ConfigServer & );
 		Server( const Server & );
@@ -36,57 +40,19 @@ class Server : public ALogger
 		/* Operators */
 		Server& operator=(const Server& );
 
-		/* Acessors */
-		int									id( void ) const;
-		std::vector<Worker>					&getWorkers( void );
-		std::vector<Worker>::iterator		workersBegin( void );
-		std::vector<Worker>::iterator		workersEnd( void );
-		std::vector<Worker>::const_iterator	workersBegin( void ) const;
-		std::vector<Worker>::const_iterator	workersEnd( void ) const;
-		ConfigServer						&getConfig( void );
+        
+		/* New Getters */
+        sockaddr*               getAddr(int pos) const;
+        socklen_t               getAddrlen(int pos) const;
+        std::vector<int>        getSockets() const;
+        std::vector<uint16_t>   getPorts() const;
+		ConfigServer&           getConfig( void );
 
-		/* Methods */
-		void addWorker( const Worker &w )
-		{
-			Worker temp;
-			temp = w;
-			oss() << "About to push_back. Vector size: " << m_workers.size();
-			LogMessage(DEBUG);
-			try 
-			{
-				m_workers.push_back(temp);
-				oss() << "push_back successful. New size: " << m_workers.size();
-				LogMessage(DEBUG);
-			}
-			catch (const std::exception& e)
-			{
-				oss() << "Exception during push_back: " << e.what();
-				LogMessage(ERROR);
-			}
-			catch (...)
-			{
-				oss() << "Unknown exception during push_back";
-				LogMessage(ERROR);
-			}
-		}
-
-		class AddWorkerFunctor {
-			private:
-				Server	*server;
-			public:
-				AddWorkerFunctor(Server *srv) : server(srv) {}
-
-				void operator()(int port) {
-					Worker w(port);
-					server->addWorker(w);
-				}
-		};
-
-		void LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL);
-		void LogMessage(int logLevel, std::exception* ex = NULL);
-		virtual std::string GetType() const;
+        /* Methods */
+		int			create_server_socket(int pos);
+		int			setnonblocking( int );
+        int         acceptClient(Selector& selector, int socketFD, int portFD);
+		int			handle_read(Selector& selector, int clientSocket);
 };
-
-std::ostream &operator<<( std::ostream &, const Server & );
 
 #endif

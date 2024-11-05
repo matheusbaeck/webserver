@@ -1,171 +1,37 @@
-#ifndef SERVERMANAGER_HPP__
-# define SERVERMANAGER_HPP__
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   ServerManager.hpp                                  :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2024/10/30 10:01:57 by glacroix          #+#    #+#             */
+/*   Updated: 2024/10/30 10:54:07 by glacroix         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
 
-#include <vector>
-#include <sstream>
+#ifndef SERVER_MANAGER_HPP
+#define SERVER_MANAGER_HPP
 
-#include "ALogger.hpp"
+#include "ConfigFile.hpp"
 #include "Server.hpp"
-#include "HttpRequest.hpp"
+#include <vector>
 
-class Server;
+class Selector;
 
-typedef std::vector<Server>::iterator ServerIterator;
-typedef std::vector<Worker>::iterator WorkerIteratorStd;
-
-class ServerManager : public ALogger
+class ServerManager
 {
-	private:
+    private:
+        ConfigFile _configFile;
+        int _nb_servers;
+        std::vector<Server*> _servers;
+    public:
+        const std::vector<Server*> getServers() const;
+        int getSize() const;
+        void addSockets(Selector &selector);
 
-		std::vector<Server> servers;
-		std::queue<HttpRequest>	requests;
-// 		static ConfigFile *configFile;
-
-	public:
-		class WorkerIterator
-		{
-			private:
-				ServerIterator		currServ;
-				ServerIterator		endServ;
-				WorkerIteratorStd	curr;
-
-				void advanceToNextValid()
-				{
-					while (currServ != endServ && (curr == currServ->workersEnd() || currServ->getWorkers().empty()))
-					{
-						++currServ;
-						if (currServ != endServ)
-							curr = currServ->workersBegin();
-					}
-				}
-
-			public:
-				WorkerIterator(ServerIterator startServer, ServerIterator endServ)
-					: currServ(startServer), endServ(endServ)
-				{
-					if (currServ != endServ)
-					{
-						curr = currServ->workersBegin();
-						advanceToNextValid();
-					}
-				}
-
-				bool	operator!=( const WorkerIterator& other ) const
-				{
-					return (currServ != other.currServ || (currServ != endServ && curr != other.curr));
-				}
-
-				WorkerIterator& operator++()
-				{
-					if (currServ != endServ)
-					{
-						++curr;
-						advanceToNextValid();
-					}
-					return (*this);
-				}
-
-				Worker& operator*(void)
-				{
-					return (*curr);
-				}
-
-				const Worker& operator*(void) const
-				{
-					return (*curr);
-				}
-
-				bool operator==(const WorkerIterator& other) const
-				{
-					return !(*this != other);
-				}
-
-				WorkerIterator operator++(int)
-				{
-					WorkerIterator tmp = *this;
-					++(*this);
-					return tmp;
-				}
-
-				Worker* operator->()
-				{
-					return &(*curr);
-				}
-		};
-
-		ServerManager( std::vector<ConfigServer> &ConfigServers);
-		ServerManager( void );
-		//ServerManager( std::vector<std::vector<uint16_t> > );
-		~ServerManager( void );
-
-		/* Operator */
-		ServerManager& operator=(const ServerManager& other);
-
-		/* Acessors */
-		std::vector<Server> 	&getServers( void );
-		std::queue<HttpRequest>	&getQueue( void );
-		WorkerIterator begin()
-		{
-			return WorkerIterator(servers.begin(), servers.end());
-		}
-
-		WorkerIterator end()
-		{
-			return WorkerIterator(servers.end(), servers.end());
-		}
-
-		/* Methods */
-		void							addServer( const Server &server );
-
-		/* Templates */
-		template<typename Func>
-			void forEachWorker(Func f)
-			{
-				for (WorkerIterator it = begin(); it != end() ; ++it) {
-					f(*it);
-				}
-			}
-
-		template <typename Func>
-			void forEachWorkerAndQueue(Func f)
-			{
-				for (WorkerIterator it = begin(); it != end() ; ++it) {
-					f(*it, this->requests);
-				}
-			}
-
-// 		void setConfig(ConfigFile *config)
-// 		{
-// 			ServerManager::configFile = config;
-// 		}
-
-// 		static ConfigFile *getConfigFile(void)
-// 		{
-// 			return ServerManager::configFile;
-// 		}
-
-		/* Functors */
-		class AddServerFunctor {
-			private:
-				ServerManager* serverManager;
-			public:
-				AddServerFunctor(ServerManager* sm) : serverManager(sm) {}
-
-// 				void operator()(const std::vector<uint16_t>& ports) {
-// 					serverManager->addServer(Server(ports));
-// 				}
-
-				void operator()(ConfigServer &configServer) {
-					serverManager->addServer(Server(configServer));
-				}
-		};
-
-		/* Logger */
-		void				LogMessage(int logLevel, const std::string& message, std::exception* ex = NULL);
-		void				LogMessage(int logLevel, std::exception* ex = NULL);
-		virtual std::string	GetType() const;
+        ServerManager(const char *pathConfigFile);
+        ~ServerManager();
 };
-
-std::vector<std::vector<int> > createVector(const std::string& data);
 
 #endif

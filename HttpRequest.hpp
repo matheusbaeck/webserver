@@ -12,10 +12,8 @@ class HttpRequest
 	static const size_t bufferSize = 4096;
 	//static ConfigFile *configFile;
 
-	static ConfigServer *configServer;
+	ConfigServer *configServer;
 
-	//ConfigFile configFile;
-	
 	Tokenizer tokenizer;
 	
 	int	clientFd;
@@ -39,6 +37,7 @@ public:
 	HttpRequest(const char *buffer);
 	HttpRequest &operator=(const HttpRequest &other);
 	HttpRequest(const HttpRequest &other);
+    ~HttpRequest();
 
 	static std::string	readFile(const char *pathname);
 	static bool 				isUpperCase(const std::string &str);
@@ -57,8 +56,14 @@ public:
 
 	void	setConfig(ConfigServer &_configServer)
 	{
-		HttpRequest::configServer = &_configServer;
+        //std::cout << _configServer << std::endl;
+        this->configServer = new ConfigServer(_configServer);
+		//*this->configServer = _configServer;
 	}
+    void    setBuffer(char *buffer)
+    {
+        this->tokenizer.setBuffer(buffer);
+    }
 
 
 	

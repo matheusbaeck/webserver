@@ -43,6 +43,7 @@ ConfigFile	&ConfigFile::operator=(ConfigFile const &other)
 {
 	if (this != &other)
 	{
+
 		this->servers = other.servers;
 	}
 	return *this;
@@ -51,7 +52,7 @@ ConfigFile	&ConfigFile::operator=(ConfigFile const &other)
 
 /* ------------- Methods --------------- */
 
-std::vector<std::vector<uint16_t> >	ConfigFile::getPorts(void)
+/*std::vector<std::vector<uint16_t> >	ConfigFile::getPorts(void)
 {
 	std::vector<std::vector<uint16_t> > ports;
 	for (size_t i = 0; i < servers.size(); i += 1)
@@ -59,7 +60,7 @@ std::vector<std::vector<uint16_t> >	ConfigFile::getPorts(void)
 		ports.push_back(servers[i].getPorts());
 	}
 	return ports;
-}
+}*/
 
 void	ConfigFile::parse(void)
 {
@@ -88,10 +89,11 @@ void	ConfigFile::parse(void)
 	}
 }
 
-std::vector<ConfigServer>	&ConfigFile::getServers(void)
+std::vector<ConfigServer>	&ConfigFile::getServersConfig(void)
 {
 	return this->servers;
 }
+
 
 /* ------------- Static Methods --------------- */
 
@@ -151,7 +153,7 @@ ConfigServer &ConfigServer::operator=(ConfigServer const &other)
 {
 	if (this != &other)
 	{
-		this->ports  = other.ports;
+        this->ports = other.ports;
 		this->client_max_body_size = other.client_max_body_size;
 		this->root = other.root;
 		this->server_names = other.server_names;
@@ -267,7 +269,6 @@ void	ConfigServer::parseServerName(std::vector<std::string> &vec)
 		vec.push_back(this->tokenizer->next(ConfigFile::delim));
 	}
 	
-	std::for_each(vec.begin(), vec.end(), print);
 	if (vec.size() == 0)
 	{
 		error("server_name: invalid argument");
@@ -726,5 +727,29 @@ std::ostream	&operator<<(std::ostream &os, ConfigServer &obj)
 	std::for_each(obj.getIndex().begin(), obj.getIndex().end(), print<std::string>);
 	std::cout << std::endl;
 
+	std::cout << "root: " << obj.getRoot() << std::endl;
+
+	std::map<StatusCode, std::string> errs(obj.getErrorPages());
+	if (errs.size() > 0)
+	{
+		std::cout << "error_page: " << errs.begin()->first << ", " << errs.begin()->second << std::endl;
+	}
+
+	std::cout << "client_max_body_size: " << obj.getClientMaxBodySize() << std::endl;
+	
+
+	std::vector<Route> routes(obj.getRoutes());
+	for (size_t i = 0; i < routes.size(); i += 1)
+	{
+		std::cout << "location " << routes[i].path << std::endl;;
+
+		std::cout << "    index: ";
+		std::for_each(routes[i].getIndex().begin(), routes[i].getIndex().end(), print<std::string>);
+		std::cout << std::endl;
+
+		std::cout << "    autoindex: " << (routes[i].getAutoIndex() ? "on" : "off") << std::endl;
+
+		std::cout << "    root: " << routes[i].getRoot() << std::endl;
+	}
 	return os;
 }
