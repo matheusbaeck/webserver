@@ -83,7 +83,7 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                     }
                     else 
                     {
-                        int err = server->handle_read(*this, _events[n].data.fd);
+                        int err = server->handleHTTPRequest(*this, _events[n].data.fd);
                         if (err == -1) 
                             continue;
                     }

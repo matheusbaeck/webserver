@@ -15,13 +15,14 @@ class HttpRequest
 	ConfigServer *configServer;
 
 	Tokenizer tokenizer;
-	
-	int	clientFd;
-	int	port;
+
+    std::string serverName;
+    std::string serverPort;
+
 
 	// HTTP
 	std::map<std::string, std::string> headers;
-	std::map<std::string, std::string> queries;
+    std::string query;
 
 	
 	Method method;
@@ -33,7 +34,7 @@ class HttpRequest
 	static void	toLower(char &c);
 
 public:
-	HttpRequest(void) {}
+	HttpRequest(void);
 	HttpRequest(const char *buffer);
 	HttpRequest &operator=(const HttpRequest &other);
 	HttpRequest(const HttpRequest &other);
@@ -47,8 +48,30 @@ public:
 
 	// Getters
 	Method 		getMethod(void) const;
+    std::string getMethodStr(void)
+    {
+        const std::string methods[] = {"GET", "POST", "DELETE"};
+        if (this->method < GET || this->method > DELETE)
+            return "";
+        return methods[this->method];
+    }
+
 	StatusCode 	getStatusCode(void) const;
 
+    std::string getHeader(std::string const &key)
+    {
+        return this->headers[key]; 
+    }
+
+    std::string getQuery(void)
+    {
+        return this->query;
+    }
+
+    std::string getServerPort(void)
+    {
+        return this->serverPort == "" ? "80" : this->serverPort;
+    }
 
 	// method that generate HTML page of list directory.
 	std::string	dirList(std::string const &dirpath);
@@ -64,6 +87,12 @@ public:
     {
         this->tokenizer.setBuffer(buffer);
     }
+    std::string notAllowed(std::string const &str);
+
+    std::string forbidden();
+    std::string serverError();
+    std::string notFound();
+    std::string badRequest();
 
 
 	
@@ -72,7 +101,6 @@ public:
 	StatusCode	parseStartLine(void);
 	StatusCode 	parseMethod(const std::string &_method);
 	StatusCode 	parsePath(const std::string &path);
-	void		parseQuery(const std::string &path);
 	StatusCode 	parseProtocol(const std::string &protocol);
 
 	// Headers

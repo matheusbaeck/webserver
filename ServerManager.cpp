@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/30 10:09:53 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/05 12:43:00 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/09 18:37:43 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,7 @@
 #include "Selector.hpp"
 
 //TODO: if pathConfigFile doesn't exist; exception
+//TODO: if parser error EXIT()
 ServerManager::ServerManager(const char *pathConfigFile) : _configFile(pathConfigFile) 
 {
     _nb_servers = (int)_configFile.getServersConfig().size();

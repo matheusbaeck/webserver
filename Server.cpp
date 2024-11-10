@@ -28,7 +28,7 @@ sockaddr* Server::getAddr(int pos) const
 }
 
 socklen_t   Server::getAddrlen(int pos) const 
-    {
+{
         return (this->_addrlens[pos]); 
 }
 
@@ -66,11 +66,15 @@ int Server::create_server_socket(int pos)
 	this->_addrs[pos].sin_family = AF_INET;
 	this->_addrs[pos].sin_addr.s_addr = htonl(INADDR_ANY);
 	this->_addrs[pos].sin_port = htons(this->_serv_ports[pos]);
+
+    
+    // TODO: can't two servers run same port
 	if (bind(this->_serv_sockets[pos], this->getAddr(pos), addrlen) == -1)
 	{
 		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
 		exit(1);
 	}
+    std::cout << "ERRONO: " << strerror(errno) << std::endl;
 	if (listen(this->_serv_sockets[pos], BACKLOG) < 0)
 		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
 	return (this->_serv_sockets[pos]);
@@ -97,7 +101,7 @@ int Server::acceptClient(Selector& selector, int socketFD, int portFD)
         std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
         return (-1);
     }
-    // Add the new client socket to epoll
+    // Adding the new client socket to epoll
     epoll_event ev;
     ev.events = EPOLLIN | EPOLLET; 
     ev.data.fd = client_fd;
@@ -110,7 +114,7 @@ int Server::acceptClient(Selector& selector, int socketFD, int portFD)
     return (0);
 }
 
-int Server::handle_read(Selector& selector, int client_socket)
+int Server::handleHTTPRequest(Selector& selector, int client_socket)
 {
     char buffer[1024] = {0};
     int received_bytes = recv(client_socket, buffer, sizeof(buffer), MSG_DONTWAIT);
@@ -127,6 +131,7 @@ int Server::handle_read(Selector& selector, int client_socket)
 
     HttpRequest* incomingRequestHTTP = new HttpRequest();
     incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
+    std::cout << "Buffer is: " << buffer << std::endl;
     incomingRequestHTTP->setBuffer(buffer);
     std::string response = incomingRequestHTTP->handler();
     int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
@@ -139,7 +144,6 @@ int Server::handle_read(Selector& selector, int client_socket)
         return (-1);
     }
 
-    // TODO: handle if send fails and close connection after handling all requests.
     if (client_socket & (EPOLLERR| EPOLLHUP))
     {
         std::cerr << "Error on fd " <<  client_socket << ": " << strerror(errno) << std::endl;

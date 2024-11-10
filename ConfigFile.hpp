@@ -97,6 +97,9 @@ class Route : public ConfigServer
 	std::vector<Method>  methods;
 	bool				 autoindex;
 
+    std::string cgiPath;
+    std::vector<std::string> cgiExtensions;
+
 	Tokenizer *tokenizer;
 public:
 	// temp
@@ -111,12 +114,17 @@ public:
 	void	parseMethods(void);
 	void	parseRedirection(void);
 	void	parseAutoIndex(void);
+    void    parseCgiPath(void);
+    void    parseCgiExtensions(void);
 	//void	parseIndex(void);
 
 	bool				getAutoIndex(void);
 	std::string 					&getRoot(void);
 	std::vector<Method>				  &getMethods(void);
 	std::map<StatusCode, std::string> &getRedirection(void);
+
+    std::vector<std::string> &getCgiExtensions(void);
+    std::string getCgiPath(void);
 };
 
 class ConfigFile

@@ -381,6 +381,7 @@ void	ConfigServer::parseRoute(void)
 	}
 
 	std::string _path = this->tokenizer->next(ConfigFile::delim);
+    std::cout << "path: " << _path << std::endl;
 	route.path = _path;
 
 	if (_path.empty())
@@ -424,6 +425,14 @@ void	ConfigServer::parseRoute(void)
 		{
 			route.parseIndex();
 		}
+        if (token == "cgi_path")
+        {
+            route.parseCgiPath();
+        }
+        if (token == "cgi_ext")
+        {
+            route.parseCgiExtensions();
+        }
 		// TODO: check for invalid keyword.
 	}
 
@@ -684,6 +693,52 @@ void	Route::parseAutoIndex(void)
 		error("autoindex: invalid value " + token);
 	}
 
+	this->tokenizer->expected(';', ConfigFile::delim);
+}
+
+void    Route::parseCgiPath(void)
+{
+	this->tokenizer->trim();
+	if (this->tokenizer->peek() == '#')
+	{
+		this->tokenizer->consume();
+	}
+	this->cgiPath = this->tokenizer->next(ConfigFile::delim);
+	if (this->cgiPath.empty())
+	{
+		error("cgi_path: invalid argument");
+	}
+	this->tokenizer->trim();
+	this->tokenizer->expected(';', ConfigFile::delim);
+}
+
+void    Route::parseCgiExtensions(void)
+{
+	char c;
+	std::string token;
+
+	this->tokenizer->trim();
+	while (!this->tokenizer->end())
+	{
+		this->tokenizer->trim();
+		c = this->tokenizer->peek();
+		if (std::string("{}\n;").find(c) != std::string::npos)
+			break;
+
+		// TODO: think about it
+		if (c == '#')
+		{
+			this->tokenizer->consume();
+			continue;
+		}
+		cgiExtensions.push_back(this->tokenizer->next(ConfigFile::delim));
+	}
+	
+	if (cgiExtensions.size() == 0)
+	{
+		error("cgi_ext: invalid argument");
+	}
+	this->tokenizer->trim();
 	this->tokenizer->expected(';', ConfigFile::delim);
 }
 

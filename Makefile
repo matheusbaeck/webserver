@@ -6,7 +6,7 @@
 #    By: glacroix <PGCL>                            +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/11/04 17:17:39 by glacroix         ###   ########.fr        #
+#    Updated: 2024/11/10 18:04:52 by glacroix         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -22,7 +22,8 @@ SRCS        = $(SRCSDIR)/HttpRequest.cpp \
 				$(SRCSDIR)/ConfigFile.cpp \
 				$(SRCSDIR)/ServerManager.cpp \
 				$(SRCSDIR)/Tokenizer.cpp \
-				$(SRCSDIR)/HttpRequest.cpp 
+				$(SRCSDIR)/HttpRequest.cpp \
+				$(SRCSDIR)/CgiHandler.cpp
 
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 

@@ -1,4 +1,5 @@
 #include "HttpRequest.hpp"
+#include "CgiHandler.hpp"
 
 #include <cstring>
 #include <sys/types.h>
@@ -51,7 +52,7 @@ std::vector<std::string>::const_iterator checkIndex(const std::vector<std::strin
 
 
 #if 1
-std::string	notAllowed(std::string const &str)
+std::string	HttpRequest::notAllowed(std::string const &str)
 {
 	const std::string statusLine = "HTTP/1.1 405 Not Allowed\r\n";
 
@@ -65,7 +66,17 @@ std::string	notAllowed(std::string const &str)
 	return statusLine + headers + body + "\r\n";
 }
 
-std::string	notFound(void)
+std::string	HttpRequest::serverError(void)
+{
+	const std::string statusLine = "HTTP/1.1 500 Internal Server Error\r\n";
+	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	std::string body    = HttpRequest::readFile("./err_pages/500.html");
+	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+	headers += "Connection: keep-alive\r\n\r\n";
+	return statusLine + headers + body + "\r\n";
+}
+
+std::string	HttpRequest::notFound(void)
 {
 	const std::string statusLine = "HTTP/1.1 404 Not Found\r\n";
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
@@ -75,7 +86,7 @@ std::string	notFound(void)
 	return statusLine + headers + body + "\r\n";
 }
 
-std::string badRequest(void)
+std::string HttpRequest::badRequest(void)
 {
 	const std::string statusLine = "HTTP/1.1 400 Bad Request\r\n";
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
@@ -85,7 +96,7 @@ std::string badRequest(void)
 	return statusLine + headers + body + "\r\n";
 }
 
-std::string forbidden(void)
+std::string HttpRequest::forbidden(void)
 {
 	const std::string statusLine = "HTTP/1.1 403 Forbidden\r\n";
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
@@ -97,6 +108,8 @@ std::string forbidden(void)
 }
 #endif
 
+HttpRequest::HttpRequest(void) {}
+
 HttpRequest::HttpRequest(const HttpRequest &other)
 {
 	HttpRequest::operator=(other);
@@ -107,13 +120,13 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 	if (this != &other)
 	{
 		this->headers 		= other.headers;
-		this->queries		= other.queries;
+		this->query		    = other.query;
 		this->method  		= other.method;
 		this->path    		= other.path;
 		this->statusCode	= other.statusCode;
 		//
-		this->clientFd = other.clientFd;
-		this->port = other.port;
+		//this->clientFd = other.clientFd;
+		//this->port = other.port;
 		this->tokenizer.setBuffer(other.tokenizer.str().c_str());
 	}
 	return *this;
@@ -121,7 +134,7 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 
 HttpRequest::~HttpRequest()
 {
-    delete this->configServer;
+    //delete this->configServer;
 }
 
 HttpRequest::HttpRequest(const char *buffer)
@@ -196,11 +209,15 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 		size_t found = requestTarget.find_first_of("?");
 		this->path   = tmp.substr(0, found);
 
+        if (found != std::string::npos)
+        {
+            this->query = requestTarget.substr(found + 1);
+        }
+
 		std::cout << "---------------- " << this->path << " ----------------" << std::endl;
 
 
 		if (access(tmp.c_str(), F_OK) == -1) return NFOUND;
-#if 1
 		if (isDir(tmp.c_str()))
 		{
 			std::vector<std::string> indices            = route->getIndex();
@@ -215,37 +232,9 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 			if (it != indices.end())
 				this->path = tmp + *it;
 		}
-#endif
-		if (found != std::string::npos)
-		{
-			// TODO: take the root directory from config file | default one /var/www/html/
-			// TODO: return Bad Request if queries has errors
-			this->parseQuery(requestTarget.substr(found + 1, -1));
-		}
 		return OK;
 	}
 	return BREQUEST;
-}
-
-void	HttpRequest::parseQuery(const std::string &path)
-{
-	Tokenizer t(path.c_str());
-
-	while (!t.end())
-	{
-		// TODO: make a list of delimeters
-		std::string key   = t.next("=");
-		if (t.peek() == '=')
-		{
-			t.get();
-		}
-		std::string value = t.next("&");
-		if (t.peek() == '&')
-		{
-			t.get();
-		}
-		this->queries[key] = value;
-	}
 }
 
 /*
@@ -283,6 +272,7 @@ struct BodyRequest
 
 StatusCode HttpRequest::parseBody(void)
 {
+#if 0
 	BodyRequest bodyRequest;
 	(void) bodyRequest;
 
@@ -306,7 +296,7 @@ StatusCode HttpRequest::parseBody(void)
 		Tokenizer t(body);
 		while (!t.end())
 		{
-			// TODO: make a list of delimeters
+			// TODO: make a list of delimiters
 			std::string key   = t.next("=");
 			if (t.peek() == '=')
 			{
@@ -334,6 +324,7 @@ StatusCode HttpRequest::parseBody(void)
 	{
 		bodyRequest.raw = new std::string(body);
 	}
+#endif
 	return OK;
 }
 
@@ -357,12 +348,12 @@ StatusCode HttpRequest::parseHeaders(void)
 		{
 			if (value.empty() || this->headers.count(key) > 0) return BREQUEST;
 			// NOTE: match host with server_names
-// 			if (!this->matchHost(value))
-// 				return NFOUND;
 
 			std::cout << "host: " << value << std::endl;
 
 			this->headers[key] = tokenizer.next(HttpRequest::CRLF);
+// 			if (!this->matchHost(value))
+// 				return NFOUND;
 		}
 		if (key == "connection")
 		{
@@ -402,12 +393,17 @@ StatusCode HttpRequest::parseHeaders(void)
 // TODO: try to put this function in configFile class
 bool HttpRequest::matchHost(const std::string &host)
 {
-	std::string t = host;
+	this->serverName = host;
 	size_t found = host.find(":");
 	if (found != std::string::npos)
-		t = host.substr(0, found);
-	std::vector<std::string> serverNames = HttpRequest::configServer->getServerNames();
-	return std::find(serverNames.begin(), serverNames.end(), t) != serverNames.end();
+	{
+        this->serverPort = host.substr(found + 1);
+        this->serverName = host.substr(0, found);
+    }
+    std::vector<std::string>::iterator begin = this->configServer->getServerNames().begin();
+    std::vector<std::string>::iterator end   = this->configServer->getServerNames().end();
+
+	return std::find(begin, end, this->serverName) != end;
 }
 
 // TODO: what about CRLF at the EOF
@@ -467,13 +463,17 @@ std::string	HttpRequest::handler(void)
 	this->parse();
 
 	Route *route = this->configServer->getRoute(this->path);
-    std::cout << "port: " << this->configServer->getPorts()[0] << std::endl;
-    if (route)
-    {
-        std::cout << "autoindex: " << (route->getAutoIndex() ? "on" : "off") << std::endl;
-    }
 
-	//fileUpload(this->tokenizer.str(), this->path);
+    if (1) {
+        
+        HttpRequest copy(*this);
+        CgiHandler cgi(copy, "", "");
+        return cgi.execute();
+        std::cout << cgi.execute() << std::endl;
+        std::cout << "after\n";
+        //cgi.execute();
+        exit(1);
+    }
 
 
 	switch (this->statusCode)
