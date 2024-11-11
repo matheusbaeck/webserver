@@ -6,20 +6,18 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/10 19:39:38 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/11 14:26:47 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "CgiHandler.hpp"
+#include <cstring>
 
 CgiHandler::CgiHandler(HttpRequest _httpReq, std::string cgiPath, std::string scriptName)
 {
-    if (0)
-    {
     this->pipeFd[STDIN_FILENO]  = -1;
     this->pipeFd[STDOUT_FILENO] = -1;
-
-
+    // TODO: do deep copy of config file to prevent double free
     this->httpReq = _httpReq;
 
 
@@ -31,7 +29,8 @@ CgiHandler::CgiHandler(HttpRequest _httpReq, std::string cgiPath, std::string sc
     this->env["SERVER_PORT"]     = httpReq.getServerPort();
 
     this->env["PATH_INFO"]       = cgiPath; 
-    this->env["SCRIPT_FILENAME"] = cgiPath + scriptName;
+    // TODO: if there is another slash
+    this->env["SCRIPT_FILENAME"] = cgiPath + "/" + scriptName;
     
     // TODO: we are just hardcoding SERVER_NAME. Do we need to match it with server_name in config?
     this->env["SERVER_NAME"]       = "localhost";
@@ -40,8 +39,21 @@ CgiHandler::CgiHandler(HttpRequest _httpReq, std::string cgiPath, std::string sc
     this->env["GATEWAY_INTERFACE"] = "CGI/1.1";
     this->env["REMOTE_HOST"]       = "localhost";
     this->env["REMOTE_ADDR"] = "127.0.0.1";
-    std::cout << "HERE\n";
-    }
+}
+
+char    **CgiHandler::getEnvp(void)
+{
+   char **envp = new char*[this->env.size() + 1];
+   std::map<std::string, std::string>::iterator it = this->env.begin();
+
+   for (size_t i = 0; i < this->env.size() && it != this->env.end(); i += 1)
+   {
+       std::string var = it->first + "=" + it->second;
+       envp[i] = strdup(var.c_str());
+       it++;
+   }
+   envp[this->env.size()] = NULL;
+   return envp;
 }
 
 std::string CgiHandler::execute(void)
@@ -50,8 +62,11 @@ std::string CgiHandler::execute(void)
     int exitStatus;
     std::string response;
 
+    char **envp = this->getEnvp();
+
     if (pipe(this->pipeFd) == -1)
     {
+        std::cout << "pipe dead\n";
         return this->httpReq.serverError();
     }
 
@@ -59,6 +74,7 @@ std::string CgiHandler::execute(void)
 
     if (pid == -1)
     {
+        std::cout << "fork is spoon now\n";
         return this->httpReq.serverError();
     }
 
@@ -66,37 +82,32 @@ std::string CgiHandler::execute(void)
     {
         std::cerr << "Child process\n";
         
-        close(this->pipeFd[STDIN_FILENO]);
         dup2(this->pipeFd[STDOUT_FILENO], STDOUT_FILENO);
 
+        close(this->pipeFd[STDIN_FILENO]);
+        ///close(this->pipeFd[STDOUT_FILENO]);
 
+        const char *path = this->env["SCRIPT_FILENAME"].c_str();
 
-        const char *path = "./myCGI";//"/home/glacroix/Documents/testing_webserver/cgi";
-        char *envp[this->env.size() + 1];
+        std::cerr << "path: " << path << std::endl;
 
-        std::map<std::string, std::string>::iterator it = this->env.begin();
-        for (size_t i = 0; i < this->env.size() && it != this->env.end(); i += 1)
-        {
-            std::string var = it->first + "=" + it->second;
-            envp[i] = (char *)var.c_str();
-            it++;
-        }
-        envp[this->env.size()] = NULL;
-
-        char *const argv[] = { (char *)"./myCGI", NULL};
-        
+        char *const argv[] = { (char*)path, NULL};
         if (execve(path, argv,  envp) != 0)
         {
+            std::cout << "execute is soup\n";
             return this->httpReq.serverError();
         }
     }
-    else {
+    else
+    {
     
         wait(&exitStatus);
         char buffer[1024];
+
+        dup2(this->pipeFd[STDIN_FILENO], STDIN_FILENO);
         
         close(this->pipeFd[STDOUT_FILENO]);
-        dup2(this->pipeFd[STDIN_FILENO], STDIN_FILENO);
+        //close(this->pipeFd[STDIN_FILENO]);
 
         
         int n = 1;
@@ -105,15 +116,22 @@ std::string CgiHandler::execute(void)
             n = read(STDIN_FILENO, buffer, sizeof(buffer));
             buffer[n] = 0;
             response += buffer;
+            std::cout << "n: " << n << std::endl;
+            //std::cout << "reading from child: " << response << std::endl;
         }
     }
+
+    delete[] envp;
+
+    close(this->pipeFd[STDIN_FILENO]);
+    close(this->pipeFd[STDOUT_FILENO]);
     return response;
 }
 
 CgiHandler::~CgiHandler(void)
 {
-    close(this->pipeFd[STDIN_FILENO]);
-    close(this->pipeFd[STDOUT_FILENO]);
+    //close(this->pipeFd[STDIN_FILENO]);
+    //close(this->pipeFd[STDOUT_FILENO]);
 }
 
         /*SCRIPT_FILENAME $script_path;      # Full path to the script DONE*/

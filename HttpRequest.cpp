@@ -464,17 +464,19 @@ std::string	HttpRequest::handler(void)
 
 	Route *route = this->configServer->getRoute(this->path);
 
-    if (1) {
-        
-        HttpRequest copy(*this);
-        CgiHandler cgi(copy, "", "");
-        return cgi.execute();
-        std::cout << cgi.execute() << std::endl;
-        std::cout << "after\n";
-        //cgi.execute();
-        exit(1);
-    }
+    if (route && route->isCgi())
+    {
+		size_t found = this->path.find_last_of("/");
+		std::string scriptName;
+		if (found != std::string::npos)
+		{
+			scriptName = this->path.substr(found + 1);	
+		}
 
+		CgiHandler cgi(*this, route->getCgiPath(), scriptName);
+		return cgi.execute();
+    }
+	exit(1);
 
 	switch (this->statusCode)
 	{

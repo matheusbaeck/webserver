@@ -1,36 +1,25 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   CgiHandler.hpp                                     :+:      :+:    :+:   */
+/*   test.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/10 18:52:28 by glacroix         ###   ########.fr       */
+/*   Created: 2024/11/07 16:02:23 by glacroix          #+#    #+#             */
+/*   Updated: 2024/11/10 17:08:51 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#ifndef CGI_HANDLER_HPP
-#define CGI_HANDLER_HPP
-
-#include <map>
-#include <string>
+#include <iostream>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 
-#include "HttpRequest.hpp"
-
-class CgiHandler
+int main(int argc, char **argv, char **envp)
 {
-    private:
-        HttpRequest httpReq;
-        int pipeFd[2];
-        std::map<std::string, std::string> env;
-    public:
-        char **getEnvp(void);
-        std::string execute(void);
-        CgiHandler(HttpRequest httpReq, std::string cgiPath, std::string scriptName);
-        ~CgiHandler(void);
-};
-
-#endif
+    while (1)
+    {
+        std::cout << "HEy\n";
+    }
+    return 0;
+}

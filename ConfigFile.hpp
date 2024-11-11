@@ -93,6 +93,7 @@ public:
 
 class Route : public ConfigServer
 {
+    bool cgiFlag;
 	//bool isResized;
 	std::vector<Method>  methods;
 	bool				 autoindex;
@@ -125,6 +126,8 @@ public:
 
     std::vector<std::string> &getCgiExtensions(void);
     std::string getCgiPath(void);
+
+    bool isCgi(void);
 };
 
 class ConfigFile

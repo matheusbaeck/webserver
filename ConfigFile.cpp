@@ -579,6 +579,8 @@ Route	&Route::operator=(Route const &other)
 		this->autoindex = other.autoindex;
 		this->tokenizer = other.tokenizer;
 		this->index = other.index;
+		this->cgiPath = other.cgiPath;
+		this->cgiExtensions = other.cgiExtensions;
 	}
 	return *this;
 }
@@ -704,12 +706,18 @@ void    Route::parseCgiPath(void)
 		this->tokenizer->consume();
 	}
 	this->cgiPath = this->tokenizer->next(ConfigFile::delim);
+
 	if (this->cgiPath.empty())
 	{
 		error("cgi_path: invalid argument");
 	}
 	this->tokenizer->trim();
 	this->tokenizer->expected(';', ConfigFile::delim);
+}
+
+bool Route::isCgi(void)
+{
+	return !this->cgiPath.empty() && !this->cgiExtensions.empty();
 }
 
 void    Route::parseCgiExtensions(void)
@@ -760,6 +768,16 @@ std::vector<Method>				  &Route::getMethods(void)
 std::map<StatusCode, std::string> &Route::getRedirection(void)
 {
 	return this->redirection;
+}
+
+std::string Route::getCgiPath(void)
+{
+	return this->cgiPath;
+}
+
+std::vector<std::string> &Route::getCgiExtensions(void)
+{
+	return this->cgiExtensions;
 }
 
 template<typename T>
