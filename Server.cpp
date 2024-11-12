@@ -46,18 +46,12 @@ int Server::create_server_socket(int pos)
 {
 	int addrlen = sizeof(*this->getAddr(pos));
 	this->_serv_sockets.push_back(socket(AF_INET, SOCK_STREAM, 0));
-	std::cout << "create_serv_sockets[pos]: open socket on fd " << this->_serv_sockets[pos] << std::endl;
 	if (this->_serv_sockets[pos] < 0)
     {
 		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
 		return -1;
 	}
 	int reuse = 1;
-	if (setsockopt(this->_serv_sockets[pos], SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) 
-    {
-		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
-		return -1;
-	}
 	if (setsockopt(this->_serv_sockets[pos], SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
 		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
 		return -1;
@@ -68,13 +62,14 @@ int Server::create_server_socket(int pos)
 	this->_addrs[pos].sin_port = htons(this->_serv_ports[pos]);
 
     
-    // TODO: can't two servers run same port
 	if (bind(this->_serv_sockets[pos], this->getAddr(pos), addrlen) == -1)
 	{
-		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
+		std::cerr << "Couldn't bind socket " << this->_serv_sockets[pos] 
+                    << " to port " << this->_serv_ports[pos] << ": " << strerror(errno) << std::endl;
 		exit(1);
 	}
-    std::cout << "ERRONO: " << strerror(errno) << std::endl;
+	std::cout << "socket on fd " << this->_serv_sockets[pos] 
+                << " bound to " << this->_serv_ports[pos] << ": " << strerror(errno)<< std::endl;
 	if (listen(this->_serv_sockets[pos], BACKLOG) < 0)
 		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
 	return (this->_serv_sockets[pos]);
