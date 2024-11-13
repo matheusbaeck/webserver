@@ -8,6 +8,7 @@
 #include <sys/epoll.h>		//epoll
 #include <sys/types.h>		//accept
 #include <sys/socket.h>		//aceppt
+#include <ctime>
 
 #include "Server.hpp"
 
@@ -28,6 +29,7 @@ class Selector
 		int                         _eventCount;
         int                         _epollfd;
         std::map<int, ConfigServer> _clientConfig;
+        
 
 		Selector( void );
 
@@ -36,8 +38,8 @@ class Selector
 		static Selector& getSelector( void ) { return selector; }
         
 		/* Methods */
-		void	addSocket(const Server *);
-		void	processEvents (const std::vector<Server*> & servers);
+		void                            addSocket(const Server *);
+		void                            processEvents (const std::vector<Server*> & servers);
 
 
         /* Getters */

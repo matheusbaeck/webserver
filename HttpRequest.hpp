@@ -19,10 +19,10 @@ class HttpRequest
     std::string serverName;
     std::string serverPort;
 
-
 	// HTTP
 	std::map<std::string, std::string> headers;
     std::string query;
+    pid_t cgiPid;
 
 	
 	Method method;
@@ -41,10 +41,16 @@ public:
     ~HttpRequest();
 
 	static std::string	readFile(const char *pathname);
-	static bool 				isUpperCase(const std::string &str);
+	static bool 		isUpperCase(const std::string &str);
 	static std::string	toString(size_t num);
 	static std::string 	getMimeType(std::string const &file);
 	static std::string	&lower(std::string &str);
+
+    // Setters
+    void setCgiPID(pid_t pid)
+    {
+        this->cgiPid = pid;
+    }
 
 	// Getters
 	Method 		getMethod(void) const;
@@ -73,6 +79,10 @@ public:
         return this->serverPort == "" ? "80" : this->serverPort;
     }
 
+    pid_t getCgiPID()
+    {
+        return this->cgiPid;
+    }
 	// method that generate HTML page of list directory.
 	std::string	dirList(std::string const &dirpath);
 
@@ -115,7 +125,7 @@ public:
 	std::string handler(void);
 	//void	handler(void);
 
-	std::string	GETmethod(const std::string &pathname);
+	std::string	GETmethod(const std::string &pathname, std::string cgiResponse);
 };
 
 #endif	// HTTP_REQUEST_HPP

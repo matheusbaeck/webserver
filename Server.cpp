@@ -126,7 +126,6 @@ int Server::handleHTTPRequest(Selector& selector, int client_socket)
 
     HttpRequest* incomingRequestHTTP = new HttpRequest();
     incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
-    std::cout << "Buffer is: " << buffer << std::endl;
     incomingRequestHTTP->setBuffer(buffer);
     std::string response = incomingRequestHTTP->handler();
     int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);

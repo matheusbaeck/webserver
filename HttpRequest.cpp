@@ -108,7 +108,10 @@ std::string HttpRequest::forbidden(void)
 }
 #endif
 
-HttpRequest::HttpRequest(void) {}
+HttpRequest::HttpRequest(void) 
+{
+    cgiPid = -1;
+}
 
 HttpRequest::HttpRequest(const HttpRequest &other)
 {
@@ -220,7 +223,7 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 		if (access(tmp.c_str(), F_OK) == -1) return NFOUND;
 		if (isDir(tmp.c_str()))
 		{
-			std::vector<std::string> indices            = route->getIndex();
+			std::vector<std::string> indices    = route->getIndex();
 			std::vector<std::string>::const_iterator it = checkIndex(indices);
 
 			if (it == indices.end())
@@ -341,8 +344,8 @@ StatusCode HttpRequest::parseHeaders(void)
 		tokenizer.trimSpace();
 		value = tokenizer.next(HttpRequest::CRLF/*HttpRequest::delim*/);
 
-		std::cout << "key  : " << key << std::endl;
-		std::cout << "value: " << value << std::endl;
+		/*std::cout << "key  : " << key << std::endl;*/
+		/*std::cout << "value: " << value << std::endl;*/
 
 		if (key == "host")
 		{
@@ -459,6 +462,7 @@ std::string	fileUpload(std::string const &body, std::string const &filename)
 std::string	HttpRequest::handler(void)
 {
 	std::string response;
+	std::string cgiResponse;
 
 	this->parse();
 
@@ -473,10 +477,9 @@ std::string	HttpRequest::handler(void)
 			scriptName = this->path.substr(found + 1);	
 		}
 
-		CgiHandler cgi(*this, route->getCgiPath(), scriptName);
-		return cgi.execute();
+		CgiHandler cgi(this, route->getCgiPath(), scriptName);
+		cgiResponse = cgi.execute();
     }
-	exit(1);
 
 	switch (this->statusCode)
 	{
@@ -486,7 +489,7 @@ std::string	HttpRequest::handler(void)
 		case OK:
 			switch (this->method)
 			{
-				case GET:    response = this->GETmethod(this->path);            break;
+				case GET:    response = this->GETmethod(this->path, cgiResponse);  break;
 				case POST:   response = notAllowed("");							break;
 				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
@@ -546,14 +549,14 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 				body += buff;
 
                 if (DT_DIR == dirnt->d_type)
-				{
-					body = body + std::string(20, ' ') + '-';
-				}
-				else
-				{
-					std::string fileSize = toString(statbuf.st_size);
-					body = body + std::string(21 - fileSize.size(), ' ') + fileSize;
-				}
+                {
+                    body = body + std::string(20, ' ') + '-';
+                }
+                else
+                {
+                    std::string fileSize = toString(statbuf.st_size);
+                    body = body + std::string(21 - fileSize.size(), ' ') + fileSize;
+                }
             }
         }
     	body += "\n</pre><hr></body>\n</html>";
@@ -566,13 +569,33 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 
 /* ---------- HTTP METHODS -------- */
 
-std::string	HttpRequest::GETmethod(const std::string &pathname)
+std::string	HttpRequest::GETmethod(const std::string &pathname, std::string cgiResponse)
 {
-	std::string statusLine = "HTTP/1.1 200 OK\r\n";
-	std::string body       = HttpRequest::readFile(pathname.c_str());
-	std::string headers    = "Server: webserver/0.42\r\n";
-	headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
+    std::string statusLine = "HTTP/1.1 200 OK\r\n";
+    std::string headers    = "Server: webserver/0.42\r\n";
+    
+    std::string body;
+    if (cgiResponse.size() > 0)
+    {
+        size_t found = cgiResponse.find("\n");
+        std::cout << "found: " << found << std::endl;
+        if (found != std::string::npos) 
+        {
+            headers += cgiResponse.substr(0, found);
+            headers += "\r\n";
+        }
+        else 
+            headers += "No Content Type provided\r\n";
+        //std::cout << "CgiResponse: " << cgiResponse << std::endl;
+        std::cout << "headers: " << headers << std::endl;
+        body = cgiResponse.substr(found); 
+    }
+    else
+    {
+        body = HttpRequest::readFile(pathname.c_str());
+        headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
+    }
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
 	return statusLine + headers + body;
 }
 
