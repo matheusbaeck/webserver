@@ -625,19 +625,19 @@ std::string HttpRequest::POSTmethod(const std::string &pathname, std::string cgi
 	istead should
 	if (URLENCODED)
 	{
-		pass to FORM
+		execute cgi passing map as input (cgi.run(map))
+	}
+	if(MULTIPART)
+	{
+		save as a file with some name in the route location 
 	}
 	if(RAW)
 	{
-		No idea
+		No idea (we can just echo it)
 	}
 	if (JSON)
 	{
-		No idea
-	}
-	else
-	{
-		No idea xD;
+		i think this is no mandatory
 	}
 	TODO:pass map to form
 	*/
