@@ -4,6 +4,16 @@
 #include "ConfigFile.hpp"
 #include "Tokenizer.hpp"
 
+enum Type {NOTSET, RAW, URLENCODED, MULTIPART, JSON};
+struct BodyRequest
+{
+	enum Type type;
+	union {
+		std::string *raw;
+		std::map<std::string, std::string> *urlencoded;
+	};
+
+};
 
 class HttpRequest
 {
@@ -32,6 +42,8 @@ class HttpRequest
 	std::map<std::string, std::string> mimeTypes;
 
 	static void	toLower(char &c);
+
+	struct BodyRequest *body;
 
 public:
 	HttpRequest(void);
@@ -126,6 +138,12 @@ public:
 	//void	handler(void);
 
 	std::string	GETmethod(const std::string &pathname, std::string cgiResponse);
+	std::string	POSTmethod(const std::string &pathname, std::string cgiResponse);
+	std::string POSTmethodRAW(const std::string &pathname, std::string cgiResponse);
+	std::string POSTmethodURLENCODED(const std::string &pathname, std::string cgiResponse);
+
+
+
 };
 
 #endif	// HTTP_REQUEST_HPP
