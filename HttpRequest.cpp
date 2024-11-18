@@ -44,11 +44,29 @@ std::vector<std::string>::const_iterator checkIndex(const std::vector<std::strin
 	std::vector<std::string>::const_iterator it = indices.begin();
 	while (it != indices.end())
 	{
+        std::cout << "trying to access: " << it->c_str() << std::endl;
 		if (access(it->c_str(), F_OK) == 0) return it;
 		it++;
 	}
 	return indices.end();
 }
+
+std::vector<std::string>::const_iterator findIndex(std::string const& root, const std::vector<std::string> &indices)
+{
+    
+	std::vector<std::string>::const_iterator it = indices.begin();
+	while (it != indices.end())
+	{
+        std::string index = *it;
+        std::string check = (root + "/" + index).c_str();
+        std::cout << "findIndex check: "<<check << std::endl;
+		if (access(check.c_str(), F_OK) == 0) 
+            return it;
+		it++;
+	}
+	return indices.end();
+}
+
 
 
 #if 1
@@ -157,9 +175,10 @@ StatusCode HttpRequest::parseStartLine(void)
 
 	for (size_t i = 0; i < 3; i += 1)
 	{
+        std::cout << "which method: " << i << std::endl;
 		std::string token = this->tokenizer.next(HttpRequest::delim);
 		
-		//std::cerr << "token -> " << token << std::endl;
+		std::cerr << "token -> " << token << std::endl;
 
 		this->statusCode  = (this->*calls[i])(token);
 		// TODO: make sure this condition is correct.
@@ -202,15 +221,36 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 		 	*	TODO: Now let' handle one server and multiple routes.
 		 	* */
 		route = HttpRequest::configServer->getRoute(requestTarget);
-		std::cout << "requestTarget: " << requestTarget << std::endl;
-		if (!route)
+        std::cout << "requestTarget: `" << requestTarget <<  "`"<< std::endl;
+        if (!route)
 		{
+            std::cout << "not found " << std::endl;
 			THROW("HERE");
 			return NFOUND;
 		}
-		const std::string tmp = "." + requestTarget;
-		size_t found = requestTarget.find_first_of("?");
-		this->path   = tmp.substr(0, found);
+
+        size_t      found;
+        std::string target;
+        std::cout << "route Path: `" << route->path << "`" << std::endl;
+        if (requestTarget == route->path)
+        {
+            std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
+			if (it == route->getIndex().end())
+            {
+                std::cout << "forbidden " << std::endl;
+                return FORBIDDEN;
+            }
+            target = *it;
+        }
+        else
+        {
+            found = requestTarget.find(route->path);
+            target = requestTarget.substr(found + route->path.size(), requestTarget.size());
+        }
+        std::cout << "target: " << target << std::endl;
+        std::string fullPath = route->getRoot() + "/" + target;
+		found = requestTarget.find_first_of("?");
+		this->path   = fullPath.substr(0, found);
 
         if (found != std::string::npos)
         {
@@ -219,22 +259,10 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 
 		std::cout << "---------------- " << this->path << " ----------------" << std::endl;
 
+        std::cout << "fullPath = " << fullPath << std::endl;
 
-		if (access(tmp.c_str(), F_OK) == -1) return NFOUND;
-		if (isDir(tmp.c_str()))
-		{
-			std::vector<std::string> indices    = route->getIndex();
-			std::vector<std::string>::const_iterator it = checkIndex(indices);
-
-			if (it == indices.end())
-			{
-				return FORBIDDEN;
-			}
-
-
-			if (it != indices.end())
-				this->path = tmp + *it;
-		}
+		if (access(fullPath.c_str(), F_OK) == -1)
+            return NFOUND;
 		return OK;
 	}
 	return BREQUEST;
@@ -465,9 +493,14 @@ std::string	HttpRequest::handler(void)
 	std::string cgiResponse;
 
 	this->parse();
-
+    std::cout << "HTTP request path: " << this->path << std::endl;
 	Route *route = this->configServer->getRoute(this->path);
-
+    if (!route)
+    {
+        std::cout << "route not found" << std::endl;
+        exit(1);
+    }
+    std::cout << "path HTTPRequest route: " << route->path << std::endl;
     if (route && route->isCgi())
     {
 		size_t found = this->path.find_last_of("/");
@@ -480,6 +513,8 @@ std::string	HttpRequest::handler(void)
 		CgiHandler cgi(this, route->getCgiPath(), scriptName);
 		cgiResponse = cgi.execute();
     }
+    std::cout << "Status code: " << this->statusCode << std::endl;
+    exit(1);
 
 	switch (this->statusCode)
 	{
@@ -593,6 +628,8 @@ std::string	HttpRequest::GETmethod(const std::string &pathname, std::string cgiR
     else
     {
         body = HttpRequest::readFile(pathname.c_str());
+        std::cout << "pathname: " << pathname << std::endl;
+        std::cout << "body: " << body << std::endl;
         headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
     }
     headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";

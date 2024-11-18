@@ -65,6 +65,7 @@ void	Tokenizer::trimSpace(void)
 	}
 }
 
+//consume characters until a newline -- newline is consumed too
 void	Tokenizer::consume(void)
 {
 	while (!this->end() && this->peek() != '\n')
@@ -77,6 +78,7 @@ void	Tokenizer::consume(void)
 	}
 }
 
+//validate that the next character in the input stream matches an expected value
 void	Tokenizer::expected(int c, std::string const &chars)
 {
 	(void) chars;
@@ -90,6 +92,7 @@ void	Tokenizer::expected(int c, std::string const &chars)
 	this->get();
 }
 
+//extract the next token from the input stream, stopping when it encounters any character from a specified set (chars)
 std::string	Tokenizer::next(std::string const &chars)
 {
 	std::string token;

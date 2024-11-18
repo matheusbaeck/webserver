@@ -215,9 +215,10 @@ void	ConfigServer::parseIndex(void)
 	std::string token;
 
 
+    //TODO: why do you have an index.resize(1) @ahmed from @g
 	if (!this->isResized)
 	{
-		this->index.resize(1);
+	//	this->index.resize(1);
 		this->isResized = true;
 	}
 
@@ -237,7 +238,10 @@ void	ConfigServer::parseIndex(void)
 		}
 		token = this->tokenizer->next(ConfigFile::delim);
 		if (std::find(index.begin(), index.end(), token) == index.end())
-			this->index.push_back(token);
+        {
+            if (token.size() != 0)
+                this->index.push_back(token);
+        }
 	}
 	if (this->index.size() == 0)
 	{
@@ -525,7 +529,9 @@ std::vector<std::string> &ConfigServer::getServerNames(void)
 }
 std::vector<std::string> &ConfigServer::getIndex(void)
 {
-	return this->index;
+    /*for (unsigned int i = 0; i < this->index.size(); i += 1)*/
+    /*    std::cout << "getIndex: " << this->index[i] << std::endl;*/
+    return this->index;
 }
 std::map<StatusCode, std::string> &ConfigServer::getErrorPages(void)
 {
@@ -535,13 +541,14 @@ std::map<StatusCode, std::string> &ConfigServer::getErrorPages(void)
 Route	*ConfigServer::getRoute(std::string const &path)
 {
 	Route *route = NULL;
+    std::cout << "getRoute: path = " << path << " | size = " << path.size() << std::endl;
 	for (size_t i = 0; i < routes.size(); i += 1)
 	{
+        std::cout << "getRoute: routes.path = " << routes[i].path << " | size = " << routes[i].path.size()<< std::endl;
 		if (path.find(routes[i].path.c_str(), 0, routes[i].path.size()) != std::string::npos)
-		{
 			route = &routes[i];
-		}
 	}
+    std::cout << "getRoute: route.path = " << route->path << " | size = " << route->path.size()<< std::endl;
 	return route;
 }
 
