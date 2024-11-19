@@ -6,40 +6,72 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/13 21:07:06 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/19 17:31:42 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "CgiHandler.hpp"
 #include <cstring>
 
-/*static void mySleep(double sec)*/
-/*{*/
-/*        struct timeval tv;*/
-/*        tv.tv_sec = 0;      // 0 seconds*/
-/*        tv.tv_usec = 1000000 * sec; // 100,000 microseconds (0.1 seconds)*/
-/**/
-/*        select(0, NULL, NULL, NULL, &tv); */
-/*}*/
+#include <dirent.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string>
+#include <vector>
+
+std::string findCGIScript(const std::string& cgi_path, const std::vector<std::string>& cgi_extensions) 
+{
+    DIR* dir = opendir(cgi_path.c_str());
+    if (dir == NULL) {
+        // Error opening the directory
+        return "";
+    }
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) 
+    {
+        std::string filename = entry->d_name;
+        for (size_t i = 0; i < cgi_extensions.size(); i++) 
+        {
+            if (filename.length() >= cgi_extensions[i].length() 
+                    && filename.substr(filename.length() - cgi_extensions[i].length()) == cgi_extensions[i]) 
+            {
+                std::cout << "filename foundScript: " << filename << std::endl;
+                closedir(dir);
+                return filename;
+            }
+        }
+    }
+
+    closedir(dir);
+    return ""; // No matching CGI script found
+}
 
 
-CgiHandler::CgiHandler(HttpRequest* httpReq, std::string cgiPath, std::string scriptName)
+CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string cgiPath, std::vector<std::string> cgiExtensions)
 {
     this->pipeFd[STDIN_FILENO]  = -1;
     this->pipeFd[STDOUT_FILENO] = -1;
+
     // TODO: do deep copy of config file to prevent double free
-    //this->httpReq = _httpReq;
+    this->httpReq = _httpReq;
 
 
     //this->env["AUTH_TYPE"] = ;
-    this->env["CONTENT_LENGTH"]         = httpReq->getHeader("content-length");
-    this->env["CONTENT_TYPE"]           = httpReq->getHeader("content-type");
-    this->env["QUERY_STRING"]           = httpReq->getQuery();
-    this->env["REQUEST_METHOD"]         = httpReq->getMethodStr();
-    this->env["SERVER_PORT"]            = httpReq->getServerPort();
+    this->env["CONTENT_LENGTH"]         = _httpReq.getHeader("content-length");
+    this->env["CONTENT_TYPE"]           = _httpReq.getHeader("content-type");
+    this->env["QUERY_STRING"]           = _httpReq.getQuery();
+    this->env["REQUEST_METHOD"]         = _httpReq.getMethodStr();
+    this->env["SERVER_PORT"]            = _httpReq.getServerPort();
 
-    this->env["PATH_INFO"]              = cgiPath; 
-    // TODO: if there is another slash
+    /*// TODO: if there is another slash*/
+    this->env["PATH_INFO"]              = cgiPath;
+    if (scriptName.size() == 0)
+    {
+        scriptName = findCGIScript(cgiPath, cgiExtensions);
+    }
     this->env["SCRIPT_FILENAME"]        = cgiPath + "/" + scriptName;
     
     // TODO: we are just hardcoding SERVER_NAME. Do we need to match it with server_name in config?
@@ -70,7 +102,6 @@ std::string CgiHandler::execute()
 {
     std::string response;
     int exitStatus;
-    clock_t end;
 
     char **envp = this->getEnvp();
 
@@ -88,7 +119,6 @@ std::string CgiHandler::execute()
         return httpReq.serverError();
     }
 
-    this->duration = clock();
     if (httpReq.getCgiPID() == 0)
     {
         close(this->pipeFd[STDIN_FILENO]);
@@ -130,26 +160,10 @@ std::string CgiHandler::execute()
         int n = 1;
         while (n != 0)
         {
-            std::cout << "elapsed time: " << static_cast<double>(end - this->duration) << std::endl;
-            end = clock();
-            if (static_cast<double>(end - this->duration)/CLOCKS_PER_SEC > CLIENT_TIMEOUT)
-            {
-                std::cout << "child killed " << std::endl;
-
-                kill(httpReq.getCgiPID(), SIGKILL); 
-            }
             n = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);
             buffer[n] = '\0';
             response += buffer;
-            std::cerr << "n: " << n << std::endl;
         }
-        /*while (n != 0)*/
-        /*{*/
-        /*    n = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);*/
-        /*    buffer[n] = '\0';*/
-        /*    response += buffer;*/
-        /*    std::cerr << "n: " << n << std::endl;*/
-        /*}*/
     }
 
     delete[] envp;

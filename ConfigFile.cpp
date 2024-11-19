@@ -719,6 +719,11 @@ void    Route::parseCgiPath(void)
 	this->tokenizer->expected(';', ConfigFile::delim);
 }
 
+void Route::setCgiScriptName(std::string scriptName)
+{
+    this->cgiScriptName = scriptName;
+}
+
 bool Route::isCgi(void)
 {
 	return !this->cgiPath.empty() && !this->cgiExtensions.empty();
@@ -777,6 +782,11 @@ std::map<StatusCode, std::string> &Route::getRedirection(void)
 std::string Route::getCgiPath(void)
 {
 	return this->cgiPath;
+}
+
+std::string Route::getCgiScriptName(void)
+{
+	return this->cgiScriptName;
 }
 
 std::vector<std::string> &Route::getCgiExtensions(void)

@@ -226,39 +226,65 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 			THROW("HERE");
 			return NFOUND;
 		}
-
         size_t      found;
         std::string target;
-        if (requestTarget == route->path)
+        std::string fullPath;
+        //TODO: condition for CGi
+        if (route->isCgi())
         {
-            std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
-			if (it == route->getIndex().end())
+            found = requestTarget.find_last_of("/");
+            if (requestTarget == route->path)
             {
-                this->path = requestTarget;
-                return FORBIDDEN;
+                fullPath = route->getCgiPath();
+                route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions());
+                //DO i need to add a scriptName
             }
-            target = *it;
+            else
+            {
+                fullPath = route->getCgiPath() + requestTarget.substr(found);
+                size_t queryPos = requestTarget.find("?");
+                std::string scriptRAW = requestTarget.substr(0, queryPos);
+                route->setCgiScriptName(scriptRAW.substr(found + 1));
+                std::cout << "PARSE_PATH| scriptName: " << route->getCgiScriptName() << std::endl;
+            }
+            std::cout << "route->path: " << route->path << std::endl;
+                
         }
-        else
+        else 
         {
-            found = requestTarget.find(route->path);
-            target = requestTarget.substr(found + route->path.size(), requestTarget.size());
-            if (target[0] == '/')
-                target = target.substr(1, target.size());
+            if (requestTarget == route->path)
+            {
+                std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
+                if (it == route->getIndex().end())
+                {
+                    this->path = requestTarget;
+                    return FORBIDDEN;
+                }
+                target = *it;
+            }
+            else
+            {
+                found = requestTarget.find(route->path);
+                target = requestTarget.substr(found + route->path.size(), requestTarget.size());
+                if (target[0] == '/')
+                    target = target.substr(1, target.size());
+            }
+            fullPath = route->getRoot() + "/" + target;
+        
         }
-        std::string fullPath = route->getRoot() + "/" + target;
 		found = requestTarget.find_first_of("?");
 		this->path   = fullPath.substr(0, found);
 
         if (found != std::string::npos)
         {
             this->query = requestTarget.substr(found + 1);
+            std::cout << "QUERY STRING: " << this->query << std::endl;
         }
 
 		std::cout << "---------------- " << this->path << " ----------------" << std::endl;
 
 
-		if (access(fullPath.c_str(), F_OK) == -1)
+		if (access(this->path.c_str(), F_OK) == -1)
             return NFOUND;
 		return OK;
 	}
@@ -297,7 +323,7 @@ StatusCode HttpRequest::parseBody(void)
 	if (this->method != POST)
 		return OK;
 
-	// Bad Request: content-lenth required
+	// Bad Request: content-length required
 	if (this->headers.find("content-length") == this->headers.end())
 		return BREQUEST;
 
@@ -495,17 +521,9 @@ std::string	HttpRequest::handler(void)
         std::cout << "route not found" << std::endl;
         exit(1);
     }
-    std::cout << __FILE__ <<"| HTTP Request path: " << route->path << std::endl;
     if (route && route->isCgi())
     {
-		size_t found = this->path.find_last_of("/");
-		std::string scriptName;
-		if (found != std::string::npos)
-		{
-			scriptName = this->path.substr(found + 1);	
-		}
-
-		CgiHandler cgi(this, route->getCgiPath(), scriptName);
+		CgiHandler cgi(*this, route->getCgiScriptName(), route->getCgiPath(), route->getCgiExtensions());
 		cgiResponse = cgi.execute();
     }
     std::cout << "Status code: " << this->statusCode << std::endl;
@@ -631,17 +649,17 @@ std::string	HttpRequest::GETmethod(const std::string &pathname, std::string cgiR
 }
 
 
-std::string HttpRequest::POSTmethodRAW(const std::string &pathname, std::string cgiResponse)
+std::string HttpRequest::POSTmethodRAW(const std::string &pathname)
 {
 	(void)pathname;
-	(void)cgiResponse;
+	/*(void)cgiResponse;*/
 	return *(this->body->raw);
 }
 
-std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname, std::string cgiResponse)
+std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname)
 {
 	(void)pathname;
-	(void)cgiResponse;
+	/*(void)cgiResponse;*/
 	std::ostringstream bodyStream;
 	for (std::map<std::string, std::string>::iterator it = this->body->urlencoded->begin();
 			it != this->body->urlencoded->end(); ++it) {
@@ -652,9 +670,10 @@ std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname, std::
 
 std::string HttpRequest::POSTmethod(const std::string &pathname, std::string cgiResponse)
 {
+    (void)cgiResponse;
 	/*
 	post is just echooing all it reiceves
-	istead should
+	instead should
 	if (URLENCODED)
 	{
 		execute cgi passing map as input (cgi.run(map))
@@ -682,8 +701,8 @@ std::string HttpRequest::POSTmethod(const std::string &pathname, std::string cgi
 	std::cout << "------------------------------------------------------------------------------------\n";
 	switch (this->body->type)
 	{
-		case RAW:			response = POSTmethodRAW(pathname, cgiResponse); break;
-		case URLENCODED:	response = POSTmethodURLENCODED(pathname, cgiResponse); break;
+		case RAW:			response = POSTmethodRAW(pathname); break;
+		case URLENCODED:	response = POSTmethodURLENCODED(pathname); break;
 		case MULTIPART:		std::invalid_argument("NOT IMPLEMENTED - POST multipart/form-data"); break;
 		case JSON:			std::invalid_argument("NOT IMPLEMENTED - POST application/json"); break;
 		default:			std::invalid_argument("NOT IMPLEMENTED - POST type not found"); break;

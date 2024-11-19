@@ -139,8 +139,8 @@ public:
 
 	std::string	GETmethod(const std::string &pathname, std::string cgiResponse);
 	std::string	POSTmethod(const std::string &pathname, std::string cgiResponse);
-	std::string POSTmethodRAW(const std::string &pathname, std::string cgiResponse);
-	std::string POSTmethodURLENCODED(const std::string &pathname, std::string cgiResponse);
+	std::string POSTmethodRAW(const std::string &pathname);
+	std::string POSTmethodURLENCODED(const std::string &pathname);
 
 
 

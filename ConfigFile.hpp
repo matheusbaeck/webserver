@@ -99,6 +99,7 @@ class Route : public ConfigServer
 	bool				 autoindex;
 
     std::string cgiPath;
+    std::string cgiScriptName;
     std::vector<std::string> cgiExtensions;
 
 	Tokenizer *tokenizer;
@@ -118,6 +119,7 @@ public:
     void    parseCgiPath(void);
     void    parseCgiExtensions(void);
 	//void	parseIndex(void);
+    void    setCgiScriptName(std::string scriptName);
 
 	bool				getAutoIndex(void);
 	std::string 					&getRoot(void);
@@ -126,6 +128,7 @@ public:
 
     std::vector<std::string> &getCgiExtensions(void);
     std::string getCgiPath(void);
+    std::string getCgiScriptName(void);
 
     bool isCgi(void);
 };
