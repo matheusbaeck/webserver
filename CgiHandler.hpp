@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/19 17:32:39 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/19 20:41:15 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,7 @@ class CgiHandler
     public:
         char **getEnvp(void);
         std::string execute();
-        CgiHandler(HttpRequest httpReq, std::string scriptName, std::string cgiPath, std::vector<std::string> cgiExtensions);
+        CgiHandler(HttpRequest httpReq, std::string scriptName, std::string cgiPath);
         ~CgiHandler(void);
 };
 

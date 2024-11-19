@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/19 17:31:42 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/19 20:40:58 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,36 +21,8 @@
 #include <string>
 #include <vector>
 
-std::string findCGIScript(const std::string& cgi_path, const std::vector<std::string>& cgi_extensions) 
-{
-    DIR* dir = opendir(cgi_path.c_str());
-    if (dir == NULL) {
-        // Error opening the directory
-        return "";
-    }
 
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) 
-    {
-        std::string filename = entry->d_name;
-        for (size_t i = 0; i < cgi_extensions.size(); i++) 
-        {
-            if (filename.length() >= cgi_extensions[i].length() 
-                    && filename.substr(filename.length() - cgi_extensions[i].length()) == cgi_extensions[i]) 
-            {
-                std::cout << "filename foundScript: " << filename << std::endl;
-                closedir(dir);
-                return filename;
-            }
-        }
-    }
-
-    closedir(dir);
-    return ""; // No matching CGI script found
-}
-
-
-CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string cgiPath, std::vector<std::string> cgiExtensions)
+CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string cgiPath)
 {
     this->pipeFd[STDIN_FILENO]  = -1;
     this->pipeFd[STDOUT_FILENO] = -1;
@@ -68,10 +40,6 @@ CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string
 
     /*// TODO: if there is another slash*/
     this->env["PATH_INFO"]              = cgiPath;
-    if (scriptName.size() == 0)
-    {
-        scriptName = findCGIScript(cgiPath, cgiExtensions);
-    }
     this->env["SCRIPT_FILENAME"]        = cgiPath + "/" + scriptName;
     
     // TODO: we are just hardcoding SERVER_NAME. Do we need to match it with server_name in config?

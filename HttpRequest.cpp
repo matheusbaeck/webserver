@@ -166,7 +166,9 @@ HttpRequest::HttpRequest(const char *buffer)
 typedef StatusCode (HttpRequest::*parseCalls)(const std::string &token);
 
 /*
- *	request-line = method SP request-target SP HTTP-version CRLF
+ *	request-line = method SP request-target SP HTTP-version CRLF is not a valid subnet mask:
+
+The binary representation 00101101 does not have a contiguous sequence of 1s followed by 0s.
  * */
 
 StatusCode HttpRequest::parseStartLine(void)
@@ -209,6 +211,34 @@ StatusCode HttpRequest::parseMethod(const std::string &_method)
  * authority-form = "*"
  * */
 
+std::string findCGIScript(const std::string& cgi_path, const std::vector<std::string>& cgi_extensions) 
+{
+    DIR* dir = opendir(cgi_path.c_str());
+    if (dir == NULL) {
+        // Error opening the directory
+        return "";
+    }
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) 
+    {
+        std::string filename = entry->d_name;
+        for (size_t i = 0; i < cgi_extensions.size(); i++) 
+        {
+            if (filename.length() >= cgi_extensions[i].length() 
+                    && filename.substr(filename.length() - cgi_extensions[i].length()) == cgi_extensions[i]) 
+            {
+                std::cout << "filename foundScript: " << filename << std::endl;
+                closedir(dir);
+                return filename;
+            }
+        }
+    }
+
+    closedir(dir);
+    return ""; // No matching CGI script found
+}
+
 
 
 StatusCode HttpRequest::parsePath(const std::string &requestTarget)
@@ -236,7 +266,7 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             if (requestTarget == route->path)
             {
                 fullPath = route->getCgiPath();
-                route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions());
+                route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
                 //DO i need to add a scriptName
             }
             else
@@ -523,7 +553,7 @@ std::string	HttpRequest::handler(void)
     }
     if (route && route->isCgi())
     {
-		CgiHandler cgi(*this, route->getCgiScriptName(), route->getCgiPath(), route->getCgiExtensions());
+		CgiHandler cgi(*this, route->getCgiScriptName(), route->getCgiPath());
 		cgiResponse = cgi.execute();
     }
     std::cout << "Status code: " << this->statusCode << std::endl;
