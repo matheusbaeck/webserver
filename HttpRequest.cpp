@@ -288,40 +288,38 @@ StatusCode HttpRequest::getStatusCode(void) const
 	return this->statusCode;
 }
 
-struct BodyRequest
-{
-	enum Type {RAW, URLENCODED};
-	union {
-		std::string *raw;
-		std::map<std::string, std::string> *urlencoded;
-	};
-
-};
-
 
 StatusCode HttpRequest::parseBody(void)
 {
-#if 0
-	BodyRequest bodyRequest;
-	(void) bodyRequest;
+	this->body = new BodyRequest(); // TODO: handle delete
+	this->body->type = NOTSET;
 
 	// TODO: try to return if size 0
 	if (this->method != POST)
 		return OK;
 
-
-	std::cout << "length: " << this->headers["content-length"] << std::endl;;
+	// Bad Request: content-lenth required
+	if (this->headers.find("content-length") == this->headers.end())
+		return BREQUEST;
 
 	// TODO: be careful from overflow
-	const size_t size = ConfigFile::toNumber(this->headers["content-length"]) + 1;
+	const size_t size = ConfigFile::toNumber(this->headers["content-length"]);
+
+	if (size == 0)
+		return BREQUEST;
+
+	char body[size + 1];
+	this->tokenizer.get(body, size + 1);
+	body[size] = '\0';
+
+	if (this->headers.find("content-type") == this->headers.end())
+		return BREQUEST;
+
 	const std::string contentType = this->headers["content-type"];
-	char body[size];
-
-
-	this->tokenizer.get(body, size);
 	if (contentType == "application/x-www-form-urlencoded")
 	{
-		bodyRequest.urlencoded = new std::map<std::string, std::string>;
+		this->body->type = URLENCODED;
+		this->body->urlencoded = new std::map<std::string, std::string>;
 		Tokenizer t(body);
 		while (!t.end())
 		{
@@ -337,23 +335,24 @@ StatusCode HttpRequest::parseBody(void)
 				t.get();
 			}
 			// TODO: try to access by []
-			bodyRequest.urlencoded->insert(std::make_pair(key, value));
+			this->body->urlencoded->insert(std::make_pair(key, value));
 		}
-
-		std::cout << "-> " << body << std::endl;
-		exit(1);
-	}
-	else if (contentType == "multipart/form-data")
-	{
-		std::cout << "------------------------------------------------------------------------------------\n";
-		std::cout << body << std::endl;
-		std::cout << "------------------------------------------------------------------------------------\n";
 	}
 	else if (contentType == "text/plain")
 	{
-		bodyRequest.raw = new std::string(body);
+		this->body->type = RAW;
+		this->body->raw = new std::string(body);
 	}
-#endif
+	else if (contentType == "multipart/form-data")
+	{
+		this->body->type = MULTIPART;
+		this->body->raw = new std::string(body);
+	}
+	else if (contentType == "application/json")
+	{
+		this->body->type = JSON;
+		this->body->raw = new std::string(body);
+	}
 	return OK;
 }
 
@@ -521,7 +520,7 @@ std::string	HttpRequest::handler(void)
 			switch (this->method)
 			{
 				case GET:    response = this->GETmethod(this->path, cgiResponse);  break;
-				case POST:   response = notAllowed("");							break;
+				case POST:   response = this->POSTmethod(this->path, cgiResponse);	break;
 				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
 			}
@@ -631,6 +630,72 @@ std::string	HttpRequest::GETmethod(const std::string &pathname, std::string cgiR
     headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
 	return statusLine + headers + body;
 }
+
+
+std::string HttpRequest::POSTmethodRAW(const std::string &pathname, std::string cgiResponse)
+{
+	(void)pathname;
+	(void)cgiResponse;
+	return *(this->body->raw);
+}
+
+std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname, std::string cgiResponse)
+{
+	(void)pathname;
+	(void)cgiResponse;
+	std::ostringstream bodyStream;
+	for (std::map<std::string, std::string>::iterator it = this->body->urlencoded->begin();
+			it != this->body->urlencoded->end(); ++it) {
+		bodyStream << it->first << "=" << it->second << "\n";
+	}
+	return bodyStream.str();
+}
+
+std::string HttpRequest::POSTmethod(const std::string &pathname, std::string cgiResponse)
+{
+	/*
+	post is just echooing all it reiceves
+	istead should
+	if (URLENCODED)
+	{
+		execute cgi passing map as input (cgi.run(map))
+	}
+	if(MULTIPART)
+	{
+		save as a file with some name in the route location 
+	}
+	if(RAW)
+	{
+		No idea (we can just echo it)
+	}
+	if (JSON)
+	{
+		i think this is no mandatory
+	}
+	TODO:pass map to form
+	*/
+	std::string statusLine = "HTTP/1.1 200 OK\r\n";
+    std::string headers    = "Server: webserver/0.42\r\n";
+    headers += "Content-Type: text/plain\r\n";
+
+    std::string response;
+
+	std::cout << "------------------------------------------------------------------------------------\n";
+	switch (this->body->type)
+	{
+		case RAW:			response = POSTmethodRAW(pathname, cgiResponse); break;
+		case URLENCODED:	response = POSTmethodURLENCODED(pathname, cgiResponse); break;
+		case MULTIPART:		std::invalid_argument("NOT IMPLEMENTED - POST multipart/form-data"); break;
+		case JSON:			std::invalid_argument("NOT IMPLEMENTED - POST application/json"); break;
+		default:			std::invalid_argument("NOT IMPLEMENTED - POST type not found"); break;
+	}
+	headers += "Content-Length: " + toString(response.size()) + "\r\n\r\n";
+	std::cout << statusLine + headers + response;
+	std::cout << "------------------------------------------------------------------------------------\n";
+
+    return statusLine + headers + response;
+}
+
 
 
 
