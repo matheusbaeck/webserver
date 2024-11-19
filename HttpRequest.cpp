@@ -242,10 +242,9 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         else
         {
             found = requestTarget.find(route->path);
-            if (requestTarget[found] == '/')
-                target = requestTarget.substr(found + 1 + route->path.size(), requestTarget.size());
-            else 
-                target = requestTarget.substr(found + route->path.size(), requestTarget.size());
+            target = requestTarget.substr(found + route->path.size(), requestTarget.size());
+            if (target[0] == '/')
+                target = target.substr(1, target.size());
         }
         std::string fullPath = route->getRoot() + "/" + target;
 		found = requestTarget.find_first_of("?");
