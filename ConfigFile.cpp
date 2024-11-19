@@ -541,14 +541,11 @@ std::map<StatusCode, std::string> &ConfigServer::getErrorPages(void)
 Route	*ConfigServer::getRoute(std::string const &path)
 {
 	Route *route = NULL;
-    std::cout << "getRoute: path = " << path << " | size = " << path.size() << std::endl;
 	for (size_t i = 0; i < routes.size(); i += 1)
 	{
-        std::cout << "getRoute: routes.path = " << routes[i].path << " | size = " << routes[i].path.size()<< std::endl;
 		if (path.find(routes[i].path.c_str(), 0, routes[i].path.size()) != std::string::npos)
 			route = &routes[i];
 	}
-    std::cout << "getRoute: route.path = " << route->path << " | size = " << route->path.size()<< std::endl;
 	return route;
 }
 

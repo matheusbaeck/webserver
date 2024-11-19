@@ -221,23 +221,20 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 		 	*	TODO: Now let' handle one server and multiple routes.
 		 	* */
 		route = HttpRequest::configServer->getRoute(requestTarget);
-        std::cout << "requestTarget: `" << requestTarget <<  "`"<< std::endl;
         if (!route)
 		{
-            std::cout << "not found " << std::endl;
 			THROW("HERE");
 			return NFOUND;
 		}
 
         size_t      found;
         std::string target;
-        std::cout << "route Path: `" << route->path << "`" << std::endl;
         if (requestTarget == route->path)
         {
             std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
 			if (it == route->getIndex().end())
             {
-                std::cout << "forbidden " << std::endl;
+                this->path = requestTarget;
                 return FORBIDDEN;
             }
             target = *it;
@@ -245,9 +242,11 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         else
         {
             found = requestTarget.find(route->path);
-            target = requestTarget.substr(found + route->path.size(), requestTarget.size());
+            if (requestTarget[found] == '/')
+                target = requestTarget.substr(found + 1 + route->path.size(), requestTarget.size());
+            else 
+                target = requestTarget.substr(found + route->path.size(), requestTarget.size());
         }
-        std::cout << "target: " << target << std::endl;
         std::string fullPath = route->getRoot() + "/" + target;
 		found = requestTarget.find_first_of("?");
 		this->path   = fullPath.substr(0, found);
@@ -259,7 +258,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 
 		std::cout << "---------------- " << this->path << " ----------------" << std::endl;
 
-        std::cout << "fullPath = " << fullPath << std::endl;
 
 		if (access(fullPath.c_str(), F_OK) == -1)
             return NFOUND;
@@ -444,12 +442,11 @@ void	HttpRequest::parse(void)
 	// TODO: how do i generate a HTTP response?
 
 	/* ----------- Start Line ----------- */
-	this->statusCode = this->parseStartLine();
+    this->statusCode = this->parseStartLine();
 
+    std::cout << __FUNCTION__ << "status code of start line: " << this->statusCode << std::endl;
 
-	std::cout << "status code of start line: " << this->statusCode << std::endl;
-
-	/* -----------   Headers  ----------- */
+    /* -----------   Headers  ----------- */
 
 	/*	after ":" only space allow
 	 *  no spaces allow before key of header
@@ -492,15 +489,15 @@ std::string	HttpRequest::handler(void)
 	std::string response;
 	std::string cgiResponse;
 
+
 	this->parse();
-    std::cout << "HTTP request path: " << this->path << std::endl;
 	Route *route = this->configServer->getRoute(this->path);
     if (!route)
     {
         std::cout << "route not found" << std::endl;
         exit(1);
     }
-    std::cout << "path HTTPRequest route: " << route->path << std::endl;
+    std::cout << __FILE__ <<"| HTTP Request path: " << route->path << std::endl;
     if (route && route->isCgi())
     {
 		size_t found = this->path.find_last_of("/");
@@ -514,7 +511,6 @@ std::string	HttpRequest::handler(void)
 		cgiResponse = cgi.execute();
     }
     std::cout << "Status code: " << this->statusCode << std::endl;
-    exit(1);
 
 	switch (this->statusCode)
 	{
