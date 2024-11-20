@@ -266,8 +266,9 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             if (requestTarget == route->path)
             {
                 fullPath = route->getCgiPath();
-                route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
                 //DO i need to add a scriptName
+                route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
+                std::cout << "absence of scriptName, found: " << route->getCgiScriptName() << std::endl;
             }
             else
             {
@@ -302,14 +303,15 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             fullPath = route->getRoot() + "/" + target;
         
         }
-		found = requestTarget.find_first_of("?");
-		this->path   = fullPath.substr(0, found);
-
+		found = fullPath.find_first_of("?");
         if (found != std::string::npos)
         {
-            this->query = requestTarget.substr(found + 1);
+            this->path   = fullPath.substr(0, found);
+            this->query = fullPath.substr(found + 1);
             std::cout << "QUERY STRING: " << this->query << std::endl;
         }
+        else
+            this->path = fullPath;
 
 		std::cout << "---------------- " << this->path << " ----------------" << std::endl;
 
@@ -654,8 +656,8 @@ std::string	HttpRequest::GETmethod(const std::string &pathname, std::string cgiR
     std::string body;
     if (cgiResponse.size() > 0)
     {
+        std::cout << "CGI response: " << cgiResponse << std::endl;
         size_t found = cgiResponse.find("\n");
-        std::cout << "found: " << found << std::endl;
         if (found != std::string::npos) 
         {
             headers += cgiResponse.substr(0, found);

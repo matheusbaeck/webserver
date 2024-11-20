@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/19 20:40:58 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/20 12:54:08 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,6 +29,7 @@ CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string
 
     // TODO: do deep copy of config file to prevent double free
     this->httpReq = _httpReq;
+    std::cout << "CGI query string: " <<_httpReq.getQuery() << std::endl;
 
 
     //this->env["AUTH_TYPE"] = ;
