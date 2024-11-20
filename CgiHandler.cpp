@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/20 12:54:08 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/20 18:42:46 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string>
-#include <vector>
 
 
 CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string cgiPath)
@@ -29,7 +28,6 @@ CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string
 
     // TODO: do deep copy of config file to prevent double free
     this->httpReq = _httpReq;
-    std::cout << "CGI query string: " <<_httpReq.getQuery() << std::endl;
 
 
     //this->env["AUTH_TYPE"] = ;
@@ -67,36 +65,29 @@ char    **CgiHandler::getEnvp(void)
    return envp;
 }
 
-std::string CgiHandler::execute()
+StatusCode CgiHandler::execute(Selector& selector)
 {
     std::string response;
-    int exitStatus;
 
     char **envp = this->getEnvp();
 
     if (pipe(this->pipeFd) == -1)
-    {
-        std::cout << "pipe dead\n";
-        return httpReq.serverError();
-    }
+        return SERVERR;
 
-    httpReq.setCgiPID(fork());
-
-    if (httpReq.getCgiPID() == -1)
+    int pid = fork();
+    if (pid == -1)
+        return SERVERR;
+    if (pid == 0)
     {
-        std::cout << "fork is spoon now\n";
-        return httpReq.serverError();
-    }
+        dup2(pipeFd[STDIN_FILENO], STDIN_FILENO);  // CGI reads from pipe
+        dup2(pipeFd[STDOUT_FILENO], STDOUT_FILENO); // CGI writes to pipe
 
-    if (httpReq.getCgiPID() == 0)
-    {
-        close(this->pipeFd[STDIN_FILENO]);
-        dup2(this->pipeFd[STDOUT_FILENO], STDOUT_FILENO);
-        close(this->pipeFd[STDOUT_FILENO]);
+        close(pipeFd[STDIN_FILENO]);
+        close(pipeFd[STDOUT_FILENO]);
+        /*close(this->pipeFd[STDIN_FILENO]);*/
+        /*dup2(this->pipeFd[STDOUT_FILENO], STDOUT_FILENO);*/
+        /*close(this->pipeFd[STDOUT_FILENO]);*/
         
-        std::cerr << "Child process\n";
-
-
         const char *path = this->env["SCRIPT_FILENAME"].c_str();
 
         std::cerr << "path: " << path << std::endl;
@@ -105,38 +96,26 @@ std::string CgiHandler::execute()
         if (access(path, R_OK | W_OK | X_OK | F_OK) == -1)
         {
             if (errno == 2)
-                return this->httpReq.notFound();
+                return NFOUND;
             else
-                return this->httpReq.forbidden();
-
+                return FORBIDDEN;
         }
         if (execve(argv[0], argv,  envp) != 0)
         {
             std::cerr << "execute is soup\n";
-            close(this->pipeFd[STDOUT_FILENO]);
-            return this->httpReq.serverError();
+            return SERVERR;
         }
     }
     else
     {
+        struct epoll_event ev;
+        ev.events = EPOLLIN;
+        ev.data.fd = pipeFd[STDIN_FILENO];
+        epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, pipeFd[STDIN_FILENO], &ev);
         close(this->pipeFd[STDOUT_FILENO]);
-        dup2(this->pipeFd[STDIN_FILENO], STDIN_FILENO);
-        close(this->pipeFd[STDIN_FILENO]);
-        waitpid(httpReq.getCgiPID(), &exitStatus, WNOHANG);
-        
-       // mySleep(0.1);
-        char buffer[1024];
-        int n = 1;
-        while (n != 0)
-        {
-            n = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);
-            buffer[n] = '\0';
-            response += buffer;
-        }
     }
-
     delete[] envp;
-    return response;
+    return OK;
 }
 
 CgiHandler::~CgiHandler(void)

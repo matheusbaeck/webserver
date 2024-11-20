@@ -109,25 +109,15 @@ int Server::acceptClient(Selector& selector, int socketFD, int portFD)
     return (0);
 }
 
-int Server::handleHTTPRequest(Selector& selector, int client_socket)
+int Server::handleHTTPRequest(Selector& selector, int client_socket, std::string request)
 {
-    char buffer[1024] = {0};
-    int received_bytes = recv(client_socket, buffer, sizeof(buffer), MSG_DONTWAIT);
-    std::cout << "bytes read: " << received_bytes  << " from fd " << client_socket << std::endl;
-    if (received_bytes == 0)
-    {
-        epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL);
-        selector.getClientConfig().erase(client_socket);
-        close(client_socket);
-        return (-1);
-    }
-    if (received_bytes < 0)
-        return (-1);
+    char* buffer = (char*)request.c_str();
+    std::cout << "buffer biitch: " << buffer << std::endl;
 
     HttpRequest* incomingRequestHTTP = new HttpRequest();
     incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
     incomingRequestHTTP->setBuffer(buffer);
-    std::string response = incomingRequestHTTP->handler();
+    std::string response = incomingRequestHTTP->handler(selector);
     int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
     if (sent_bytes < 0) 
     {
@@ -136,14 +126,6 @@ int Server::handleHTTPRequest(Selector& selector, int client_socket)
         delete incomingRequestHTTP;
         close(client_socket);
         return (-1);
-    }
-
-    if (client_socket & (EPOLLERR| EPOLLHUP))
-    {
-        std::cerr << "Error on fd " <<  client_socket << ": " << strerror(errno) << std::endl;
-        epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL,  client_socket, NULL);
-        selector.getClientConfig().erase(client_socket);
-        close(client_socket);
     }
     delete incomingRequestHTTP;
     return (0);

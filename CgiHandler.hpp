@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/19 20:41:15 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/20 14:59:34 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,8 @@
 #define CGI_HANDLER_HPP
 
 #include "HttpRequest.hpp"
+#include "Selector.hpp"
+#include "ConfigFile.hpp"
 
 #include <map>
 #include <vector>
@@ -32,13 +34,14 @@
 class CgiHandler
 {
     private:
-        HttpRequest httpReq;
-        std::string cgiResponse;
-        int pipeFd[2];
-        std::map<std::string, std::string> env;
+        int                                 pipeFd[2];
+        HttpRequest                         httpReq;
+        std::string                         cgiResponse;
+        std::map<std::string, std::string>  env;
     public:
-        char **getEnvp(void);
-        std::string execute();
+        char**                              getEnvp(void);
+        StatusCode                          execute(Selector& selector);
+
         CgiHandler(HttpRequest httpReq, std::string scriptName, std::string cgiPath);
         ~CgiHandler(void);
 };

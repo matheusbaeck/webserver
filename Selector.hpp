@@ -28,9 +28,8 @@ class Selector
 		epoll_event                 _events[MAX_EVENTS];
 		int                         _eventCount;
         int                         _epollfd;
+        std::map<int, std::string>  _requests;
         std::map<int, ConfigServer> _clientConfig;
-        
-
 		Selector( void );
 
 	public:
@@ -45,6 +44,7 @@ class Selector
         /* Getters */
         epoll_event*                    getEvents();
         std::map<int, ConfigServer>&    getClientConfig();
+        std::map<int, std::string>&     getRequests();
         int&                            getEpollFD();
 
 };
