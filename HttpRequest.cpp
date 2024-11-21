@@ -789,105 +789,44 @@ std::string	&HttpRequest::lower(std::string &str)
 
 std::string	HttpRequest::getMimeType(std::string const &file)
 {
-	std::map<std::string, std::string> mimeTypes;
-	std::string extension;
+    std::map<std::string, std::string> mimeTypes; 
+    mimeTypes[".html"] = "text/html";
+    mimeTypes[".htm"] = "text/html";
+    mimeTypes[".css"] = "text/css";
+    mimeTypes[".js"] = "application/javascript";
+    mimeTypes[".json"] = "application/json";
+    mimeTypes[".xml"] = "application/xml";
+    mimeTypes[".png"] = "image/png";
+    mimeTypes[".jpg"] = "image/jpeg";
+    mimeTypes[".jpeg"] = "image/jpeg";
+    mimeTypes[".gif"] = "image/gif";
+    mimeTypes[".svg"] = "image/svg+xml";
+    mimeTypes[".ico"] = "image/x-icon";
+    mimeTypes[".txt"] = "text/plain";
+    mimeTypes[".pdf"] = "application/pdf";
+    mimeTypes[".zip"] = "application/zip";
+    mimeTypes[".tar"] = "application/x-tar";
+    mimeTypes[".gz"] = "application/gzip";
+    mimeTypes[".mp3"] = "audio/mpeg";
+    mimeTypes[".wav"] = "audio/wav";
+    mimeTypes[".mp4"] = "video/mp4";
+    mimeTypes[".avi"] = "video/x-msvideo";
+    mimeTypes[".mov"] = "video/quicktime";
+    mimeTypes[".bin"] = "application/octet-stream";
 
-    mimeTypes["aac"]   = "audio/aac";
-    mimeTypes["abw"]   = "application/x-abiword";
-    mimeTypes["arc"]   = "application/x-freearc";
-    mimeTypes["avif"]  = "image/avif";
-    mimeTypes["avi"]   = "video/x-msvideo";
-    mimeTypes["azw"]   = "application/vnd.amazon.ebook";
-    mimeTypes["bin"]   = "application/octet-stream";
-    mimeTypes["bmp"]   = "image/bmp";
-    mimeTypes["bz"]    = "application/x-bzip";
-    mimeTypes["bz2"]   = "application/x-bzip2";
-    mimeTypes["cda"]   = "application/x-cdf";
-    mimeTypes["csh"]   = "application/x-csh";
-    mimeTypes["css"]   = "text/css";
-    mimeTypes["csv"]   = "text/csv";
-    mimeTypes["doc"]   = "application/msword";
-    mimeTypes["docx"]  = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    mimeTypes["eot"]   = "application/vnd.ms-fontobject";
-    mimeTypes["epub"]  = "application/epub+zip";
-    mimeTypes["gz"]    = "application/gzip";
-    mimeTypes["gif"]   = "image/gif";
-    mimeTypes["htm"]   = "text/html";
-    mimeTypes["html"]  = "text/html";
-    mimeTypes["ico"]   = "image/vnd.microsoft.icon";
-    mimeTypes["ics"]   = "text/calendar";
-    mimeTypes["jar"]   = "application/java-archive";
-    mimeTypes["jpeg"]  = "image/jpeg";
-    mimeTypes["jpg"]   = "image/jpeg";
-    mimeTypes["js"]    = "text/javascript";
-    mimeTypes["json"]  = "application/json";
-    mimeTypes["jsonld"]= "application/ld+json";
-    mimeTypes["mid"]   = "audio/midi";
-    mimeTypes["midi"]  = "audio/midi";
-    mimeTypes["mjs"]   = "text/javascript";
-    mimeTypes["mp3"]   = "audio/mpeg";
-    mimeTypes["mp4"]   = "video/mp4";
-    mimeTypes["mpeg"]  = "video/mpeg";
-    mimeTypes["mpkg"]  = "application/vnd.apple.installer+xml";
-    mimeTypes["odp"]   = "application/vnd.oasis.opendocument.presentation";
-    mimeTypes["ods"]   = "application/vnd.oasis.opendocument.spreadsheet";
-    mimeTypes["odt"]   = "application/vnd.oasis.opendocument.text";
-    mimeTypes["oga"]   = "audio/ogg";
-    mimeTypes["ogv"]   = "video/ogg";
-    mimeTypes["ogx"]   = "application/ogg";
-    mimeTypes["opus"]  = "audio/opus";
-    mimeTypes["otf"]   = "font/otf";
-    mimeTypes["png"]   = "image/png";
-    mimeTypes["pdf"]   = "application/pdf";
-    mimeTypes["php"]   = "application/x-httpd-php";
-    mimeTypes["ppt"]   = "application/vnd.ms-powerpoint";
-    mimeTypes["pptx"]  = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-    mimeTypes["rar"]   = "application/vnd.rar";
-    mimeTypes["rtf"]   = "application/rtf";
-    mimeTypes["sh"]    = "application/x-sh";
-    mimeTypes["svg"]   = "image/svg+xml";
-    mimeTypes["swf"]   = "application/x-shockwave-flash";
-    mimeTypes["tar"]   = "application/x-tar";
-    mimeTypes["tif"]   = "image/tiff";
-    mimeTypes["tiff"]  = "image/tiff";
-    mimeTypes["ts"]    = "video/mp2t";
-    mimeTypes["ttf"]   = "font/ttf";
-    mimeTypes["txt"]   = "text/plain";
-    mimeTypes["vsd"]   = "application/vnd.visio";
-    mimeTypes["wav"]   = "audio/wav";
-    mimeTypes["weba"]  = "audio/webm";
-    mimeTypes["webm"]  = "video/webm";
-    mimeTypes["webp"]  = "image/webp";
-    mimeTypes["woff"]  = "font/woff";
-    mimeTypes["woff2"] = "font/woff2";
-    mimeTypes["xhtml"] = "application/xhtml+xml";
-    mimeTypes["xls"]   = "application/vnd.ms-excel";
-    mimeTypes["xlsx"]  = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    mimeTypes["xml"]   = "application/xml";
-    mimeTypes["xul"]   = "application/vnd.mozilla.xul+xml";
-    mimeTypes["zip"]   = "application/zip";
-    mimeTypes["3gp"]   = "video/3gpp";
-    mimeTypes["3g2"]   = "video/3gpp2";
-    mimeTypes["7z"]    = "application/x-7z-compressed";
+    // Find the file extension
+    size_t dotPos = file.find_last_of('.');
+    if (dotPos == std::string::npos) {
+        return "application/octet-stream"; // Default MIME type for unknown files
+    }
 
-	// NOTE: temp solution
-	int	start = 0;
-	if (file[0] == '.')
-		start = 1;
+    std::string extension = file.substr(dotPos);
 
-	size_t found = file.find_first_of(".", start);
-
-	if (found != std::string::npos)
-	{
-		// TODO: put substr directly as key
-		extension = file.substr(found + 1, file.size());
-		return mimeTypes[extension];
-	}
-
-	std::cerr << "file     : " << file      << std::endl;
-	std::cerr << "extension: " << extension << std::endl; 
-
-	return "text/html";
+    // Lookup the extension in the MIME types map
+    std::map<std::string, std::string>::iterator it = mimeTypes.find(extension);
+    if (it != mimeTypes.end()) 
+        return it->second;
+    return "application/octet-stream"; // Default MIME type for unknown files
 }
 
 std::string execCGI(void)

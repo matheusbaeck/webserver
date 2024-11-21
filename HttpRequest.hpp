@@ -97,7 +97,7 @@ public:
         this->configServer = new ConfigServer(_configServer);
 		//*this->configServer = _configServer;
 	}
-    void    setBuffer(char *buffer)
+    void    setBuffer(const char *buffer)
     {
         this->tokenizer.setBuffer(buffer);
     }

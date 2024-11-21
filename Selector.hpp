@@ -8,6 +8,7 @@
 #include <sys/epoll.h>		//epoll
 #include <sys/types.h>		//accept
 #include <sys/socket.h>		//aceppt
+#include <set>
 #include <ctime>
 
 #include "Server.hpp"
@@ -28,6 +29,7 @@ class Selector
 		epoll_event                 _events[MAX_EVENTS];
 		int                         _eventCount;
         int                         _epollfd;
+        std::set<int>               _activeClients;
         std::map<int, std::string>  _requests;
         std::map<int, ConfigServer> _clientConfig;
 		Selector( void );
@@ -43,6 +45,7 @@ class Selector
 
         /* Getters */
         epoll_event*                    getEvents();
+        std::set<int>&                  getActiveClients();
         std::map<int, ConfigServer>&    getClientConfig();
         std::map<int, std::string>&     getRequests();
         int&                            getEpollFD();

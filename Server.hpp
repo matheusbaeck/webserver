@@ -52,7 +52,9 @@ class Server
 		int			create_server_socket(int pos);
 		int			setnonblocking( int );
         int         acceptClient(Selector& selector, int socketFD, int portFD);
+        void        readClientRequest(Selector& selector, int clientSocket);
 		int			handleHTTPRequest(Selector& selector, int clientSocket, std::string request);
+        void        cleanUpClient(Selector& selector, int client_socket);
 };
 
 #endif

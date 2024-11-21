@@ -51,6 +51,7 @@ int Server::create_server_socket(int pos)
 		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
 		return -1;
 	}
+    this->setnonblocking(this->_serv_sockets[pos]);
 	int reuse = 1;
 	if (setsockopt(this->_serv_sockets[pos], SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
 		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
@@ -85,10 +86,105 @@ int Server::setnonblocking(int sockfd)
 	return (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK));
 }
 
+/*int Server::acceptClient(Selector& selector, int socketFD, int portFD)*/
+/*{*/
+/*    int client_fd = accept(socketFD, NULL, NULL);*/
+/**/
+/*    std::cout << "New client_fd " << client_fd << " accepted on port: " << portFD << std::endl;*/
+/*    if (client_fd < 0)*/
+/*    {*/
+/*        std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;*/
+/*        epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_fd, NULL);*/
+/*        close(client_fd);*/
+/*        return (-1);*/
+/*    }*/
+/*    epoll_event ev;*/
+/*    ev.events = EPOLLIN | EPOLLET; */
+/*    ev.data.fd = client_fd;*/
+/*    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, client_fd, &ev) == -1) */
+/*    {*/
+/*        std::cerr << "Failed to add client socket to epoll: " << strerror(errno) << std::endl;*/
+/*        close(client_fd);*/
+/*        return (-1);*/
+/*    }*/
+/*    selector.getActiveClients().insert(client_fd);*/
+/*    selector.getClientConfig()[client_fd] = this->getConfig();*/
+/*    return (0);*/
+/*}*/
+/**/
+/**/
+/*void Server::readClientRequest(Selector& selector, int clientSocket)*/
+/*{*/
+/*    size_t                      pos = std::string::npos;*/
+/*    static const std::string    RequestHeaderEnding = "\r\n\r\n";*/
+/**/
+/*    while (pos == std::string::npos) */
+/*    {*/
+/*        char buffer[1024];*/
+/*        ssize_t count = read(clientSocket, buffer, sizeof(buffer));*/
+/*        std::cout << "bytes read from " << clientSocket << ": " << count << std::endl;*/
+/*        if (count == -1) // not done reading everything yet, so return*/
+/*            return; */
+/*        if (count == 0) // client disconnected */
+/*        { */
+/*            this->cleanUpClient(selector, clientSocket);*/
+/*            break; */
+/*        } */
+/*        selector.getRequests()[clientSocket] += std::string(buffer, buffer + count);*/
+/*        pos = selector.getRequests()[clientSocket].find(RequestHeaderEnding);*/
+/*        if (pos == std::string::npos) */
+/*            continue;*/
+/*        struct epoll_event info; */
+/*        info.events = EPOLLOUT | EPOLLET; */
+/*        info.data.fd = clientSocket;*/
+/*        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_MOD, clientSocket, &info) == -1) */
+/*        {*/
+/*            std::cerr << "Failed to modify epoll event for FD " << clientSocket */
+/*                << ": " << strerror(errno) << std::endl;*/
+/*        }*/
+/*        return;*/
+/*    }*/
+/**/
+/*}*/
+/**/
+/*void Server::cleanUpClient(Selector& selector, int client_socket)*/
+/*{*/
+/*    epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL);*/
+/*    selector.getClientConfig().erase(client_socket);*/
+/*    selector.getActiveClients().erase(client_socket);*/
+/*    selector.getRequests().erase(client_socket);*/
+/*    close(client_socket);*/
+/*}*/
+/**/
+/*int Server::handleHTTPRequest(Selector& selector, int client_socket, std::string request)*/
+/*{*/
+/*    const char* buffer = request.c_str();*/
+/*    if (request.size() == 0)*/
+/*    {*/
+/*        this->cleanUpClient(selector, client_socket);*/
+/*        return (-1);*/
+/*    }*/
+/*    std::cout << __func__ << " in " << __FILE__ << " | requestBuffer: " << buffer << std::endl;*/
+/**/
+/*    HttpRequest* incomingRequestHTTP = new HttpRequest();*/
+/*    incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);*/
+/*    incomingRequestHTTP->setBuffer(buffer);*/
+/*    std::string response = incomingRequestHTTP->handler(selector);*/
+/*    int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);*/
+/*    if (sent_bytes < 0) */
+/*    {*/
+/*        this->cleanUpClient(selector, client_socket);*/
+/*        delete incomingRequestHTTP;*/
+/*        return (-1);*/
+/*    }*/
+/*    //not sure if client should be destroyed here*/
+/*    delete incomingRequestHTTP;*/
+/*    return (0);*/
+/*}*/
+
 int Server::acceptClient(Selector& selector, int socketFD, int portFD)
 {
     int client_fd = accept(socketFD, NULL, NULL);
-    selector.getClientConfig()[client_fd] = this->getConfig();
 
     std::cout << "New client_fd " << client_fd << " accepted on port: " << portFD << std::endl;
     if (client_fd < 0)
@@ -96,7 +192,6 @@ int Server::acceptClient(Selector& selector, int socketFD, int portFD)
         std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
         return (-1);
     }
-    // Adding the new client socket to epoll
     epoll_event ev;
     ev.events = EPOLLIN | EPOLLET; 
     ev.data.fd = client_fd;
@@ -106,13 +201,65 @@ int Server::acceptClient(Selector& selector, int socketFD, int portFD)
         close(client_fd);
         return (-1);
     }
+    selector.getActiveClients().insert(client_fd);
+    selector.getClientConfig()[client_fd] = this->getConfig();
     return (0);
+}
+
+
+/*void Server::readClientRequest(Selector& selector, int clientSocket)*/
+/*{*/
+/*    size_t                      pos = std::string::npos;*/
+/*    static const std::string    RequestHeaderEnding = "\r\n\r\n";*/
+/**/
+/*    while (pos == std::string::npos) */
+/*    {*/
+/*        char buffer[1024];*/
+/*        ssize_t count = read(clientSocket, buffer, sizeof(buffer));*/
+/*        std::cout << "bytes read from " << clientSocket << ": " << count << std::endl;*/
+/*        if (count == -1) // not done reading everything yet, so return*/
+/*            return; */
+/*        if (count == 0) // client disconnected */
+/*        { */
+/*            this->cleanUpClient(selector, clientSocket);*/
+/*            break; */
+/*        } */
+/*        selector.getRequests()[clientSocket] += std::string(buffer, buffer + count);*/
+/*        pos = selector.getRequests()[clientSocket].find(RequestHeaderEnding);*/
+/*        if (pos == std::string::npos) */
+/*            continue;*/
+/*        struct epoll_event info; */
+/*        info.events = EPOLLOUT | EPOLLET; */
+/*        info.data.fd = clientSocket;*/
+/*        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_MOD, clientSocket, &info) == -1) */
+/*        {*/
+/*            std::cerr << "Failed to modify epoll event for FD " << clientSocket */
+/*                << ": " << strerror(errno) << std::endl;*/
+/*            this->cleanUpClient(selector, clientSocket);*/
+/*        }*/
+/*        return;*/
+/*    }*/
+/**/
+/*}*/
+
+void Server::cleanUpClient(Selector& selector, int client_socket)
+{
+    epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL);
+    selector.getClientConfig().erase(client_socket);
+    selector.getActiveClients().erase(client_socket);
+    selector.getRequests().erase(client_socket);
+    close(client_socket);
 }
 
 int Server::handleHTTPRequest(Selector& selector, int client_socket, std::string request)
 {
-    char* buffer = (char*)request.c_str();
-    std::cout << "buffer biitch: " << buffer << std::endl;
+    const char* buffer = request.c_str();
+    if (request.size() == 0)
+    {
+        selector.getRequests()[client_socket].erase();
+        return (-1);
+    }
+    std::cout << __func__ << " in " << __FILE__ << " | requestBuffer: " << buffer << std::endl;
 
     HttpRequest* incomingRequestHTTP = new HttpRequest();
     incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
@@ -121,13 +268,20 @@ int Server::handleHTTPRequest(Selector& selector, int client_socket, std::string
     int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
     if (sent_bytes < 0) 
     {
-        epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL);
-        selector.getClientConfig().erase(client_socket);
+        this->cleanUpClient(selector, client_socket);
         delete incomingRequestHTTP;
-        close(client_socket);
         return (-1);
     }
     delete incomingRequestHTTP;
+    struct epoll_event info;
+    info.events = EPOLLIN | EPOLLET;
+    info.data.fd = client_socket;
+    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_MOD, client_socket, &info) == -1) 
+    {
+        std::cerr << "Failed to modify epoll event for FD " << client_socket << ": " << strerror(errno) << std::endl;
+        this->cleanUpClient(selector, client_socket);
+        return -1;
+    }
     return (0);
 }
 
