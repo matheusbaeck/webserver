@@ -68,7 +68,6 @@ void Selector::addSocket(const Server *server)
 void Selector::processEvents(const std::vector<Server*>& servers )
 {
     _eventCount = epoll_wait(_epollfd, _events, MAX_EVENTS, TIME_OUT); //timeout to calculate CGI timeout and potential kill
-    std::cout << "eventCount: " << _eventCount << std::endl;
     if (_eventCount == 0)
         return;
     if (_eventCount == -1) 
@@ -97,7 +96,7 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                     }
                     if (this->_activeClients.find(_events[n].data.fd) != _activeClients.end()) 
                     {
-                        std::cout << "fd " << _events[n].data.fd << " is ready for " << (_events[n].events & EPOLLOUT ? "writing" : "reading") << std::endl;
+                        //if client-body size known read until that
                         size_t pos = std::string::npos;
                         while (pos == std::string::npos) 
                         {

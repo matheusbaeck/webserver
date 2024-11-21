@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/21 10:57:28 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/21 16:47:56 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -109,11 +109,12 @@ StatusCode CgiHandler::execute(Selector& selector)
     else
     {
         struct epoll_event ev;
+        //are we sure we need to add READ END of pipe to epoll and not STDOUT end 
         ev.events = EPOLLIN;
         ev.data.fd = pipeFd[STDIN_FILENO];
         epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, pipeFd[STDIN_FILENO], &ev);
-        close(this->pipeFd[STDOUT_FILENO]);
-        close(this->pipeFd[STDIN_FILENO]);
+        /*close(this->pipeFd[STDOUT_FILENO]);*/
+        //close(this->pipeFd[STDIN_FILENO]);
     }
     delete[] envp;
     return OK;

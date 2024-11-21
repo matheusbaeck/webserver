@@ -568,7 +568,7 @@ std::string	HttpRequest::handler(Selector& selector)
 		case OK:
 			switch (this->method)
 			{
-				case GET:    response = this->GETmethod(this->path);  break;
+				case GET:    response = this->GETmethod(this->path, route);  break;
 				case POST:   response = this->POSTmethod(this->path);	break;
 				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
@@ -648,7 +648,7 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 
 /* ---------- HTTP METHODS -------- */
 
-std::string	HttpRequest::GETmethod(const std::string &pathname)
+std::string	HttpRequest::GETmethod(const std::string &pathname, Route* route)
 {
     std::string statusLine = "HTTP/1.1 200 OK\r\n";
     std::string headers    = "Server: webserver/0.42\r\n";
@@ -670,16 +670,24 @@ std::string	HttpRequest::GETmethod(const std::string &pathname)
     /*    body = cgiResponse.substr(found); */
     /*}*/
     /*else*/
+    body = HttpRequest::readFile(pathname.c_str());
+    std::cout << "pathname: " << pathname << std::endl;
+    std::cout << "body: " << body << std::endl;
+    if (route->isCgi())
     {
-        body = HttpRequest::readFile(pathname.c_str());
-        std::cout << "pathname: " << pathname << std::endl;
-        std::cout << "body: " << body << std::endl;
-        headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
+        /*size_t found = body.find("\n");*/
+        /*if (found != std::string::npos) */
+        /*{*/
+        /*    headers += body.substr(0, found);*/
+        /*    headers += "\r\n";*/
+        /*}*/
+        headers += "Content-Type: text/html\r\n";
     }
+    else
+        headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
     headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
-	return statusLine + headers + body;
+    return statusLine + headers + body;
 }
-
 
 std::string HttpRequest::POSTmethodRAW(const std::string &pathname)
 {
