@@ -127,10 +127,10 @@ public:
 
 	void		parse(void);
 
-	std::string handler(Selector& selector);
+	std::string handler(Selector& selector, int clientFd);
 	//void	handler(void);
 
-	std::string	GETmethod(const std::string &pathname, Route* route);
+	std::string	GETmethod(const std::string &pathname);
 	std::string	POSTmethod(const std::string &pathname);
 	std::string POSTmethodRAW(const std::string &pathname);
 	std::string POSTmethodURLENCODED(const std::string &pathname);

@@ -6,15 +6,13 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/20 14:59:34 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/22 16:42:32 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef CGI_HANDLER_HPP
 #define CGI_HANDLER_HPP
 
-#include "HttpRequest.hpp"
-#include "Selector.hpp"
 #include "ConfigFile.hpp"
 
 #include <map>
@@ -31,19 +29,30 @@
 #define TIMEOUT 200
 #define CLIENT_TIMEOUT 2			//client_timeout max time
 
-class CgiHandler
+class HttpRequest;
+class Selector;
+
+struct cgiProcessInfo
+{
+    std::pair<int, int> responsePipe;
+    std::pair<int, int> statusPipe;
+    int pid;
+    int clientFd;
+};
+
+class Cgi
 {
     private:
-        int                                 pipeFd[2];
-        HttpRequest                         httpReq;
+        cgiProcessInfo                      info;
+        HttpRequest                         *httpReq;
         std::string                         cgiResponse;
         std::map<std::string, std::string>  env;
     public:
         char**                              getEnvp(void);
-        StatusCode                          execute(Selector& selector);
+        StatusCode                          execute(Selector& selector, int clientFd);
 
-        CgiHandler(HttpRequest httpReq, std::string scriptName, std::string cgiPath);
-        ~CgiHandler(void);
+        Cgi(HttpRequest *httpReq, std::string scriptName, std::string cgiPath);
+        ~Cgi(void);
 };
 
 #endif

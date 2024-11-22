@@ -540,7 +540,7 @@ std::string	fileUpload(std::string const &body, std::string const &filename)
 	return std::string("HTTP/1.1 201 Created\r\n\r\n");	
 }
 
-std::string	HttpRequest::handler(Selector& selector)
+std::string	HttpRequest::handler(Selector& selector, int clientFd)
 {
 	std::string response;
 	std::string cgiResponse;
@@ -555,8 +555,8 @@ std::string	HttpRequest::handler(Selector& selector)
     }
     if (route && route->isCgi())
     {
-		CgiHandler cgi(*this, route->getCgiScriptName(), route->getCgiPath());
-		this->statusCode = cgi.execute(selector);
+		Cgi cgi(this, route->getCgiScriptName(), route->getCgiPath());
+		cgi.execute(selector, clientFd);
     }
     std::cout << "Status code: " << this->statusCode << std::endl;
 
@@ -568,7 +568,7 @@ std::string	HttpRequest::handler(Selector& selector)
 		case OK:
 			switch (this->method)
 			{
-				case GET:    response = this->GETmethod(this->path, route);  break;
+				case GET:    response = this->GETmethod(this->path);  break;
 				case POST:   response = this->POSTmethod(this->path);	break;
 				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
@@ -648,43 +648,14 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 
 /* ---------- HTTP METHODS -------- */
 
-std::string	HttpRequest::GETmethod(const std::string &pathname, Route* route)
+std::string	HttpRequest::GETmethod(const std::string &pathname)
 {
     std::string statusLine = "HTTP/1.1 200 OK\r\n";
     std::string headers    = "Server: webserver/0.42\r\n";
     
     std::string body;
-    /*if (cgiResponse.size() > 0)*/
-    /*{*/
-    /*    std::cout << "CGI response: " << cgiResponse << std::endl;*/
-    /*    size_t found = cgiResponse.find("\n");*/
-    /*    if (found != std::string::npos) */
-    /*    {*/
-    /*        headers += cgiResponse.substr(0, found);*/
-    /*        headers += "\r\n";*/
-    /*    }*/
-    /*    else */
-    /*        headers += "No Content Type provided\r\n";*/
-    /*    //std::cout << "CgiResponse: " << cgiResponse << std::endl;*/
-    /*    std::cout << "headers: " << headers << std::endl;*/
-    /*    body = cgiResponse.substr(found); */
-    /*}*/
-    /*else*/
     body = HttpRequest::readFile(pathname.c_str());
-    std::cout << "pathname: " << pathname << std::endl;
-    std::cout << "body: " << body << std::endl;
-    if (route->isCgi())
-    {
-        /*size_t found = body.find("\n");*/
-        /*if (found != std::string::npos) */
-        /*{*/
-        /*    headers += body.substr(0, found);*/
-        /*    headers += "\r\n";*/
-        /*}*/
-        headers += "Content-Type: text/html\r\n";
-    }
-    else
-        headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
+    headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
     headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
     return statusLine + headers + body;
 }

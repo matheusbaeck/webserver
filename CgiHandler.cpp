@@ -6,13 +6,15 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/21 16:47:56 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/22 18:59:57 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "CgiHandler.hpp"
-#include <cstring>
+#include "Selector.hpp"
+#include "HttpRequest.hpp"
 
+#include <cstring>
 #include <dirent.h>
 #include <errno.h>
 #include <string.h>
@@ -21,21 +23,18 @@
 #include <string>
 
 
-CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string cgiPath)
+Cgi::Cgi(HttpRequest *_httpReq, std::string scriptName, std::string cgiPath)
 {
-    this->pipeFd[STDIN_FILENO]  = -1;
-    this->pipeFd[STDOUT_FILENO] = -1;
-
     // TODO: do deep copy of config file to prevent double free
     this->httpReq = _httpReq;
 
 
     //this->env["AUTH_TYPE"] = ;
-    this->env["CONTENT_LENGTH"]         = _httpReq.getHeader("content-length");
-    this->env["CONTENT_TYPE"]           = _httpReq.getHeader("content-type");
-    this->env["QUERY_STRING"]           = _httpReq.getQuery();
-    this->env["REQUEST_METHOD"]         = _httpReq.getMethodStr();
-    this->env["SERVER_PORT"]            = _httpReq.getServerPort();
+    this->env["CONTENT_LENGTH"]         = _httpReq->getHeader("content-length");
+    this->env["CONTENT_TYPE"]           = _httpReq->getHeader("content-type");
+    this->env["QUERY_STRING"]           = _httpReq->getQuery();
+    this->env["REQUEST_METHOD"]         = _httpReq->getMethodStr();
+    this->env["SERVER_PORT"]            = _httpReq->getServerPort();
 
     /*// TODO: if there is another slash*/
     this->env["PATH_INFO"]              = cgiPath;
@@ -50,7 +49,7 @@ CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string
     this->env["REMOTE_ADDR"]            = "127.0.0.1";
 }
 
-char    **CgiHandler::getEnvp(void)
+char    **Cgi::getEnvp(void)
 {
    char **envp = new char*[this->env.size() + 1];
    std::map<std::string, std::string>::iterator it = this->env.begin();
@@ -65,62 +64,99 @@ char    **CgiHandler::getEnvp(void)
    return envp;
 }
 
-StatusCode CgiHandler::execute(Selector& selector)
+StatusCode Cgi::execute(Selector& selector, int clientFd)
 {
-    std::string response;
+    int responsePipe[2];
+    int statusPipe[2];
 
+    // Assign to CgiInfo
     char **envp = this->getEnvp();
-
-    if (pipe(this->pipeFd) == -1)
-        return SERVERR;
-
-    int pid = fork();
-    if (pid == -1)
-        return SERVERR;
-    if (pid == 0)
+    
+    this->info.clientFd = clientFd;
+    if (pipe(responsePipe) == -1)
     {
-        dup2(pipeFd[STDIN_FILENO], STDIN_FILENO);  // CGI reads from pipe
-        dup2(pipeFd[STDOUT_FILENO], STDOUT_FILENO); // CGI writes to pipe
+        perror("pipe");
+        return SERVERR;
+    }
+    if (pipe(statusPipe) == -1)
+    {
+        perror("pipe");
+        return SERVERR;
+    }
 
-        close(pipeFd[STDIN_FILENO]);
-        close(pipeFd[STDOUT_FILENO]);
-        /*close(this->pipeFd[STDIN_FILENO]);*/
-        /*dup2(this->pipeFd[STDOUT_FILENO], STDOUT_FILENO);*/
-        /*close(this->pipeFd[STDOUT_FILENO]);*/
+    this->info.pid = fork();
+    if (this->info.pid == -1) 
+    {
+        perror("fork");
+        close(responsePipe[0]);
+        close(responsePipe[1]);
+        close(statusPipe[0]);
+        close(statusPipe[1]);
+        return SERVERR;
+    }
+    
+    if (this->info.pid == 0)
+    {
+        close(statusPipe[0]);
+        dup2(responsePipe[1], STDOUT_FILENO); // CGI writes to pipe
+        close(responsePipe[0]);
+        close(responsePipe[1]);
         
         const char *path = this->env["SCRIPT_FILENAME"].c_str();
-
         std::cerr << "path: " << path << std::endl;
-
         char *const argv[] = { (char*)path, NULL};
-        if (access(path, R_OK | W_OK | X_OK | F_OK) == -1)
+
+        if (access(path, X_OK) == -1) 
         {
-            if (errno == 2)
-                return NFOUND;
-            else
-                return FORBIDDEN;
+            perror("access");
+            write(statusPipe[1], "403", 3);
+            exit(EXIT_FAILURE);
         }
-        if (execve(argv[0], argv,  envp) != 0)
+
+        if (execve(argv[0], argv, envp) == -1) 
         {
-            std::cerr << "execute is soup\n";
-            return SERVERR;
+            perror("execve");
+            write(statusPipe[1], "500", 3); 
+            exit(EXIT_FAILURE);
         }
     }
     else
     {
+        //should i just WAITNOHANG here and check for the exit status
+        close(statusPipe[1]);
         struct epoll_event ev;
-        //are we sure we need to add READ END of pipe to epoll and not STDOUT end 
-        ev.events = EPOLLIN;
-        ev.data.fd = pipeFd[STDIN_FILENO];
-        epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, pipeFd[STDIN_FILENO], &ev);
-        /*close(this->pipeFd[STDOUT_FILENO]);*/
-        //close(this->pipeFd[STDIN_FILENO]);
+        ev.events = EPOLLIN | EPOLLET;
+        ev.data.fd = responsePipe[0];
+        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, responsePipe[0], &ev) == -1) 
+        {
+            perror("epoll_ctl: responsePipe[0]");
+            close(responsePipe[0]);
+            close(statusPipe[0]);
+            return SERVERR;
+        }
+        ev.data.fd = statusPipe[0];
+        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, statusPipe[0], &ev) == -1)
+        {
+            perror("epoll_ctl: responsePipe[0]");
+            close(responsePipe[0]);
+            close(statusPipe[0]);
+            return SERVERR;
+        }
+        close(responsePipe[1]);
+
+        //could turn this into map for multiple cgis
+        cgiProcessInfo cgi;
+        cgi.responsePipe = std::make_pair(responsePipe[0], -1);
+        cgi.statusPipe = std::make_pair(statusPipe[0], -1);
+        cgi.clientFd = clientFd;
+        cgi.pid = this->info.pid;
+        selector.setCgiProcessInfo(cgi);
+        delete[] envp;
     }
-    delete[] envp;
     return OK;
 }
 
-CgiHandler::~CgiHandler(void)
+Cgi::~Cgi(void)
 {
     //close(this->pipeFd[STDIN_FILENO]);
     //close(this->pipeFd[STDOUT_FILENO]);

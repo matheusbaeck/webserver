@@ -51,10 +51,15 @@ class Server
         /* Methods */
 		int			create_server_socket(int pos);
 		int			setnonblocking( int );
-        int         acceptClient(Selector& selector, int socketFD, int portFD);
-        void        readClientRequest(Selector& selector, int clientSocket);
-		int			handleHTTPRequest(Selector& selector, int clientSocket, std::string request);
-        void        cleanUpClient(Selector& selector, int client_socket);
+
+        int         acceptConnection(Selector& selector, int socketFD, int portFD);
+        void        readClientRequest(Selector& selector, int clientFD);
+		int			sendResponse(Selector& selector, int clientSocket, std::string request);
+        int         handleResponsePipe(Selector& selector, int pipeFd);
+
+        void        removeClient(Selector& selector, int client_socket);
+
+        /*void        readClientRequest(Selector& selector, int clientSocket);*/
 };
 
 #endif
