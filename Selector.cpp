@@ -7,15 +7,13 @@ Selector Selector::selector;
 
 //TODO: replace all logs with std::cerr or std::cout
 //TODO: what happens if epollfd fails
-Selector::Selector( void )
+Selector::Selector( void ) : _cgiInfo(-1, -1, -1, -1)
 {
 	this->_epollfd = epoll_create(1);
 	if (this->_epollfd == -1)
     {
         std::cerr << "Failed to create epoll_instance: " << strerror(errno) << std::endl;
 	}
-    this->_cgiInfo.clientFd = -1;
-    this->_cgiInfo.pid = -1;
 }
 
 Selector::~Selector( void )
@@ -41,7 +39,7 @@ cgiProcessInfo& Selector::getCgiProcessInfo()
 
 void Selector::setCgiProcessInfo(cgiProcessInfo& CgiProcess)
 {
-    std::memcpy(static_cast< void *>(&this->_cgiInfo), static_cast<void *>(&CgiProcess), sizeof(cgiProcessInfo));
+    _cgiInfo = CgiProcess;
 }
 
 std::map<int, ConfigServer>& Selector::getClientConfig()
@@ -95,8 +93,8 @@ bool Selector::isClientFD(int fd)
 
 bool Selector::isResponsePipe(int event_fd)
 {
-    if (_cgiInfo.clientFd != -1)
-        return (event_fd == _cgiInfo.responsePipe.first);
+    if (_cgiInfo._clientFd != -1)
+        return (event_fd == _cgiInfo._responsePipe);
     return (false);
 }
 
@@ -153,13 +151,13 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                     }
                     else if (isClientFD(event_fd))
                     {
-                        std::cout << "are we here 11" << std::endl;
+                        std::cout << "----------------------isClientFd" << std::endl;
                         server->readClientRequest(*this, event_fd); // Read client request
                         return;
                     }
                     else if (isResponsePipe(event_fd))
                     {
-                        std::cout << "are we here 22" << std::endl;
+                        std::cout << "----------------------isResponsePipe" << std::endl;
                         server->handleResponsePipe(*this, event_fd); // Handle CGI output
                     }
                     /*else if (isStatusPipe(event_fd))*/

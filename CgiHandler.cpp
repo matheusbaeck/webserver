@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/22 18:59:57 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/23 19:51:51 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,6 +22,15 @@
 #include <unistd.h>
 #include <string>
 
+cgiProcessInfo::cgiProcessInfo(int pid, int clientFd, int statusPipe, int responsePipe) 
+{
+    _pid = pid;
+    _clientFd = clientFd;
+    _statusPipe = statusPipe;
+    _responsePipe = responsePipe;
+}
+
+cgiProcessInfo::~cgiProcessInfo() {}
 
 Cgi::Cgi(HttpRequest *_httpReq, std::string scriptName, std::string cgiPath)
 {
@@ -72,7 +81,6 @@ StatusCode Cgi::execute(Selector& selector, int clientFd)
     // Assign to CgiInfo
     char **envp = this->getEnvp();
     
-    this->info.clientFd = clientFd;
     if (pipe(responsePipe) == -1)
     {
         perror("pipe");
@@ -84,8 +92,8 @@ StatusCode Cgi::execute(Selector& selector, int clientFd)
         return SERVERR;
     }
 
-    this->info.pid = fork();
-    if (this->info.pid == -1) 
+    int pid = fork();
+    if (pid == -1) 
     {
         perror("fork");
         close(responsePipe[0]);
@@ -95,7 +103,7 @@ StatusCode Cgi::execute(Selector& selector, int clientFd)
         return SERVERR;
     }
     
-    if (this->info.pid == 0)
+    if (pid == 0)
     {
         close(statusPipe[0]);
         dup2(responsePipe[1], STDOUT_FILENO); // CGI writes to pipe
@@ -145,12 +153,15 @@ StatusCode Cgi::execute(Selector& selector, int clientFd)
         close(responsePipe[1]);
 
         //could turn this into map for multiple cgis
-        cgiProcessInfo cgi;
-        cgi.responsePipe = std::make_pair(responsePipe[0], -1);
-        cgi.statusPipe = std::make_pair(statusPipe[0], -1);
-        cgi.clientFd = clientFd;
-        cgi.pid = this->info.pid;
-        selector.setCgiProcessInfo(cgi);
+        /*cgiProcessInfo cgi(;*/
+        /*cgi.responsePipe = responsePipe[0];*/
+        /*cgi.statusPipe = statusPipe[0];*/
+        /*cgi.clientFd = clientFd;*/
+        /*cgi.pid = this->info.pid;*/
+
+        cgiProcessInfo cgiInfo(pid, clientFd, statusPipe[0], responsePipe[0]);
+
+        selector.setCgiProcessInfo(cgiInfo);
         delete[] envp;
     }
     return OK;

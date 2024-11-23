@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/22 16:42:32 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/23 19:48:14 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,18 +32,20 @@
 class HttpRequest;
 class Selector;
 
-struct cgiProcessInfo
+class cgiProcessInfo
 {
-    std::pair<int, int> responsePipe;
-    std::pair<int, int> statusPipe;
-    int pid;
-    int clientFd;
+    public:
+        int _responsePipe;
+        int _statusPipe;
+        int _pid;
+        int _clientFd;
+        cgiProcessInfo(int pid, int clientFd, int statusPipe, int responsePipe) ;
+        ~cgiProcessInfo();
 };
 
 class Cgi
 {
     private:
-        cgiProcessInfo                      info;
         HttpRequest                         *httpReq;
         std::string                         cgiResponse;
         std::map<std::string, std::string>  env;

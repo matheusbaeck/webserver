@@ -174,57 +174,93 @@ std::string	toString(size_t num)
 	return ss.str();
 }
 
-int Server::handleResponsePipe(Selector& selector, int pipeFd)
+int Server::handleResponsePipe(Selector& selector, int pipeFd) 
 {
     char buffer[4096];
-    int clientFd = selector.getCgiProcessInfo().clientFd;
-    ssize_t bytesRead = read(pipeFd, buffer, sizeof(buffer) - 1);
-    
-    std::cout << "bytesRead: " << bytesRead << std::endl;
-    std::cout << "buffer: " << buffer << std::endl;
+    ssize_t bytesRead;
+    cgiProcessInfo& cgiInfo = selector.getCgiProcessInfo(); // Cache CGI info
+    int clientFd = cgiInfo._clientFd;
 
-    if (bytesRead > 0) 
+    // Read data from the pipe
+    while ((bytesRead = read(pipeFd, buffer, sizeof(buffer))) > 0) 
     {
-        buffer[bytesRead] = '\0';
-        // format the buffer
-        std::string statusLine  = "HTTP/1.1 200 OK\r\n";
-        std::string headers     = "Server: webserver/0.42\r\n";
-        std::string body        = buffer;
+        ssize_t bytesSent = 0;
+        while (bytesSent < bytesRead) 
+        {
+            ssize_t sent = send(clientFd, buffer + bytesSent, bytesRead - bytesSent, 0);
+            if (sent == -1) 
+                    break;
+            else {
+                // Fatal send error
+                perror("send");
+                close(cgiInfo._responsePipe);
+                close(clientFd);
+                selector.getRequests().erase(clientFd);
+                return -1;
+            }
+            bytesSent += sent; // Update the amount of data sent
+        }
+    }
+    if (bytesRead == 0) 
+    {
+        close(cgiInfo._responsePipe); // Close response pipe
+        selector.setClientFdEvent(this, clientFd, READ);
+    } 
+    else
+    {
+        // Fatal read error
+        perror("read");
+        close(cgiInfo._responsePipe);
+        close(clientFd);
+        selector.getRequests().erase(clientFd);
+        return -1;
+    }
 
-        size_t found = body.find("\n");
-        if (found != std::string::npos)
-        {
-            headers += body.substr(0, found);
-            headers += "\r\n";
-            body = body.substr(found);
-        }
-        else 
-            headers += "Content-Type: text/html\r\n"; 
-        headers += "Content-Length: " + toString(body.size()) + "\r\n\r\n"; 
-        // Process and send data to client
-        std::string response = statusLine + headers + body; 
-        std::cout << "response previous to send: " << response << std::endl;
-        if (send(clientFd, response.c_str(), response.size(), 0) == -1)
-        {
-            this->removeClient(selector, clientFd);
-            return (-1);
-        }
-        else
-            std::cout << "all good " << std::endl;
-    }
-    else 
-    {
-        if (bytesRead == 0) 
-        {
-            close(pipeFd);
-            selector.getRequests().erase(clientFd);
-            selector.setClientFdEvent(this, clientFd, READ);
-        }
-        else 
-            removeClient(selector, clientFd);
-    }
-    return 1;
+    return 1; // Successfully handled the pipe
 }
+
+
+
+/*int Server::handleResponsePipe(Selector& selector, int pipeFd)*/
+/*{*/
+/*    char buffer[4096];*/
+/*    int clientFd = selector.getCgiProcessInfo().clientFd;*/
+/*    ssize_t bytesRead;*/
+/*    std::string response;*/
+/**/
+/*    while ((bytesRead = read(pipeFd, buffer, sizeof(buffer))) > 0) */
+/*    {*/
+/*        ssize_t bytesSent = 0;*/
+/*        while (bytesSent < bytesRead)*/
+/*        {*/
+/*            ssize_t sent = send(clientFd, buffer + bytesSent, bytesRead - bytesSent, 0);*/
+/*            if (sent == -1) // If send buffer is full, stop sending for now*/
+/*                    break;*/
+/*            else*/
+/*            {*/
+/*                // Handle send error*/
+/*                    perror("send");*/
+/*                    close(selector.getCgiProcessInfo().responsePipe.first);*/
+/*                    close(clientFd);*/
+/*                    selector.getRequests().erase(clientFd);*/
+/*                    return -1;*/
+/*            }*/
+/*            bytesSent += sent; // Update the amount of data sent*/
+/*        }*/
+/*    }*/
+/*    if (bytesRead == 0) */
+/*    {*/
+/*            close(selector.getCgiProcessInfo().responsePipe.first);*/
+/*            selector.getRequests().erase(clientFd);*/
+/*            if (fcntl(pipeFd, F_GETFD) == -1) {*/
+/*                perror("Invalid clientFd");*/
+/*            }*/
+/*            selector.setClientFdEvent(this, pipeFd, READ);*/
+/*    }*/
+/*    else */
+/*        removeClient(selector, clientFd);*/
+/*    return 1;*/
+/*}*/
 
 void Server::removeClient(Selector& selector, int client_socket)
 {
