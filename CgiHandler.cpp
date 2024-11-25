@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/23 19:51:51 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/25 17:04:04 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,12 +22,12 @@
 #include <unistd.h>
 #include <string>
 
-cgiProcessInfo::cgiProcessInfo(int pid, int clientFd, int statusPipe, int responsePipe) 
+cgiProcessInfo::cgiProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName) 
 {
     _pid = pid;
     _clientFd = clientFd;
-    _statusPipe = statusPipe;
     _responsePipe = responsePipe;
+    _path = scriptFileName;
 }
 
 cgiProcessInfo::~cgiProcessInfo() {}
@@ -73,20 +73,19 @@ char    **Cgi::getEnvp(void)
    return envp;
 }
 
+std::map<std::string, std::string>& Cgi::getEnvMap()
+{
+    return (this->env);
+}
+
 StatusCode Cgi::execute(Selector& selector, int clientFd)
 {
     int responsePipe[2];
-    int statusPipe[2];
 
     // Assign to CgiInfo
     char **envp = this->getEnvp();
     
     if (pipe(responsePipe) == -1)
-    {
-        perror("pipe");
-        return SERVERR;
-    }
-    if (pipe(statusPipe) == -1)
     {
         perror("pipe");
         return SERVERR;
@@ -98,14 +97,12 @@ StatusCode Cgi::execute(Selector& selector, int clientFd)
         perror("fork");
         close(responsePipe[0]);
         close(responsePipe[1]);
-        close(statusPipe[0]);
-        close(statusPipe[1]);
         return SERVERR;
     }
     
     if (pid == 0)
     {
-        close(statusPipe[0]);
+
         dup2(responsePipe[1], STDOUT_FILENO); // CGI writes to pipe
         close(responsePipe[0]);
         close(responsePipe[1]);
@@ -117,21 +114,18 @@ StatusCode Cgi::execute(Selector& selector, int clientFd)
         if (access(path, X_OK) == -1) 
         {
             perror("access");
-            write(statusPipe[1], "403", 3);
-            exit(EXIT_FAILURE);
+            exit(EXIT_FAILURE); //should just say 404
         }
-
         if (execve(argv[0], argv, envp) == -1) 
         {
             perror("execve");
-            write(statusPipe[1], "500", 3); 
             exit(EXIT_FAILURE);
         }
     }
     else
     {
         //should i just WAITNOHANG here and check for the exit status
-        close(statusPipe[1]);
+        close(responsePipe[1]);
         struct epoll_event ev;
         ev.events = EPOLLIN | EPOLLET;
         ev.data.fd = responsePipe[0];
@@ -139,29 +133,14 @@ StatusCode Cgi::execute(Selector& selector, int clientFd)
         {
             perror("epoll_ctl: responsePipe[0]");
             close(responsePipe[0]);
-            close(statusPipe[0]);
             return SERVERR;
         }
-        ev.data.fd = statusPipe[0];
-        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, statusPipe[0], &ev) == -1)
-        {
-            perror("epoll_ctl: responsePipe[0]");
-            close(responsePipe[0]);
-            close(statusPipe[0]);
-            return SERVERR;
-        }
-        close(responsePipe[1]);
+        std::cout << "added ResponsePipe to epoll instance: " <<responsePipe[0] << std::endl;
+
+        cgiProcessInfo cgiInfo(pid, clientFd, responsePipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
 
         //could turn this into map for multiple cgis
-        /*cgiProcessInfo cgi(;*/
-        /*cgi.responsePipe = responsePipe[0];*/
-        /*cgi.statusPipe = statusPipe[0];*/
-        /*cgi.clientFd = clientFd;*/
-        /*cgi.pid = this->info.pid;*/
-
-        cgiProcessInfo cgiInfo(pid, clientFd, statusPipe[0], responsePipe[0]);
-
-        selector.setCgiProcessInfo(cgiInfo);
+        selector.addCgiProcessInfo(clientFd, cgiInfo);
         delete[] envp;
     }
     return OK;

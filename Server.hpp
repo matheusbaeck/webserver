@@ -16,6 +16,8 @@
 
 class Selector;
 
+class cgiProcessInfo;
+
 class Server 
 {
 	private:
@@ -54,12 +56,11 @@ class Server
 
         int         acceptConnection(Selector& selector, int socketFD, int portFD);
         void        readClientRequest(Selector& selector, int clientFD);
-		int			sendResponse(Selector& selector, int clientSocket, std::string request);
         int         handleResponsePipe(Selector& selector, int pipeFd);
+		int			sendResponse(Selector& selector, int clientSocket, std::string request);
+        void        sendCGIResponse(std::string cgiResponse, cgiProcessInfo cgiInfo);
 
         void        removeClient(Selector& selector, int client_socket);
-
-        /*void        readClientRequest(Selector& selector, int clientSocket);*/
 };
 
 #endif

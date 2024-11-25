@@ -1,3 +1,4 @@
+#include "CgiHandler.hpp"
 #include "Server.hpp"
 #include "Selector.hpp"
 #include "HttpRequest.hpp"
@@ -134,7 +135,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         pos = selector.getRequests()[clientFD].find(RequestHeaderEnding);
         if (pos == std::string::npos) 
             continue;
-        selector.setClientFdEvent(this, clientFD, WRITE);
+        selector.setClientFdEvent(clientFD, WRITE);
     }
 }
 
@@ -163,7 +164,7 @@ int Server::sendResponse(Selector& selector, int client_socket, std::string requ
     }
     delete incomingRequestHTTP;
     selector.getRequests().erase(client_socket);
-    selector.setClientFdEvent(this, client_socket, READ);
+    selector.setClientFdEvent(client_socket, READ);
     return (0);
 }
 
@@ -174,97 +175,206 @@ std::string	toString(size_t num)
 	return ss.str();
 }
 
+
 int Server::handleResponsePipe(Selector& selector, int pipeFd) 
 {
     char buffer[4096];
     ssize_t bytesRead;
-    cgiProcessInfo& cgiInfo = selector.getCgiProcessInfo(); // Cache CGI info
+    cgiProcessInfo& cgiInfo = selector.getCgiProcessInfo()[pipeFd];
     int clientFd = cgiInfo._clientFd;
 
-    // Read data from the pipe
-    while ((bytesRead = read(pipeFd, buffer, sizeof(buffer))) > 0) 
-    {
-        ssize_t bytesSent = 0;
-        while (bytesSent < bytesRead) 
-        {
-            ssize_t sent = send(clientFd, buffer + bytesSent, bytesRead - bytesSent, 0);
-            if (sent == -1) 
-                    break;
-            else {
-                // Fatal send error
-                perror("send");
-                close(cgiInfo._responsePipe);
-                close(clientFd);
-                selector.getRequests().erase(clientFd);
-                return -1;
-            }
-            bytesSent += sent; // Update the amount of data sent
-        }
-    }
+    std::cout << "pipeFd: " << pipeFd << std::endl;
+    std::cout << "cgiInfo.responsePipe: " << cgiInfo._responsePipe << std::endl;
+    std::string request = selector.getRequests()[clientFd];
+    static std::string response;
+
+    // Read and send data incrementally
+    /*while ((bytesRead = read(pipeFd, buffer, sizeof(buffer))) > 0) */
+    /*{*/
+    /*        ssize_t bytesSent = 0;*/
+    /*        while (bytesSent < bytesRead) */
+    /*        {*/
+    /*            ssize_t sent = send(clientFd, buffer + bytesSent, bytesRead - bytesSent, 0);*/
+    /*            std::cout << "bytesRead: " << bytesRead << std::endl;*/
+    /*            std::cout << "sent: " << sent << std::endl;*/
+    /*            if (sent == -1) */
+    /*            {*/
+    /*                if (errno == EAGAIN || errno == EWOULDBLOCK) */
+    /*                    break; // Buffer is full, stop*/
+    /*                perror("send");*/
+    /*                removeClient(selector, clientFd);*/
+    /*                return -1;*/
+    /*            }*/
+    /*            bytesSent += sent;*/
+    /*    }*/
+    /*}*/
+
+    bytesRead = read(pipeFd, buffer, sizeof(buffer));
+    if (bytesRead > 0)
+        response += buffer;
+    std::cout << "bytesRead: " << bytesRead << std::endl;
     if (bytesRead == 0) 
     {
-        close(cgiInfo._responsePipe); // Close response pipe
-        selector.setClientFdEvent(this, clientFd, READ);
+        this->sendCGIResponse(response, cgiInfo);
+        std::cout << "response: " << response << std::endl;
+        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, cgiInfo._responsePipe, NULL) == -1) {
+            perror("epoll_ctl: remove pipeFd");
+            std::cout << "Failed to remove pipeFd: " << cgiInfo._responsePipe << ", errno: " << errno << std::endl;
+            exit(1);
+        }
+        response.clear();
+        close(pipeFd);
+        removeClient(selector, clientFd);
+        return (-1);
     } 
-    else
+    else if (bytesRead == -1)
     {
-        // Fatal read error
-        perror("read");
-        close(cgiInfo._responsePipe);
-        close(clientFd);
-        selector.getRequests().erase(clientFd);
+        //remove from epoll instance
+        perror("handleResponsePipe: read");
+        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1) {
+            perror("epoll_ctl: remove pipeFd");
+            std::cout << "Failed to remove pipeFd: " << pipeFd << ", errno: " << strerror(errno) << std::endl;
+            exit(1);
+        }
+        response.clear();
+        close(pipeFd);
+        removeClient(selector, clientFd);
         return -1;
     }
 
-    return 1; // Successfully handled the pipe
+    return 0;
 }
 
+void Server::sendCGIResponse(std::string cgiResponse, cgiProcessInfo cgiInfo)
+{
+    std::string responseHeaders = "HTTP/1.1 200 OK\r\n";
+    responseHeaders += "Content-Type: text/html\r\n";
+    std::stringstream contentLengthStream;
+    contentLengthStream << "Content-Length: " << cgiResponse.size() << "\r\n";
+    responseHeaders += contentLengthStream.str();
+    responseHeaders += "\r\n";
 
+    // Send response headers and body
+    send(cgiInfo._clientFd, responseHeaders.c_str(), responseHeaders.size(), 0);
+    send(cgiInfo._clientFd, cgiResponse.c_str(), cgiResponse.size(), 0);
+}
 
-/*int Server::handleResponsePipe(Selector& selector, int pipeFd)*/
+/*int Server::handleResponsePipe(Selector& selector, int pipeFd) */
 /*{*/
 /*    char buffer[4096];*/
-/*    int clientFd = selector.getCgiProcessInfo().clientFd;*/
 /*    ssize_t bytesRead;*/
-/*    std::string response;*/
+/*    cgiProcessInfo& cgiInfo = selector.getCgiProcessInfo();*/
+/*    int clientFd = cgiInfo._clientFd;*/
 /**/
+/*    // Determine if the response should be chunked or unchunked*/
+/*    std::string request = selector.getRequests()[clientFd];*/
+/*    //bool isChunked = request.isChunked(); // Assume isChunked() checks the transfer type*/
+/**/
+/*    // Read and send data incrementally*/
 /*    while ((bytesRead = read(pipeFd, buffer, sizeof(buffer))) > 0) */
 /*    {*/
-/*        ssize_t bytesSent = 0;*/
-/*        while (bytesSent < bytesRead)*/
+/*        if (isChunked) */
 /*        {*/
-/*            ssize_t sent = send(clientFd, buffer + bytesSent, bytesRead - bytesSent, 0);*/
-/*            if (sent == -1) // If send buffer is full, stop sending for now*/
-/*                    break;*/
-/*            else*/
-/*            {*/
-/*                // Handle send error*/
+/*            // Format and send chunked data*/
+/*            std::ostringstream chunk;*/
+/*            chunk << std::hex << bytesRead << "\r\n"; // Chunk size in hex*/
+/*            chunk.write(buffer, bytesRead);          // Chunk data*/
+/*            chunk << "\r\n";                         // End of chunk*/
+/**/
+/*            std::string chunkStr = chunk.str();*/
+/*            ssize_t bytesSent = 0;*/
+/*            while (bytesSent < chunkStr.size()) {*/
+/*                ssize_t sent = send(clientFd, chunkStr.c_str() + bytesSent, chunkStr.size() - bytesSent, 0);*/
+/*                if (sent == -1) {*/
+/*                    if (errno == EAGAIN || errno == EWOULDBLOCK) break; // Buffer is full, stop*/
 /*                    perror("send");*/
-/*                    close(selector.getCgiProcessInfo().responsePipe.first);*/
+/*                    close(pipeFd);*/
 /*                    close(clientFd);*/
 /*                    selector.getRequests().erase(clientFd);*/
 /*                    return -1;*/
+/*                }*/
+/*                bytesSent += sent;*/
 /*            }*/
-/*            bytesSent += sent; // Update the amount of data sent*/
+/*        }*/
+/*        else */
+/*        {*/
+/*            // Send unchunked data*/
+/*            ssize_t bytesSent = 0;*/
+/*            while (bytesSent < bytesRead) */
+/*            {*/
+/*                ssize_t sent = send(clientFd, buffer + bytesSent, bytesRead - bytesSent, 0);*/
+/*                if (sent == -1) */
+/*                {*/
+/*                    if (errno == EAGAIN || errno == EWOULDBLOCK) */
+/*                        break; // Buffer is full, stop*/
+/*                    perror("send");*/
+/*                    //removeClient(selector, pipeFd);*/
+/*                    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1)*/
+/*                    {*/
+/*                        std::cout << "problem when trying to remove pipe: " << pipeFd << std::endl;*/
+/*                        exit(1);*/
+/*                    }*/
+/*                    removeClient(selector, clientFd);*/
+/*                    return -1;*/
+/*                }*/
+/*                bytesSent += sent;*/
+/*            }*/
 /*        }*/
 /*    }*/
+/**/
 /*    if (bytesRead == 0) */
 /*    {*/
-/*            close(selector.getCgiProcessInfo().responsePipe.first);*/
-/*            selector.getRequests().erase(clientFd);*/
-/*            if (fcntl(pipeFd, F_GETFD) == -1) {*/
-/*                perror("Invalid clientFd");*/
-/*            }*/
-/*            selector.setClientFdEvent(this, pipeFd, READ);*/
-/*    }*/
-/*    else */
+/*        // EOF: End of response*/
+/*        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1) {*/
+/*            perror("epoll_ctl: remove pipeFd");*/
+/*            std::cout << "Failed to remove pipeFd: " << pipeFd << ", errno: " << errno << std::endl;*/
+/*            exit(1);*/
+/*        }*/
+/*        close(pipeFd);*/
+/**/
+/*        if (isChunked) */
+/*        {*/
+/*            // Send the final chunk for chunked transfer encoding*/
+/*            std::string finalChunk = "0\r\n\r\n";*/
+/*            send(clientFd, finalChunk.c_str(), finalChunk.size(), 0);*/
+/*        }*/
+/**/
+/*        // Handle connection persistence*/
+/*        selector.setClientFdEvent(clientFd, READ);*/
+/*    } */
+/*    else if (bytesRead == -1)*/
+/*    {*/
+/*        //remove from epoll instance*/
+/*        perror("handleResponsePipe: read");*/
+/*        std::cout << "pipeFd: " << pipeFd << std::endl;*/
+/*        std::cout << "clientFd: " << clientFd << std::endl;*/
+/*        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1) {*/
+/*            perror("epoll_ctl: remove pipeFd");*/
+/*            std::cout << "Failed to remove pipeFd: " << pipeFd << ", errno: " << errno << std::endl;*/
+/*            exit(1);*/
+/*        }*/
+/*        close(pipeFd);*/
+/*        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1)*/
+/*        {*/
+/*            std::cout << "problem when trying to remove pipe: " << pipeFd << std::endl;*/
+/*            exit(1);*/
+/*        }*/
+/**/
+/*        //removeClient(selector, pipeFd);*/
 /*        removeClient(selector, clientFd);*/
-/*    return 1;*/
+/*        return -1;*/
+/*    }*/
+/**/
+/*    return 0;*/
 /*}*/
-
+/**/
 void Server::removeClient(Selector& selector, int client_socket)
 {
-    epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL);
+    std::cout << "trying to delete: " << client_socket << std::endl;
+    std::set<int>::iterator found = selector.getActiveClients().find(client_socket);
+    std::cout << (found != selector.getActiveClients().end() ? "present" : "not active client") << std::endl;
+    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL) == -1)
+        exit(1);
     selector.getClientConfig().erase(client_socket);
     selector.getActiveClients().erase(client_socket);
     selector.getRequests().erase(client_socket);

@@ -557,6 +557,8 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     {
 		Cgi cgi(this, route->getCgiScriptName(), route->getCgiPath());
 		cgi.execute(selector, clientFd);
+        //cannot have a response here because response is in Pipe
+        return response;
     }
     std::cout << "Status code: " << this->statusCode << std::endl;
 
@@ -796,7 +798,7 @@ std::string	HttpRequest::getMimeType(std::string const &file)
     // Find the file extension
     size_t dotPos = file.find_last_of('.');
     if (dotPos == std::string::npos) {
-        return "application/octet-stream"; // Default MIME type for unknown files
+        return "text/html"; // Default MIME type for unknown files
     }
 
     std::string extension = file.substr(dotPos);
@@ -805,7 +807,8 @@ std::string	HttpRequest::getMimeType(std::string const &file)
     std::map<std::string, std::string>::iterator it = mimeTypes.find(extension);
     if (it != mimeTypes.end()) 
         return it->second;
-    return "application/octet-stream"; // Default MIME type for unknown files
+    return "text/html"; // Default MIME type for unknown files
+    //return "application/octet-stream"; // Default MIME type for unknown files
 }
 
 std::string execCGI(void)

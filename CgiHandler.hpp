@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/23 19:48:14 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/25 17:13:10 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,11 +35,12 @@ class Selector;
 class cgiProcessInfo
 {
     public:
-        int _responsePipe;
-        int _statusPipe;
-        int _pid;
-        int _clientFd;
-        cgiProcessInfo(int pid, int clientFd, int statusPipe, int responsePipe) ;
+        int                     _responsePipe;
+        int                     _pid;
+        int                     _clientFd;
+        std::string             _path;
+        std::string             _ScriptResponse;
+        cgiProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName); 
         ~cgiProcessInfo();
 };
 
@@ -51,6 +52,7 @@ class Cgi
         std::map<std::string, std::string>  env;
     public:
         char**                              getEnvp(void);
+        std::map<std::string, std::string>& getEnvMap(void);
         StatusCode                          execute(Selector& selector, int clientFd);
 
         Cgi(HttpRequest *httpReq, std::string scriptName, std::string cgiPath);

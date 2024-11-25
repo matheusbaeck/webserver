@@ -1,4 +1,3 @@
-
 #ifndef SELECTOR_HPP__
 # define SELECTOR_HPP__
 
@@ -40,14 +39,14 @@ class Selector
 {
 	private:
 		static Selector	selector;
-		epoll_event                 _ev;
-		epoll_event                 _events[MAX_EVENTS];
-		int                         _eventCount;
-        int                         _epollfd;
-        std::set<int>               _activeClients;
-        std::map<int, std::string>  _requests;
-        std::map<int, ConfigServer> _clientConfig;
-        cgiProcessInfo              _cgiInfo;
+		epoll_event                     _ev;
+		epoll_event                     _events[MAX_EVENTS];
+		int                             _eventCount;
+        int                             _epollfd;
+        std::set<int>                   _activeClients;
+        std::map<int, std::string>      _requests;
+        std::map<int, ConfigServer>     _clientConfig;
+        std::map<int, cgiProcessInfo>   _cgiProcesses;
 		Selector( void );
 
 	public:
@@ -60,14 +59,14 @@ class Selector
         bool                            isClientFD(int fd);
         bool                            isServerSocket(int fd, int serverSocket);
         bool                            isResponsePipe(int event_fd);
-        void                            setClientFdEvent(Server* server, int event_fd, int action);
-        void                            setCgiProcessInfo(cgiProcessInfo& CgiProcess);
+        void                            setClientFdEvent(int event_fd, int action);
+        void                            addCgiProcessInfo(int clientFd, cgiProcessInfo CgiProcess);
 
 
         /* Getters */
         epoll_event*                    getEvents();
         std::set<int>&                  getActiveClients();
-        cgiProcessInfo&                  getCgiProcessInfo();
+        std::map<int, cgiProcessInfo>&  getCgiProcessInfo();
         std::map<int, ConfigServer>&    getClientConfig();
         std::map<int, std::string>&     getRequests();
         int&                            getEpollFD();

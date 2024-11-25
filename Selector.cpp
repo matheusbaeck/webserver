@@ -7,7 +7,7 @@ Selector Selector::selector;
 
 //TODO: replace all logs with std::cerr or std::cout
 //TODO: what happens if epollfd fails
-Selector::Selector( void ) : _cgiInfo(-1, -1, -1, -1)
+Selector::Selector(void) 
 {
 	this->_epollfd = epoll_create(1);
 	if (this->_epollfd == -1)
@@ -32,14 +32,14 @@ std::set<int>& Selector::getActiveClients()
     return this->_activeClients;
 }
 
-cgiProcessInfo& Selector::getCgiProcessInfo()
+std::map<int, cgiProcessInfo>& Selector::getCgiProcessInfo()
 {
-    return this->_cgiInfo;
+    return _cgiProcesses;
 }
 
-void Selector::setCgiProcessInfo(cgiProcessInfo& CgiProcess)
+void Selector::addCgiProcessInfo(int clientFd, cgiProcessInfo CgiProcess)
 {
-    _cgiInfo = CgiProcess;
+    _cgiProcesses[clientFd] = CgiProcess;
 }
 
 std::map<int, ConfigServer>& Selector::getClientConfig()
@@ -86,21 +86,23 @@ bool Selector::isClientFD(int fd)
     return (this->_activeClients.find(fd) != _activeClients.end());
 }
 
-/*int responseReadFd = _cgiInfo.responsePipe.first;*/
-/*int responseWriteFd = _cgiInfo.responsePipe.second;*/
-/*int statusReadFd = _cgiInfo.statusPipe.first;*/
-/*int statusWriteFd = _cgiInfo.statusPipe.second;*/
-
 bool Selector::isResponsePipe(int event_fd)
 {
-    if (_cgiInfo._clientFd != -1)
-        return (event_fd == _cgiInfo._responsePipe);
+    if (_cgiProcesses.size())
+    {
+        std::map<int, cgiProcessInfo>::iterator it = _cgiProcesses.begin();
+        while (it != _cgiProcesses.end())
+        {
+            if (event_fd == _cgiProcesses[event_fd]._responsePipe)
+                return true;
+            it++;
+        }
+    }
     return (false);
 }
 
-void Selector::setClientFdEvent(Server* server, int event_fd, int action)
+void Selector::setClientFdEvent(int event_fd, int action)
 {
-    (void)server;
     struct epoll_event info; 
     //action == READ ? info.events = EPOLLIN | EPOLLET : info.events = EPOLLOUT | EPOLLET;
     if (action == READ)
@@ -138,13 +140,14 @@ void Selector::processEvents(const std::vector<Server*>& servers )
             int serverPort      = server->getPorts()[j];
             for (int n = 0; n < _eventCount; ++n) 
             {
-                int event_fd = _events[i].data.fd;
+                int event_fd = _events[n].data.fd;
 
                 // Reading requests
-                if (_events[i].events & EPOLLIN) 
+                if (_events[n].events & EPOLLIN) 
                 {
                     if (isServerSocket(event_fd, serverSocket)) 
                     {
+                        std::cout << "event_Fd: " << event_fd << std::endl;
                         err = server->acceptConnection(*this, serverSocket, serverPort); // Accept new client connection
                         if (err == -1)
                             continue;
@@ -158,24 +161,23 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                     else if (isResponsePipe(event_fd))
                     {
                         std::cout << "----------------------isResponsePipe" << std::endl;
-                        server->handleResponsePipe(*this, event_fd); // Handle CGI output
+                        int err = server->handleResponsePipe(*this, event_fd); // Handle CGI output
+                        if (err == -1)
+                            return;
                     }
-                    /*else if (isStatusPipe(event_fd))*/
-                    /*{*/
-                    /*    handleStatusPipe(event_fd); // Handle CGI exit status*/
-                    /*}*/
                 }
 
                 // Answering clients
-                if (_events[i].events & EPOLLOUT) 
+                if (_events[n].events & EPOLLOUT) 
                 {
-                    /*ClientRequest* request = getRequest(event_fd);*/
                     err = server->sendResponse(*this, event_fd, _requests[event_fd]);
                     if (err == -1)
                     {
                         _requests.erase(event_fd);
                         continue;
                     }
+                    else 
+                        return;
                 }
                 if (_events[n].events & (EPOLLERR | EPOLLHUP)) 
                 {
@@ -184,6 +186,7 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                     epoll_ctl(this->getEpollFD(), EPOLL_CTL_DEL, _events[n].data.fd, NULL);
                     _activeClients.erase(_events[n].data.fd);
                     _clientConfig.erase(_events[n].data.fd);
+                    _requests.erase(_events[n].data.fd);
                     close(_events[n].data.fd);
                 }
             }
