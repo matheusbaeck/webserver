@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/25 17:13:10 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/26 12:39:07 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,17 +32,6 @@
 class HttpRequest;
 class Selector;
 
-class cgiProcessInfo
-{
-    public:
-        int                     _responsePipe;
-        int                     _pid;
-        int                     _clientFd;
-        std::string             _path;
-        std::string             _ScriptResponse;
-        cgiProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName); 
-        ~cgiProcessInfo();
-};
 
 class Cgi
 {
@@ -57,6 +46,18 @@ class Cgi
 
         Cgi(HttpRequest *httpReq, std::string scriptName, std::string cgiPath);
         ~Cgi(void);
+};
+
+class cgiProcessInfo 
+{
+    public:
+        int                     _responsePipe;
+        int                     _pid;
+        int                     _clientFd;
+        std::string             _path;
+        std::string             _ScriptResponse;
+        cgiProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName); 
+        ~cgiProcessInfo();
 };
 
 #endif

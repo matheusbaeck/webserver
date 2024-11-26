@@ -32,12 +32,12 @@ std::set<int>& Selector::getActiveClients()
     return this->_activeClients;
 }
 
-std::map<int, cgiProcessInfo>& Selector::getCgiProcessInfo()
+std::map<int, cgiProcessInfo*>& Selector::getCgiProcessInfo()
 {
     return _cgiProcesses;
 }
 
-void Selector::addCgiProcessInfo(int clientFd, cgiProcessInfo CgiProcess)
+void Selector::addCgiProcessInfo(int clientFd, cgiProcessInfo* CgiProcess)
 {
     _cgiProcesses[clientFd] = CgiProcess;
 }
@@ -86,14 +86,15 @@ bool Selector::isClientFD(int fd)
     return (this->_activeClients.find(fd) != _activeClients.end());
 }
 
-bool Selector::isResponsePipe(int event_fd)
+bool Selector::isResponsePipe(int event_fd) const
 {
     if (_cgiProcesses.size())
     {
-        std::map<int, cgiProcessInfo>::iterator it = _cgiProcesses.begin();
+        std::map<int, cgiProcessInfo*>::const_iterator it = _cgiProcesses.begin();
+
         while (it != _cgiProcesses.end())
         {
-            if (event_fd == _cgiProcesses[event_fd]._responsePipe)
+            if (event_fd == _cgiProcesses.at(event_fd)->_responsePipe)
                 return true;
             it++;
         }

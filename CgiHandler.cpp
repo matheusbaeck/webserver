@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/25 17:04:04 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/11/26 19:48:42 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string>
+
 
 cgiProcessInfo::cgiProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName) 
 {
@@ -137,7 +138,7 @@ StatusCode Cgi::execute(Selector& selector, int clientFd)
         }
         std::cout << "added ResponsePipe to epoll instance: " <<responsePipe[0] << std::endl;
 
-        cgiProcessInfo cgiInfo(pid, clientFd, responsePipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
+        cgiProcessInfo* cgiInfo = new cgiProcessInfo(pid, clientFd, responsePipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
 
         //could turn this into map for multiple cgis
         selector.addCgiProcessInfo(clientFd, cgiInfo);

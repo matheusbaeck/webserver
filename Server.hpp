@@ -58,7 +58,7 @@ class Server
         void        readClientRequest(Selector& selector, int clientFD);
         int         handleResponsePipe(Selector& selector, int pipeFd);
 		int			sendResponse(Selector& selector, int clientSocket, std::string request);
-        void        sendCGIResponse(std::string cgiResponse, cgiProcessInfo cgiInfo);
+        void        sendCGIResponse(cgiProcessInfo* cgiInfo);
 
         void        removeClient(Selector& selector, int client_socket);
 };

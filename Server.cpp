@@ -180,13 +180,13 @@ int Server::handleResponsePipe(Selector& selector, int pipeFd)
 {
     char buffer[4096];
     ssize_t bytesRead;
-    cgiProcessInfo& cgiInfo = selector.getCgiProcessInfo()[pipeFd];
-    int clientFd = cgiInfo._clientFd;
+    //do i need to malloc memory here for the cgi process
+    cgiProcessInfo* cgiInfo = selector.getCgiProcessInfo()[pipeFd];
+    int clientFd = cgiInfo->_clientFd;
 
     std::cout << "pipeFd: " << pipeFd << std::endl;
-    std::cout << "cgiInfo.responsePipe: " << cgiInfo._responsePipe << std::endl;
+    std::cout << "cgiInfo->responsePipe: " << cgiInfo->_responsePipe << std::endl;
     std::string request = selector.getRequests()[clientFd];
-    static std::string response;
 
     // Read and send data incrementally
     /*while ((bytesRead = read(pipeFd, buffer, sizeof(buffer))) > 0) */
@@ -211,18 +211,17 @@ int Server::handleResponsePipe(Selector& selector, int pipeFd)
 
     bytesRead = read(pipeFd, buffer, sizeof(buffer));
     if (bytesRead > 0)
-        response += buffer;
+        cgiInfo->_ScriptResponse += buffer;
     std::cout << "bytesRead: " << bytesRead << std::endl;
     if (bytesRead == 0) 
     {
-        this->sendCGIResponse(response, cgiInfo);
-        std::cout << "response: " << response << std::endl;
-        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, cgiInfo._responsePipe, NULL) == -1) {
+        this->sendCGIResponse(cgiInfo);
+        std::cout << "cgiInfo->: " << cgiInfo->_ScriptResponse << std::endl;
+        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, cgiInfo->_responsePipe, NULL) == -1) {
             perror("epoll_ctl: remove pipeFd");
-            std::cout << "Failed to remove pipeFd: " << cgiInfo._responsePipe << ", errno: " << errno << std::endl;
+            std::cout << "Failed to remove pipeFd: " << cgiInfo->_responsePipe << ", errno: " << errno << std::endl;
             exit(1);
         }
-        response.clear();
         close(pipeFd);
         removeClient(selector, clientFd);
         return (-1);
@@ -236,7 +235,6 @@ int Server::handleResponsePipe(Selector& selector, int pipeFd)
             std::cout << "Failed to remove pipeFd: " << pipeFd << ", errno: " << strerror(errno) << std::endl;
             exit(1);
         }
-        response.clear();
         close(pipeFd);
         removeClient(selector, clientFd);
         return -1;
@@ -245,18 +243,20 @@ int Server::handleResponsePipe(Selector& selector, int pipeFd)
     return 0;
 }
 
-void Server::sendCGIResponse(std::string cgiResponse, cgiProcessInfo cgiInfo)
+void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 {
     std::string responseHeaders = "HTTP/1.1 200 OK\r\n";
     responseHeaders += "Content-Type: text/html\r\n";
     std::stringstream contentLengthStream;
-    contentLengthStream << "Content-Length: " << cgiResponse.size() << "\r\n";
+    contentLengthStream << "Content-Length: " << cgiInfo->_ScriptResponse.size() << "\r\n";
     responseHeaders += contentLengthStream.str();
     responseHeaders += "\r\n";
 
     // Send response headers and body
-    send(cgiInfo._clientFd, responseHeaders.c_str(), responseHeaders.size(), 0);
-    send(cgiInfo._clientFd, cgiResponse.c_str(), cgiResponse.size(), 0);
+    send(cgiInfo->_clientFd, responseHeaders.c_str(), responseHeaders.size(), 0);
+    send(cgiInfo->_clientFd, cgiInfo->_ScriptResponse.c_str(), cgiInfo->_ScriptResponse.size(), 0);
+    delete cgiInfo;
+    //todo check for fails in send
 }
 
 /*int Server::handleResponsePipe(Selector& selector, int pipeFd) */
