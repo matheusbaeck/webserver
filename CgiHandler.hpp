@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/26 12:39:07 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/02 15:21:35 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,7 +33,7 @@ class HttpRequest;
 class Selector;
 
 
-class Cgi
+class CgiHandler
 {
     private:
         HttpRequest                         *httpReq;
@@ -44,8 +44,8 @@ class Cgi
         std::map<std::string, std::string>& getEnvMap(void);
         StatusCode                          execute(Selector& selector, int clientFd);
 
-        Cgi(HttpRequest *httpReq, std::string scriptName, std::string cgiPath);
-        ~Cgi(void);
+        CgiHandler(HttpRequest *httpReq, std::string scriptName, std::string cgiPath);
+        ~CgiHandler(void);
 };
 
 class cgiProcessInfo 
@@ -54,9 +54,13 @@ class cgiProcessInfo
         int                     _responsePipe;
         int                     _pid;
         int                     _clientFd;
+        int                     _pipe[2];
         std::string             _path;
         std::string             _ScriptResponse;
-        cgiProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName); 
+
+        void addProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName); 
+
+        cgiProcessInfo();
         ~cgiProcessInfo();
 };
 

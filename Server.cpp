@@ -176,20 +176,21 @@ std::string	toString(size_t num)
 }
 
 
-int Server::handleResponsePipe(Selector& selector, int pipeFd) 
+int Server::handleResponsePipe(Selector& selector, int eventFd) 
 {
     char buffer[4096];
     ssize_t bytesRead;
     //do i need to malloc memory here for the cgi process
-    cgiProcessInfo* cgiInfo = selector.getCgiProcessInfo()[pipeFd];
+
+    cgiProcessInfo* cgiInfo = selector.getCgiProcessInfo()[eventFd];
     int clientFd = cgiInfo->_clientFd;
 
-    std::cout << "pipeFd: " << pipeFd << std::endl;
+    std::cout << "eventFd: " << eventFd << std::endl;
     std::cout << "cgiInfo->responsePipe: " << cgiInfo->_responsePipe << std::endl;
-    std::string request = selector.getRequests()[clientFd];
+    std::cout << "cgiInfo->ScriptResponse: " << cgiInfo->_ScriptResponse << std::endl;
 
     // Read and send data incrementally
-    /*while ((bytesRead = read(pipeFd, buffer, sizeof(buffer))) > 0) */
+    /*while ((bytesRead = read(eventFd, buffer, sizeof(buffer))) > 0) */
     /*{*/
     /*        ssize_t bytesSent = 0;*/
     /*        while (bytesSent < bytesRead) */
@@ -209,54 +210,45 @@ int Server::handleResponsePipe(Selector& selector, int pipeFd)
     /*    }*/
     /*}*/
 
-    bytesRead = read(pipeFd, buffer, sizeof(buffer));
+    bytesRead = read(eventFd, buffer, sizeof(buffer));
+    std::cout << "buffer: " << buffer << std::endl;
     if (bytesRead > 0)
         cgiInfo->_ScriptResponse += buffer;
-    std::cout << "bytesRead: " << bytesRead << std::endl;
-    if (bytesRead == 0) 
+    else if (bytesRead == 0) 
     {
         this->sendCGIResponse(cgiInfo);
-        std::cout << "cgiInfo->: " << cgiInfo->_ScriptResponse << std::endl;
-        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, cgiInfo->_responsePipe, NULL) == -1) {
-            perror("epoll_ctl: remove pipeFd");
-            std::cout << "Failed to remove pipeFd: " << cgiInfo->_responsePipe << ", errno: " << errno << std::endl;
-            exit(1);
-        }
-        close(pipeFd);
+        selector.deleteCgi(cgiInfo);
         removeClient(selector, clientFd);
         return (-1);
     } 
-    else if (bytesRead == -1)
+    else 
     {
         //remove from epoll instance
         perror("handleResponsePipe: read");
-        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1) {
-            perror("epoll_ctl: remove pipeFd");
-            std::cout << "Failed to remove pipeFd: " << pipeFd << ", errno: " << strerror(errno) << std::endl;
-            exit(1);
-        }
-        close(pipeFd);
+        selector.deleteCgi(cgiInfo);
         removeClient(selector, clientFd);
         return -1;
     }
-
     return 0;
 }
 
 void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 {
-    std::string responseHeaders = "HTTP/1.1 200 OK\r\n";
-    responseHeaders += "Content-Type: text/html\r\n";
-    std::stringstream contentLengthStream;
-    contentLengthStream << "Content-Length: " << cgiInfo->_ScriptResponse.size() << "\r\n";
-    responseHeaders += contentLengthStream.str();
-    responseHeaders += "\r\n";
+    std::string statusLine  = "HTTP/1.1 200 OK\r\n";
+    std::string headers     = "Server: webserver/0.42\r\n";
+    std::string body        = cgiInfo->_ScriptResponse;
+    std::stringstream contentLength;
 
-    // Send response headers and body
-    send(cgiInfo->_clientFd, responseHeaders.c_str(), responseHeaders.size(), 0);
-    send(cgiInfo->_clientFd, cgiInfo->_ScriptResponse.c_str(), cgiInfo->_ScriptResponse.size(), 0);
-    delete cgiInfo;
-    //todo check for fails in send
+    //TODO: detect mime types
+    headers += "Content-Type: text/html\r\n";
+    contentLength << "Content-Length: " << cgiInfo->_ScriptResponse.size() << "\r\n";
+    headers += contentLength.str();
+    headers += "\r\n";
+    
+    std::string response = statusLine + headers + cgiInfo->_ScriptResponse; 
+
+    //TODO: check for fails in send
+    send(cgiInfo->_clientFd, response.c_str(), response.size(), 0);
 }
 
 /*int Server::handleResponsePipe(Selector& selector, int pipeFd) */
@@ -370,11 +362,14 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 /**/
 void Server::removeClient(Selector& selector, int client_socket)
 {
-    std::cout << "trying to delete: " << client_socket << std::endl;
-    std::set<int>::iterator found = selector.getActiveClients().find(client_socket);
-    std::cout << (found != selector.getActiveClients().end() ? "present" : "not active client") << std::endl;
+
     if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL) == -1)
+    {
+        perror("epoll_ctl: remove eventFd");
+        std::cerr << "Failed to remove eventFd: " << client_socket << ", errno: " << errno << std::endl;
         exit(1);
+    }
+    std::cout << "Removed clientSocket: " << client_socket << std::endl;
     selector.getClientConfig().erase(client_socket);
     selector.getActiveClients().erase(client_socket);
     selector.getRequests().erase(client_socket);

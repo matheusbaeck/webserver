@@ -555,8 +555,8 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     }
     if (route && route->isCgi())
     {
-		Cgi cgi(this, route->getCgiScriptName(), route->getCgiPath());
-		cgi.execute(selector, clientFd);
+		CgiHandler handler(this, route->getCgiScriptName(), route->getCgiPath());
+		handler.execute(selector, clientFd);
         //cannot have a response here because response is in Pipe
         return response;
     }
@@ -652,13 +652,13 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 
 std::string	HttpRequest::GETmethod(const std::string &pathname)
 {
-    std::string statusLine = "HTTP/1.1 200 OK\r\n";
-    std::string headers    = "Server: webserver/0.42\r\n";
-    
-    std::string body;
-    body = HttpRequest::readFile(pathname.c_str());
+    std::string statusLine  = "HTTP/1.1 200 OK\r\n";
+    std::string headers     = "Server: webserver/0.42\r\n";
+    std::string body        = HttpRequest::readFile(pathname.c_str());
+
     headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
     headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
+    
     return statusLine + headers + body;
 }
 

@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/26 19:48:42 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/02 15:41:19 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,8 +22,9 @@
 #include <unistd.h>
 #include <string>
 
+cgiProcessInfo::cgiProcessInfo() {}
 
-cgiProcessInfo::cgiProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName) 
+void cgiProcessInfo::addProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName) 
 {
     _pid = pid;
     _clientFd = clientFd;
@@ -33,7 +34,7 @@ cgiProcessInfo::cgiProcessInfo(int pid, int clientFd, int responsePipe, std::str
 
 cgiProcessInfo::~cgiProcessInfo() {}
 
-Cgi::Cgi(HttpRequest *_httpReq, std::string scriptName, std::string cgiPath)
+CgiHandler::CgiHandler(HttpRequest *_httpReq, std::string scriptName, std::string cgiPath)
 {
     // TODO: do deep copy of config file to prevent double free
     this->httpReq = _httpReq;
@@ -59,7 +60,7 @@ Cgi::Cgi(HttpRequest *_httpReq, std::string scriptName, std::string cgiPath)
     this->env["REMOTE_ADDR"]            = "127.0.0.1";
 }
 
-char    **Cgi::getEnvp(void)
+char    **CgiHandler::getEnvp(void)
 {
    char **envp = new char*[this->env.size() + 1];
    std::map<std::string, std::string>::iterator it = this->env.begin();
@@ -74,39 +75,38 @@ char    **Cgi::getEnvp(void)
    return envp;
 }
 
-std::map<std::string, std::string>& Cgi::getEnvMap()
+std::map<std::string, std::string>& CgiHandler::getEnvMap()
 {
     return (this->env);
 }
 
-StatusCode Cgi::execute(Selector& selector, int clientFd)
+StatusCode CgiHandler::execute(Selector& selector, int clientFd)
 {
-    int responsePipe[2];
 
-    // Assign to CgiInfo
+    cgiProcessInfo* cgiInfo = new cgiProcessInfo();
+
+    // Assign to CgiHandlerInfo
     char **envp = this->getEnvp();
-    
-    if (pipe(responsePipe) == -1)
+    if (pipe(cgiInfo->_pipe) == -1)
     {
         perror("pipe");
         return SERVERR;
     }
-
     int pid = fork();
     if (pid == -1) 
     {
         perror("fork");
-        close(responsePipe[0]);
-        close(responsePipe[1]);
+        close(cgiInfo->_pipe[0]);
+        close(cgiInfo->_pipe[1]);
         return SERVERR;
     }
     
     if (pid == 0)
     {
 
-        dup2(responsePipe[1], STDOUT_FILENO); // CGI writes to pipe
-        close(responsePipe[0]);
-        close(responsePipe[1]);
+        dup2(cgiInfo->_pipe[1], STDOUT_FILENO); // CGI writes to pipe
+        close(cgiInfo->_pipe[0]);
+        close(cgiInfo->_pipe[1]);
         
         const char *path = this->env["SCRIPT_FILENAME"].c_str();
         std::cerr << "path: " << path << std::endl;
@@ -126,28 +126,28 @@ StatusCode Cgi::execute(Selector& selector, int clientFd)
     else
     {
         //should i just WAITNOHANG here and check for the exit status
-        close(responsePipe[1]);
+        close(cgiInfo->_pipe[1]);
         struct epoll_event ev;
         ev.events = EPOLLIN | EPOLLET;
-        ev.data.fd = responsePipe[0];
-        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, responsePipe[0], &ev) == -1) 
+        ev.data.fd = cgiInfo->_pipe[0];
+        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, cgiInfo->_pipe[0], &ev) == -1) 
         {
-            perror("epoll_ctl: responsePipe[0]");
-            close(responsePipe[0]);
+            perror("epoll_ctl: cgiInfo->_pipe[0]");
+            close(cgiInfo->_pipe[0]);
             return SERVERR;
         }
-        std::cout << "added ResponsePipe to epoll instance: " <<responsePipe[0] << std::endl;
+        std::cout << "added ResponsePipe to epoll instance: " << cgiInfo->_pipe[0] << std::endl;
 
-        cgiProcessInfo* cgiInfo = new cgiProcessInfo(pid, clientFd, responsePipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
+        cgiInfo->addProcessInfo(pid, clientFd, cgiInfo->_pipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
 
         //could turn this into map for multiple cgis
-        selector.addCgiProcessInfo(clientFd, cgiInfo);
+        selector.addCgi(cgiInfo->_pipe[0], cgiInfo);
         delete[] envp;
     }
     return OK;
 }
 
-Cgi::~Cgi(void)
+CgiHandler::~CgiHandler(void)
 {
     //close(this->pipeFd[STDIN_FILENO]);
     //close(this->pipeFd[STDOUT_FILENO]);

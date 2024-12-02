@@ -60,7 +60,8 @@ class Selector
         bool                            isServerSocket(int fd, int serverSocket);
         bool                            isResponsePipe(int event_fd) const;
         void                            setClientFdEvent(int event_fd, int action);
-        void                            addCgiProcessInfo(int clientFd, cgiProcessInfo* CgiProcess);
+        void                            addCgi(int clientFd, cgiProcessInfo* CgiProcess);
+        void                            deleteCgi(cgiProcessInfo* CgiProcess);
 
 
         /* Getters */

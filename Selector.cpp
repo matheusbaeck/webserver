@@ -1,5 +1,4 @@
 #include "Selector.hpp"
-#include "HttpRequest.hpp"
 #include <cstring>
 #include <map>
 
@@ -37,9 +36,37 @@ std::map<int, cgiProcessInfo*>& Selector::getCgiProcessInfo()
     return _cgiProcesses;
 }
 
-void Selector::addCgiProcessInfo(int clientFd, cgiProcessInfo* CgiProcess)
+void Selector::addCgi(int pipeFd, cgiProcessInfo* CgiProcess)
 {
-    _cgiProcesses[clientFd] = CgiProcess;
+    _cgiProcesses[pipeFd] = CgiProcess;
+}
+
+void Selector::deleteCgi(cgiProcessInfo* CgiProcess)
+{
+    std::cout << "Deleting CGI Process for response pipe: " << CgiProcess->_responsePipe << std::endl;
+
+    // Remove from epoll instance
+    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, CgiProcess->_responsePipe, NULL) == -1) {
+        perror("epoll_ctl: remove eventFd");
+        std::cerr << "Failed to remove eventFd: " << CgiProcess->_responsePipe << ", errno: " << errno << std::endl;
+        exit(1);
+    }
+
+    // Remove from _cgiProcesses
+    size_t erased = _cgiProcesses.erase(CgiProcess->_responsePipe);
+    if (erased == 0) {
+        std::cerr << "Warning: CGI process not found in _cgiProcesses!" << std::endl;
+    }
+
+    // Close response pipe
+    close(CgiProcess->_responsePipe);
+    std::cout << "Closed response pipe: " << CgiProcess->_responsePipe << std::endl;
+
+    // Clear and delete CGI process
+    CgiProcess->_path.clear();
+    CgiProcess->_ScriptResponse.clear();
+    delete CgiProcess;
+    std::cout << "Deleted CGI Process." << std::endl;
 }
 
 std::map<int, ConfigServer>& Selector::getClientConfig()
@@ -91,10 +118,9 @@ bool Selector::isResponsePipe(int event_fd) const
     if (_cgiProcesses.size())
     {
         std::map<int, cgiProcessInfo*>::const_iterator it = _cgiProcesses.begin();
-
         while (it != _cgiProcesses.end())
         {
-            if (event_fd == _cgiProcesses.at(event_fd)->_responsePipe)
+            if (event_fd == it->second->_responsePipe)
                 return true;
             it++;
         }
