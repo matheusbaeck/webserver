@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/03 17:46:04 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/03 18:47:37 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -108,6 +108,16 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         perror("pipe");
         return SERVERR;
     }
+
+    const char *path = this->env["SCRIPT_FILENAME"].c_str();
+    if (access(path, X_OK) == -1) 
+    { 
+        perror("access");
+        std::cerr << "error is " << errno << std::endl; 
+        if (errno == 13)
+            return FORBIDDEN;
+        return NFOUND; //should just say 404
+    }
     int pid = fork();
     if (pid == -1) 
     {
@@ -125,18 +135,9 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         close(cgiInfo->_pipe[0]);
         close(cgiInfo->_pipe[1]);
         
-        const char *path = this->env["SCRIPT_FILENAME"].c_str();
         std::cerr << "path: " << path << std::endl;
         char *const argv[] = { (char*)path, NULL};
 
-        if (access(path, X_OK) == -1) 
-        { 
-            perror("access");
-            std::cerr << "error is " << errno << std::endl; 
-            if (errno == 13)
-                exit(3);
-            exit(1); //should just say 404
-        }
         if (execve(argv[0], argv, envp) == -1) 
         {
             perror("execve");
@@ -147,7 +148,7 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
     {
         close(cgiInfo->_pipe[1]);
         //TODO: problem with removeClient with infinite while if i don't wait i cannot get the other error pages
-        //waitMicroseconds(1000);
+        waitMicroseconds(1000);
         int status;
         int res = waitpid(cgiInfo->_pid, &status, WNOHANG);
         std::cout << "result of waitpid is: " << res << std::endl;
@@ -155,7 +156,9 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         {
             if (WIFEXITED(status))
             {
+                
                 int err = WEXITSTATUS(status);
+                std::cout << "status is " << err << std::endl;
                 if (err == 1 || err == 2 || err == 3)
                 {
                     delete[] envp;
