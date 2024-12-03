@@ -60,6 +60,8 @@ void Selector::deleteCgi(cgiProcessInfo* CgiProcess)
 
     // Close response pipe
     close(CgiProcess->_responsePipe);
+    close(CgiProcess->_pipe[0]);
+    close(CgiProcess->_pipe[1]);
     std::cout << "Closed response pipe: " << CgiProcess->_responsePipe << std::endl;
 
     // Clear and delete CGI process

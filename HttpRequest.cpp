@@ -555,9 +555,10 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     }
     if (route && route->isCgi())
     {
-		CgiHandler handler(this, route->getCgiScriptName(), route->getCgiPath());
-		handler.execute(selector, clientFd);
-        //cannot have a response here because response is in Pipe
+        //TODO: is this necessary
+		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
+		handler->execute(selector, clientFd);
+        delete handler;//cannot have a response here because response is in Pipe
         return response;
     }
     std::cout << "Status code: " << this->statusCode << std::endl;

@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/02 15:41:19 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/03 11:36:03 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,7 +22,9 @@
 #include <unistd.h>
 #include <string>
 
-cgiProcessInfo::cgiProcessInfo() {}
+cgiProcessInfo::cgiProcessInfo()
+{
+}
 
 void cgiProcessInfo::addProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName) 
 {

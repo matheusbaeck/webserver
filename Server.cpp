@@ -211,6 +211,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     /*}*/
 
     bytesRead = read(eventFd, buffer, sizeof(buffer));
+    std::cout << "buffer size: " << bytesRead << std::endl;
     std::cout << "buffer: " << buffer << std::endl;
     if (bytesRead > 0)
         cgiInfo->_ScriptResponse += buffer;
@@ -218,7 +219,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     {
         this->sendCGIResponse(cgiInfo);
         selector.deleteCgi(cgiInfo);
-        removeClient(selector, clientFd);
+        std::memset(buffer, 0, sizeof(buffer));
         return (-1);
     } 
     else 
