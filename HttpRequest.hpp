@@ -2,6 +2,7 @@
 #define	HTTP_REQUEST_HPP
 
 #include "ConfigFile.hpp"
+#include "Selector.hpp"
 #include "Tokenizer.hpp"
 
 enum Type {NOTSET, RAW, URLENCODED, MULTIPART, JSON};
@@ -59,11 +60,6 @@ public:
 	static std::string	&lower(std::string &str);
 
     // Setters
-    void setCgiPID(pid_t pid)
-    {
-        this->cgiPid = pid;
-    }
-
 	// Getters
 	Method 		getMethod(void) const;
     std::string getMethodStr(void)
@@ -91,10 +87,6 @@ public:
         return this->serverPort == "" ? "80" : this->serverPort;
     }
 
-    pid_t getCgiPID()
-    {
-        return this->cgiPid;
-    }
 	// method that generate HTML page of list directory.
 	std::string	dirList(std::string const &dirpath);
 
@@ -105,10 +97,11 @@ public:
         this->configServer = new ConfigServer(_configServer);
 		//*this->configServer = _configServer;
 	}
-    void    setBuffer(char *buffer)
+    void    setBuffer(const char *buffer)
     {
         this->tokenizer.setBuffer(buffer);
     }
+
     std::string notAllowed(std::string const &str);
 
     std::string forbidden();
@@ -134,11 +127,11 @@ public:
 
 	void		parse(void);
 
-	std::string handler(void);
+	std::string handler(Selector& selector, int clientFd);
 	//void	handler(void);
 
-	std::string	GETmethod(const std::string &pathname, std::string cgiResponse);
-	std::string	POSTmethod(const std::string &pathname, std::string cgiResponse);
+	std::string	GETmethod(const std::string &pathname);
+	std::string	POSTmethod(const std::string &pathname);
 	std::string POSTmethodRAW(const std::string &pathname);
 	std::string POSTmethodURLENCODED(const std::string &pathname);
 

@@ -500,7 +500,7 @@ void	HttpRequest::parse(void)
 	/* ----------- Start Line ----------- */
     this->statusCode = this->parseStartLine();
 
-    std::cout << __FUNCTION__ << "status code of start line: " << this->statusCode << std::endl;
+    std::cout << "status code of start line: " << this->statusCode << std::endl;
 
     /* -----------   Headers  ----------- */
 
@@ -540,7 +540,7 @@ std::string	fileUpload(std::string const &body, std::string const &filename)
 	return std::string("HTTP/1.1 201 Created\r\n\r\n");	
 }
 
-std::string	HttpRequest::handler(void)
+std::string	HttpRequest::handler(Selector& selector, int clientFd)
 {
 	std::string response;
 	std::string cgiResponse;
@@ -550,13 +550,16 @@ std::string	HttpRequest::handler(void)
 	Route *route = this->configServer->getRoute(this->path);
     if (!route)
     {
-        std::cout << "route not found" << std::endl;
+        std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
         exit(1);
     }
     if (route && route->isCgi())
     {
-		CgiHandler cgi(*this, route->getCgiScriptName(), route->getCgiPath());
-		cgiResponse = cgi.execute();
+        //TODO: is this necessary
+		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
+		handler->execute(selector, clientFd);
+        delete handler;//cannot have a response here because response is in Pipe
+        return response;
     }
     std::cout << "Status code: " << this->statusCode << std::endl;
 
@@ -568,8 +571,8 @@ std::string	HttpRequest::handler(void)
 		case OK:
 			switch (this->method)
 			{
-				case GET:    response = this->GETmethod(this->path, cgiResponse);  break;
-				case POST:   response = this->POSTmethod(this->path, cgiResponse);	break;
+				case GET:    response = this->GETmethod(this->path);  break;
+				case POST:   response = this->POSTmethod(this->path);	break;
 				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
 			}
@@ -648,38 +651,17 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 
 /* ---------- HTTP METHODS -------- */
 
-std::string	HttpRequest::GETmethod(const std::string &pathname, std::string cgiResponse)
+std::string	HttpRequest::GETmethod(const std::string &pathname)
 {
-    std::string statusLine = "HTTP/1.1 200 OK\r\n";
-    std::string headers    = "Server: webserver/0.42\r\n";
-    
-    std::string body;
-    if (cgiResponse.size() > 0)
-    {
-        std::cout << "CGI response: " << cgiResponse << std::endl;
-        size_t found = cgiResponse.find("\n");
-        if (found != std::string::npos) 
-        {
-            headers += cgiResponse.substr(0, found);
-            headers += "\r\n";
-        }
-        else 
-            headers += "No Content Type provided\r\n";
-        //std::cout << "CgiResponse: " << cgiResponse << std::endl;
-        std::cout << "headers: " << headers << std::endl;
-        body = cgiResponse.substr(found); 
-    }
-    else
-    {
-        body = HttpRequest::readFile(pathname.c_str());
-        std::cout << "pathname: " << pathname << std::endl;
-        std::cout << "body: " << body << std::endl;
-        headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
-    }
-    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
-	return statusLine + headers + body;
-}
+    std::string statusLine  = "HTTP/1.1 200 OK\r\n";
+    std::string headers     = "Server: webserver/0.42\r\n";
+    std::string body        = HttpRequest::readFile(pathname.c_str());
 
+    headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
+    
+    return statusLine + headers + body;
+}
 
 std::string HttpRequest::POSTmethodRAW(const std::string &pathname)
 {
@@ -700,9 +682,8 @@ std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname)
 	return bodyStream.str();
 }
 
-std::string HttpRequest::POSTmethod(const std::string &pathname, std::string cgiResponse)
+std::string HttpRequest::POSTmethod(const std::string &pathname)
 {
-    (void)cgiResponse;
 	/*
 	post is just echooing all it reiceves
 	instead should
@@ -790,40 +771,45 @@ std::string	&HttpRequest::lower(std::string &str)
 
 std::string	HttpRequest::getMimeType(std::string const &file)
 {
-	std::map<std::string, std::string> mimeTypes;
-	std::string extension;
+    std::map<std::string, std::string> mimeTypes; 
+    mimeTypes[".html"] = "text/html";
+    mimeTypes[".htm"] = "text/html";
+    mimeTypes[".css"] = "text/css";
+    mimeTypes[".js"] = "application/javascript";
+    mimeTypes[".json"] = "application/json";
+    mimeTypes[".xml"] = "application/xml";
+    mimeTypes[".png"] = "image/png";
+    mimeTypes[".jpg"] = "image/jpeg";
+    mimeTypes[".jpeg"] = "image/jpeg";
+    mimeTypes[".gif"] = "image/gif";
+    mimeTypes[".svg"] = "image/svg+xml";
+    mimeTypes[".ico"] = "image/x-icon";
+    mimeTypes[".txt"] = "text/plain";
+    mimeTypes[".pdf"] = "application/pdf";
+    mimeTypes[".zip"] = "application/zip";
+    mimeTypes[".tar"] = "application/x-tar";
+    mimeTypes[".gz"] = "application/gzip";
+    mimeTypes[".mp3"] = "audio/mpeg";
+    mimeTypes[".wav"] = "audio/wav";
+    mimeTypes[".mp4"] = "video/mp4";
+    mimeTypes[".avi"] = "video/x-msvideo";
+    mimeTypes[".mov"] = "video/quicktime";
+    mimeTypes[".bin"] = "application/octet-stream";
 
-	// TODO: read them from a file.
-	mimeTypes["html"] = "text/html";
-	mimeTypes["txt"]  = "text/plain";
-	mimeTypes["css"]  = "text/css";
+    // Find the file extension
+    size_t dotPos = file.find_last_of('.');
+    if (dotPos == std::string::npos) {
+        return "text/html"; // Default MIME type for unknown files
+    }
 
-	mimeTypes["jpg"]  = "image/jpeg";
-	mimeTypes["jpeg"] = "image/jpeg";
-	mimeTypes["png"]  = "image/png";
+    std::string extension = file.substr(dotPos);
 
-	mimeTypes["js"]   = "application/javascript";
-	mimeTypes["json"] = "application/json";
-
-
-	// NOTE: temp solution
-	int	start = 0;
-	if (file[0] == '.')
-		start = 1;
-
-	size_t found = file.find_first_of(".", start);
-
-	if (found != std::string::npos)
-	{
-		// TODO: put substr directly as key
-		extension = file.substr(found + 1, file.size());
-		return mimeTypes[extension];
-	}
-
-	std::cerr << "file     : " << file      << std::endl;
-	std::cerr << "extension: " << extension << std::endl; 
-
-	return "application/octet-stream";
+    // Lookup the extension in the MIME types map
+    std::map<std::string, std::string>::iterator it = mimeTypes.find(extension);
+    if (it != mimeTypes.end()) 
+        return it->second;
+    return "text/html"; // Default MIME type for unknown files
+    //return "application/octet-stream"; // Default MIME type for unknown files
 }
 
 std::string execCGI(void)

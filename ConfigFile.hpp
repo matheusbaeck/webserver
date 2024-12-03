@@ -22,6 +22,7 @@ enum StatusCode
 	NFOUND     = 404,
 	NALLOWED   = 405,
 	CTOOLARGE  = 413,
+    SERVERR    = 500,
 	NSUPPORTED = 505,
 };
 

@@ -6,38 +6,48 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/11/20 12:54:08 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/03 11:36:03 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "CgiHandler.hpp"
-#include <cstring>
+#include "Selector.hpp"
+#include "HttpRequest.hpp"
 
+#include <cstring>
 #include <dirent.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <string>
-#include <vector>
 
-
-CgiHandler::CgiHandler(HttpRequest _httpReq, std::string scriptName, std::string cgiPath)
+cgiProcessInfo::cgiProcessInfo()
 {
-    this->pipeFd[STDIN_FILENO]  = -1;
-    this->pipeFd[STDOUT_FILENO] = -1;
+}
 
+void cgiProcessInfo::addProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName) 
+{
+    _pid = pid;
+    _clientFd = clientFd;
+    _responsePipe = responsePipe;
+    _path = scriptFileName;
+}
+
+cgiProcessInfo::~cgiProcessInfo() {}
+
+CgiHandler::CgiHandler(HttpRequest *_httpReq, std::string scriptName, std::string cgiPath)
+{
     // TODO: do deep copy of config file to prevent double free
     this->httpReq = _httpReq;
-    std::cout << "CGI query string: " <<_httpReq.getQuery() << std::endl;
 
 
     //this->env["AUTH_TYPE"] = ;
-    this->env["CONTENT_LENGTH"]         = _httpReq.getHeader("content-length");
-    this->env["CONTENT_TYPE"]           = _httpReq.getHeader("content-type");
-    this->env["QUERY_STRING"]           = _httpReq.getQuery();
-    this->env["REQUEST_METHOD"]         = _httpReq.getMethodStr();
-    this->env["SERVER_PORT"]            = _httpReq.getServerPort();
+    this->env["CONTENT_LENGTH"]         = _httpReq->getHeader("content-length");
+    this->env["CONTENT_TYPE"]           = _httpReq->getHeader("content-type");
+    this->env["QUERY_STRING"]           = _httpReq->getQuery();
+    this->env["REQUEST_METHOD"]         = _httpReq->getMethodStr();
+    this->env["SERVER_PORT"]            = _httpReq->getServerPort();
 
     /*// TODO: if there is another slash*/
     this->env["PATH_INFO"]              = cgiPath;
@@ -67,76 +77,76 @@ char    **CgiHandler::getEnvp(void)
    return envp;
 }
 
-std::string CgiHandler::execute()
+std::map<std::string, std::string>& CgiHandler::getEnvMap()
 {
-    std::string response;
-    int exitStatus;
+    return (this->env);
+}
 
+StatusCode CgiHandler::execute(Selector& selector, int clientFd)
+{
+
+    cgiProcessInfo* cgiInfo = new cgiProcessInfo();
+
+    // Assign to CgiHandlerInfo
     char **envp = this->getEnvp();
-
-    if (pipe(this->pipeFd) == -1)
+    if (pipe(cgiInfo->_pipe) == -1)
     {
-        std::cout << "pipe dead\n";
-        return httpReq.serverError();
+        perror("pipe");
+        return SERVERR;
     }
-
-    httpReq.setCgiPID(fork());
-
-    if (httpReq.getCgiPID() == -1)
+    int pid = fork();
+    if (pid == -1) 
     {
-        std::cout << "fork is spoon now\n";
-        return httpReq.serverError();
+        perror("fork");
+        close(cgiInfo->_pipe[0]);
+        close(cgiInfo->_pipe[1]);
+        return SERVERR;
     }
-
-    if (httpReq.getCgiPID() == 0)
+    
+    if (pid == 0)
     {
-        close(this->pipeFd[STDIN_FILENO]);
-        dup2(this->pipeFd[STDOUT_FILENO], STDOUT_FILENO);
-        close(this->pipeFd[STDOUT_FILENO]);
+
+        dup2(cgiInfo->_pipe[1], STDOUT_FILENO); // CGI writes to pipe
+        close(cgiInfo->_pipe[0]);
+        close(cgiInfo->_pipe[1]);
         
-        std::cerr << "Child process\n";
-
-
         const char *path = this->env["SCRIPT_FILENAME"].c_str();
-
         std::cerr << "path: " << path << std::endl;
-
         char *const argv[] = { (char*)path, NULL};
-        if (access(path, R_OK | W_OK | X_OK | F_OK) == -1)
-        {
-            if (errno == 2)
-                return this->httpReq.notFound();
-            else
-                return this->httpReq.forbidden();
 
-        }
-        if (execve(argv[0], argv,  envp) != 0)
+        if (access(path, X_OK) == -1) 
         {
-            std::cerr << "execute is soup\n";
-            close(this->pipeFd[STDOUT_FILENO]);
-            return this->httpReq.serverError();
+            perror("access");
+            exit(EXIT_FAILURE); //should just say 404
+        }
+        if (execve(argv[0], argv, envp) == -1) 
+        {
+            perror("execve");
+            exit(EXIT_FAILURE);
         }
     }
     else
     {
-        close(this->pipeFd[STDOUT_FILENO]);
-        dup2(this->pipeFd[STDIN_FILENO], STDIN_FILENO);
-        close(this->pipeFd[STDIN_FILENO]);
-        waitpid(httpReq.getCgiPID(), &exitStatus, WNOHANG);
-        
-       // mySleep(0.1);
-        char buffer[1024];
-        int n = 1;
-        while (n != 0)
+        //should i just WAITNOHANG here and check for the exit status
+        close(cgiInfo->_pipe[1]);
+        struct epoll_event ev;
+        ev.events = EPOLLIN | EPOLLET;
+        ev.data.fd = cgiInfo->_pipe[0];
+        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, cgiInfo->_pipe[0], &ev) == -1) 
         {
-            n = read(STDIN_FILENO, buffer, sizeof(buffer) - 1);
-            buffer[n] = '\0';
-            response += buffer;
+            perror("epoll_ctl: cgiInfo->_pipe[0]");
+            close(cgiInfo->_pipe[0]);
+            return SERVERR;
         }
-    }
+        std::cout << "added ResponsePipe to epoll instance: " << cgiInfo->_pipe[0] << std::endl;
 
-    delete[] envp;
-    return response;
+        cgiInfo->addProcessInfo(pid, clientFd, cgiInfo->_pipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
+
+        //could turn this into map for multiple cgis
+        selector.addCgi(cgiInfo->_pipe[0], cgiInfo);
+        delete[] envp;
+    }
+    return OK;
 }
 
 CgiHandler::~CgiHandler(void)
