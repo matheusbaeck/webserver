@@ -557,9 +557,11 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     {
         //TODO: is this necessary
 		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
-		handler->execute(selector, clientFd);
+		this->statusCode = handler->execute(selector, clientFd);
         delete handler;//cannot have a response here because response is in Pipe
-        return response;
+        /*if (selector.*/
+        if (this->statusCode == OK)
+            return response;
     }
     std::cout << "Status code: " << this->statusCode << std::endl;
 
@@ -567,6 +569,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 	{
 		case BREQUEST: response = badRequest(); break;
 		case NFOUND  : response = notFound();   break;
+        case SERVERR : response = serverError(); break;
 		case NALLOWED: response = notAllowed("Allow: GET, POST, DELETE"); break;
 		case OK:
 			switch (this->method)

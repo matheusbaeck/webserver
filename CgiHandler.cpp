@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/03 11:36:03 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/03 17:46:04 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,8 +22,11 @@
 #include <unistd.h>
 #include <string>
 
-cgiProcessInfo::cgiProcessInfo()
+cgiProcessInfo::cgiProcessInfo() {}
+
+std::time_t& cgiProcessInfo::getStartTime()
 {
+    return (this->_startTime);
 }
 
 void cgiProcessInfo::addProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName) 
@@ -32,6 +35,7 @@ void cgiProcessInfo::addProcessInfo(int pid, int clientFd, int responsePipe, std
     _clientFd = clientFd;
     _responsePipe = responsePipe;
     _path = scriptFileName;
+    _startTime = std::time(0);
 }
 
 cgiProcessInfo::~cgiProcessInfo() {}
@@ -82,6 +86,16 @@ std::map<std::string, std::string>& CgiHandler::getEnvMap()
     return (this->env);
 }
 
+void waitMicroseconds(long microseconds) 
+{
+    struct timeval timeout;
+    timeout.tv_sec = microseconds / 1000000;       // Convert to seconds
+    timeout.tv_usec = microseconds % 1000000;     // Remaining microseconds
+
+    // Call select with no file descriptors
+    select(0, NULL, NULL, NULL, &timeout);
+}
+
 StatusCode CgiHandler::execute(Selector& selector, int clientFd)
 {
 
@@ -100,6 +114,7 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         perror("fork");
         close(cgiInfo->_pipe[0]);
         close(cgiInfo->_pipe[1]);
+        delete cgiInfo;
         return SERVERR;
     }
     
@@ -115,20 +130,42 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         char *const argv[] = { (char*)path, NULL};
 
         if (access(path, X_OK) == -1) 
-        {
+        { 
             perror("access");
-            exit(EXIT_FAILURE); //should just say 404
+            std::cerr << "error is " << errno << std::endl; 
+            if (errno == 13)
+                exit(3);
+            exit(1); //should just say 404
         }
         if (execve(argv[0], argv, envp) == -1) 
         {
             perror("execve");
-            exit(EXIT_FAILURE);
+            exit(2);
         }
     }
     else
     {
-        //should i just WAITNOHANG here and check for the exit status
         close(cgiInfo->_pipe[1]);
+        //TODO: problem with removeClient with infinite while if i don't wait i cannot get the other error pages
+        //waitMicroseconds(1000);
+        int status;
+        int res = waitpid(cgiInfo->_pid, &status, WNOHANG);
+        std::cout << "result of waitpid is: " << res << std::endl;
+        if (res)
+        {
+            if (WIFEXITED(status))
+            {
+                int err = WEXITSTATUS(status);
+                if (err == 1 || err == 2 || err == 3)
+                {
+                    delete[] envp;
+                    delete cgiInfo;
+                    if (err == 1) return NFOUND;
+                    if (err == 2) return SERVERR;
+                    if (err == 3) return FORBIDDEN;
+                }
+            }
+        }
         struct epoll_event ev;
         ev.events = EPOLLIN | EPOLLET;
         ev.data.fd = cgiInfo->_pipe[0];
@@ -136,13 +173,12 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         {
             perror("epoll_ctl: cgiInfo->_pipe[0]");
             close(cgiInfo->_pipe[0]);
+            delete[] envp;
             return SERVERR;
         }
         std::cout << "added ResponsePipe to epoll instance: " << cgiInfo->_pipe[0] << std::endl;
 
         cgiInfo->addProcessInfo(pid, clientFd, cgiInfo->_pipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
-
-        //could turn this into map for multiple cgis
         selector.addCgi(cgiInfo->_pipe[0], cgiInfo);
         delete[] envp;
     }

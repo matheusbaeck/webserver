@@ -149,7 +149,6 @@ int Server::sendResponse(Selector& selector, int client_socket, std::string requ
         selector.getRequests()[client_socket].erase();
         return (-1);
     }
-    std::cout << __func__ << " in " << __FILE__ << " | requestBuffer: " << buffer << std::endl;
 
     HttpRequest* incomingRequestHTTP = new HttpRequest();
     incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
@@ -158,7 +157,7 @@ int Server::sendResponse(Selector& selector, int client_socket, std::string requ
     int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
     if (sent_bytes < 0) 
     {
-        this->removeClient(selector, client_socket);
+        selector.removeClient(client_socket);
         delete incomingRequestHTTP;
         return (-1);
     }
@@ -182,7 +181,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     ssize_t bytesRead;
     //do i need to malloc memory here for the cgi process
 
-    cgiProcessInfo* cgiInfo = selector.getCgiProcessInfo()[eventFd];
+    cgiProcessInfo* cgiInfo = selector.getCgis()[eventFd];
     int clientFd = cgiInfo->_clientFd;
 
     std::cout << "eventFd: " << eventFd << std::endl;
@@ -227,7 +226,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
         //remove from epoll instance
         perror("handleResponsePipe: read");
         selector.deleteCgi(cgiInfo);
-        removeClient(selector, clientFd);
+        selector.removeClient(clientFd);
         return -1;
     }
     return 0;
@@ -361,21 +360,21 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 /*    return 0;*/
 /*}*/
 /**/
-void Server::removeClient(Selector& selector, int client_socket)
-{
-
-    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL) == -1)
-    {
-        perror("epoll_ctl: remove eventFd");
-        std::cerr << "Failed to remove eventFd: " << client_socket << ", errno: " << errno << std::endl;
-        exit(1);
-    }
-    std::cout << "Removed clientSocket: " << client_socket << std::endl;
-    selector.getClientConfig().erase(client_socket);
-    selector.getActiveClients().erase(client_socket);
-    selector.getRequests().erase(client_socket);
-    close(client_socket);
-}
+/*void Server::removeClient(Selector& selector, int client_socket)*/
+/*{*/
+/**/
+/*    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL) == -1)*/
+/*    {*/
+/*        perror("epoll_ctl: remove eventFd");*/
+/*        std::cerr << "Failed to remove eventFd: " << client_socket << ", errno: " << errno << std::endl;*/
+/*        exit(1);*/
+/*    }*/
+/*    std::cout << "Removed clientSocket: " << client_socket << std::endl;*/
+/*    selector.getClientConfig().erase(client_socket);*/
+/*    selector.getActiveClients().erase(client_socket);*/
+/*    selector.getRequests().erase(client_socket);*/
+/*    close(client_socket);*/
+/*}*/
 
 Server::Server( const Server &other )
 {
