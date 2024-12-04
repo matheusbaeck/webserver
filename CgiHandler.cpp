@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/03 18:47:37 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/04 13:51:03 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -91,8 +91,6 @@ void waitMicroseconds(long microseconds)
     struct timeval timeout;
     timeout.tv_sec = microseconds / 1000000;       // Convert to seconds
     timeout.tv_usec = microseconds % 1000000;     // Remaining microseconds
-
-    // Call select with no file descriptors
     select(0, NULL, NULL, NULL, &timeout);
 }
 
@@ -113,10 +111,10 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
     if (access(path, X_OK) == -1) 
     { 
         perror("access");
-        std::cerr << "error is " << errno << std::endl; 
-        if (errno == 13)
-            return FORBIDDEN;
-        return NFOUND; //should just say 404
+        if (errno == EACCES) return FORBIDDEN; // Forbidden
+        if (errno == ENOENT || errno == ENOTDIR) return NFOUND; // Not Found
+        if (errno == ELOOP || errno == ENOMEM || errno == EFAULT) return SERVERR; // Internal Server Error
+        if (errno == ENAMETOOLONG) return BREQUEST; // Bad Request
     }
     int pid = fork();
     if (pid == -1) 
@@ -141,17 +139,21 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         if (execve(argv[0], argv, envp) == -1) 
         {
             perror("execve");
-            exit(2);
+            std::cout << "errno is :" << errno << std::endl;
+            if (errno == EACCES) exit(3); // Forbidden
+            if (errno == ENOENT || errno == ENOTDIR) exit(1); // Not Found
+            if (errno == E2BIG) exit(5); // Bad Request
+            if (errno == ELOOP || errno == ENOMEM || errno == EFAULT || errno == ETXTBSY || errno == EINVAL) exit(2); // Internal Server Error
+            if (errno == EPERM) exit(4); // Forbidden
+            exit(errno);
         }
     }
     else
     {
         close(cgiInfo->_pipe[1]);
-        //TODO: problem with removeClient with infinite while if i don't wait i cannot get the other error pages
         waitMicroseconds(1000);
         int status;
         int res = waitpid(cgiInfo->_pid, &status, WNOHANG);
-        std::cout << "result of waitpid is: " << res << std::endl;
         if (res)
         {
             if (WIFEXITED(status))
@@ -159,13 +161,15 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
                 
                 int err = WEXITSTATUS(status);
                 std::cout << "status is " << err << std::endl;
-                if (err == 1 || err == 2 || err == 3)
+                if (err >= 1 && err <= 5)
                 {
                     delete[] envp;
                     delete cgiInfo;
                     if (err == 1) return NFOUND;
                     if (err == 2) return SERVERR;
                     if (err == 3) return FORBIDDEN;
+                    if (err == 4) return FORBIDDEN;
+                    if (err == 5) return BREQUEST;
                 }
             }
         }
@@ -190,8 +194,6 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
 
 CgiHandler::~CgiHandler(void)
 {
-    //close(this->pipeFd[STDIN_FILENO]);
-    //close(this->pipeFd[STDOUT_FILENO]);
 }
 
         /*SCRIPT_FILENAME $script_path;      # Full path to the script DONE*/

@@ -147,7 +147,6 @@ bool Selector::isResponsePipe(int event_fd) const
 void Selector::setClientFdEvent(int event_fd, int action)
 {
     struct epoll_event info; 
-    //action == READ ? info.events = EPOLLIN | EPOLLET : info.events = EPOLLOUT | EPOLLET;
     if (action == READ)
         info.events = EPOLLIN | EPOLLET; 
     else
@@ -159,7 +158,6 @@ void Selector::setClientFdEvent(int event_fd, int action)
         std::cerr << "Failed to modify epoll event for FD " << event_fd 
             << ": " << strerror(errno) << std::endl;
         close(event_fd);
-        //server->cleanUpClient(*this, event_fd);
     }
 }
 
@@ -179,38 +177,41 @@ void Selector::removeClient(int clientSocket)
     close(clientSocket);
 }
 
+void Selector::examineCgiExecution()
+{
+    std::map<int, cgiProcessInfo*>::const_iterator it = _cgiProcesses.begin();
+    int status;
+    while (it != _cgiProcesses.end())
+    {
+        int result = waitpid(it->second->_pid, &status, WNOHANG);
+        if (!result && std::time(0) -  it->second->getStartTime() > CLIENT_TIMEOUT)
+        {
+            break;
+        }
+        it++;
+    }
+    if (it != _cgiProcesses.end())
+    {
+        if (WIFEXITED(status))
+        {
+            std::cout << "status code: " << WEXITSTATUS(status) << std::endl;
+        }
+        std::cout << "we killed someone" << std::endl;
+        kill(it->second->_pid, SIGKILL);
+
+        std::string test = "tqt ca arrive";
+        //TODO: change responses to a specific class rather than attached to HTTP request
+        send(it->second->_clientFd, test.c_str(), test.size(), 0);
+        removeClient(it->second->_clientFd);        
+        deleteCgi(it->second);
+    }
+}
+
 void Selector::processEvents(const std::vector<Server*>& servers )
 {
     if (_cgiProcesses.size() > 0)
-    {
-        std::map<int, cgiProcessInfo*>::const_iterator it = _cgiProcesses.begin();
-        int status;
-        while (it != _cgiProcesses.end())
-        {
-            int result = waitpid(it->second->_pid, &status, WNOHANG);
-            if (!result && std::time(0) -  it->second->getStartTime() > CLIENT_TIMEOUT)
-            {
-                break;
-            }
-            it++;
-        }
-        if (it != _cgiProcesses.end())
-        {
-            if (WIFEXITED(status))
-            {
-                std::cout << "status code: " << WEXITSTATUS(status) << std::endl;
-            }
-            std::cout << "we killed someone" << std::endl;
-            kill(it->second->_pid, SIGKILL);
-
-            std::string test = "tqt ca arrive";
-            //TODO: change responses to a specific class rather than attached to HTTP request
-            send(it->second->_clientFd, test.c_str(), test.size(), 0);
-            removeClient(it->second->_clientFd);        
-            deleteCgi(it->second);
-        }
-    }
-    _eventCount = epoll_wait(_epollfd, _events, MAX_EVENTS, TIME_OUT); //timeout to calculate CGI timeout and potential kill
+        examineCgiExecution();
+    _eventCount = epoll_wait(_epollfd, _events, MAX_EVENTS, TIME_OUT); 
     if (_eventCount == 0)
         return;
     if (_eventCount == -1) 
@@ -268,7 +269,6 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                 }
                 if (_events[n].events & (EPOLLERR | EPOLLHUP)) 
                 {
-                    //kill CGI?
                     std::cerr << "Error on FD " << _events[n].data.fd << ": " << strerror(errno) << std::endl;
                     epoll_ctl(this->getEpollFD(), EPOLL_CTL_DEL, _events[n].data.fd, NULL);
                     _activeClients.erase(_events[n].data.fd);
@@ -280,6 +280,3 @@ void Selector::processEvents(const std::vector<Server*>& servers )
         }
     }
 }
-
-
-

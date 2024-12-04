@@ -283,12 +283,16 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         }
         else 
         {
+            std::cout << "requestTarget: " << requestTarget << std::endl;
+            std::cout << "route->path: " << route->path << std::endl;
             if (requestTarget == route->path)
             {
                 std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
                 if (it == route->getIndex().end())
                 {
-                    this->path = requestTarget;
+                    std::cout << "not here" << std::endl;
+                    //this->path = requestTarget;
+                    this->path = route->getRoot() + requestTarget;
                     return FORBIDDEN;
                 }
                 target = *it;
@@ -548,6 +552,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 
 	this->parse();
 	Route *route = this->configServer->getRoute(this->path);
+    std::cout << "path is: " << path << std::endl;
     if (!route)
     {
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
@@ -555,11 +560,9 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     }
     if (route && route->isCgi())
     {
-        //TODO: is this necessary
 		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
 		this->statusCode = handler->execute(selector, clientFd);
-        delete handler;//cannot have a response here because response is in Pipe
-        /*if (selector.*/
+        delete handler;
         if (this->statusCode == OK)
             return response;
     }

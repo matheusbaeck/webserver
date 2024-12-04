@@ -62,6 +62,7 @@ class Selector
         void                            setClientFdEvent(int event_fd, int action);
         void                            addCgi(int clientFd, cgiProcessInfo* CgiProcess);
         void                            deleteCgi(cgiProcessInfo* CgiProcess);
+        void                            examineCgiExecution();
         void                            removeClient(int clientSocket);
 
         std::map<int, cgiProcessInfo*>::const_iterator getCgiProcessInfo(int clientFd);
