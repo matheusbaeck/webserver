@@ -236,16 +236,37 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 {
     std::string statusLine  = "HTTP/1.1 200 OK\r\n";
     std::string headers     = "Server: webserver/0.42\r\n";
-    std::string body        = cgiInfo->_ScriptResponse;
     std::stringstream contentLength;
+    std::stringstream bodyStream(cgiInfo->_ScriptResponse);
+
+    size_t found = cgiInfo->_ScriptResponse.find("Content-Type:");
+    if (found != std::string::npos)
+    {
+        std::string line;
+        std::getline(bodyStream, line);
+        headers += line + "\r\n";
+        std::getline(bodyStream, line); // skipping newline
+    }
+    else 
+    {
+        headers += "Content-Type: text/html\r\n";
+    }
+    std::stringstream tmp;
+    tmp << bodyStream.rdbuf();
+    // <bodyStream>
 
     //TODO: detect mime types
-    headers += "Content-Type: text/html\r\n";
-    contentLength << "Content-Length: " << cgiInfo->_ScriptResponse.size() << "\r\n";
+    //headers += "Content-Type: text/html\r\n";
+    //std::string body = bodyStream.rdbuf()->str(); 
+    //ConfigFile::toNumber();
+
+    contentLength << "Content-Length: " << tmp.str().size() << "\r\n";
     headers += contentLength.str();
     headers += "\r\n";
+
+    std::cout << "body is : " << tmp.str() << std::endl;
     
-    std::string response = statusLine + headers + cgiInfo->_ScriptResponse; 
+    std::string response = statusLine + headers + tmp.str();
 
     //TODO: check for fails in send
     send(cgiInfo->_clientFd, response.c_str(), response.size(), 0);

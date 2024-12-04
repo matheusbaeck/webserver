@@ -104,6 +104,17 @@ std::string	HttpRequest::notFound(void)
 	return statusLine + headers + body + "\r\n";
 }
 
+
+std::string	HttpRequest::gatewayTimeout(void)
+{
+        std::string statusLine = "HTTP/1.1 504 Gateway Timeout\r\n";
+	    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	    std::string body    = HttpRequest::readFile("./err_pages/504.html");
+	    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+	    headers += "Connection: close\r\n\r\n";
+        return statusLine + headers + body + "\r\n";
+}
+
 std::string HttpRequest::badRequest(void)
 {
 	const std::string statusLine = "HTTP/1.1 400 Bad Request\r\n";

@@ -1,3 +1,4 @@
+#include "HttpRequest.hpp"
 #include "Selector.hpp"
 #include <cstring>
 #include <map>
@@ -199,9 +200,9 @@ void Selector::examineCgiExecution()
         std::cout << "we killed someone" << std::endl;
         kill(it->second->_pid, SIGKILL);
 
-        std::string test = "tqt ca arrive";
-        //TODO: change responses to a specific class rather than attached to HTTP request
-        send(it->second->_clientFd, test.c_str(), test.size(), 0);
+        std::string response = HttpRequest::gatewayTimeout();
+        send(it->second->_clientFd, response.c_str(), response.size(), 0);
+
         removeClient(it->second->_clientFd);        
         deleteCgi(it->second);
     }
