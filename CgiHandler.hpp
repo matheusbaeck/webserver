@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/03 11:33:24 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/03 16:35:55 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,12 +25,15 @@
 #include <errno.h>
 #include <string.h>
 #include <cstring>
+#include <ctime>
 
 #define TIMEOUT 200
 #define CLIENT_TIMEOUT 2			//client_timeout max time
 
 class HttpRequest;
 class Selector;
+
+
 
 
 class CgiHandler
@@ -50,6 +53,8 @@ class CgiHandler
 
 class cgiProcessInfo 
 {
+    private:
+        std::time_t            _startTime;
     public:
         int                     _responsePipe;
         int                     _pid;
@@ -58,6 +63,7 @@ class cgiProcessInfo
         std::string             _path;
         std::string             _ScriptResponse;
 
+        std::time_t&            getStartTime();
         void addProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName); 
 
         cgiProcessInfo();

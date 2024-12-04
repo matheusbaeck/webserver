@@ -46,7 +46,7 @@ class Selector
         std::set<int>                   _activeClients;
         std::map<int, std::string>      _requests;
         std::map<int, ConfigServer>     _clientConfig;
-        std::map<int, cgiProcessInfo*>   _cgiProcesses;
+        std::map<int, cgiProcessInfo*>  _cgiProcesses;
 		Selector( void );
 
 	public:
@@ -62,12 +62,16 @@ class Selector
         void                            setClientFdEvent(int event_fd, int action);
         void                            addCgi(int clientFd, cgiProcessInfo* CgiProcess);
         void                            deleteCgi(cgiProcessInfo* CgiProcess);
+        void                            examineCgiExecution();
+        void                            removeClient(int clientSocket);
+
+        std::map<int, cgiProcessInfo*>::const_iterator getCgiProcessInfo(int clientFd);
 
 
         /* Getters */
         epoll_event*                     getEvents();
         std::set<int>&                   getActiveClients();
-        std::map<int, cgiProcessInfo*>&  getCgiProcessInfo();
+        std::map<int, cgiProcessInfo*>&  getCgis();
         std::map<int, ConfigServer>&     getClientConfig();
         std::map<int, std::string>&      getRequests();
         int&                             getEpollFD();

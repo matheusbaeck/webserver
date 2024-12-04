@@ -1,3 +1,4 @@
+#include "HttpRequest.hpp"
 #include "Selector.hpp"
 #include <cstring>
 #include <map>
@@ -31,14 +32,28 @@ std::set<int>& Selector::getActiveClients()
     return this->_activeClients;
 }
 
-std::map<int, cgiProcessInfo*>& Selector::getCgiProcessInfo()
+std::map<int, cgiProcessInfo*>& Selector::getCgis()
 {
     return _cgiProcesses;
 }
 
 void Selector::addCgi(int pipeFd, cgiProcessInfo* CgiProcess)
 {
+    std::cout << "a Cgi process has been added from fd: " << CgiProcess->_clientFd << std::endl;
     _cgiProcesses[pipeFd] = CgiProcess;
+}
+
+std::map<int, cgiProcessInfo*>::const_iterator Selector::getCgiProcessInfo(int clientFd)
+{
+    std::map<int, cgiProcessInfo*>::const_iterator it = _cgiProcesses.begin();
+    while (it != _cgiProcesses.end())
+    {
+        if (it->second->_clientFd == clientFd)
+            return (it);
+        it++;
+    }
+    return (it);
+
 }
 
 void Selector::deleteCgi(cgiProcessInfo* CgiProcess)
@@ -46,7 +61,8 @@ void Selector::deleteCgi(cgiProcessInfo* CgiProcess)
     std::cout << "Deleting CGI Process for response pipe: " << CgiProcess->_responsePipe << std::endl;
 
     // Remove from epoll instance
-    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, CgiProcess->_responsePipe, NULL) == -1) {
+    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, CgiProcess->_responsePipe, NULL) == -1) 
+    {
         perror("epoll_ctl: remove eventFd");
         std::cerr << "Failed to remove eventFd: " << CgiProcess->_responsePipe << ", errno: " << errno << std::endl;
         exit(1);
@@ -54,9 +70,8 @@ void Selector::deleteCgi(cgiProcessInfo* CgiProcess)
 
     // Remove from _cgiProcesses
     size_t erased = _cgiProcesses.erase(CgiProcess->_responsePipe);
-    if (erased == 0) {
+    if (erased == 0) 
         std::cerr << "Warning: CGI process not found in _cgiProcesses!" << std::endl;
-    }
 
     // Close response pipe
     close(CgiProcess->_responsePipe);
@@ -133,7 +148,6 @@ bool Selector::isResponsePipe(int event_fd) const
 void Selector::setClientFdEvent(int event_fd, int action)
 {
     struct epoll_event info; 
-    //action == READ ? info.events = EPOLLIN | EPOLLET : info.events = EPOLLOUT | EPOLLET;
     if (action == READ)
         info.events = EPOLLIN | EPOLLET; 
     else
@@ -145,13 +159,60 @@ void Selector::setClientFdEvent(int event_fd, int action)
         std::cerr << "Failed to modify epoll event for FD " << event_fd 
             << ": " << strerror(errno) << std::endl;
         close(event_fd);
-        //server->cleanUpClient(*this, event_fd);
+    }
+}
+
+
+void Selector::removeClient(int clientSocket)
+{
+    if (epoll_ctl(getEpollFD(), EPOLL_CTL_DEL, clientSocket, NULL) == -1)
+    {
+        perror("epoll_ctl: remove eventFd");
+        std::cerr << "Failed to remove eventFd: " << clientSocket << ", errno: " << errno << std::endl;
+        exit(1);
+    }
+    std::cout << "Removed clientSocket: " << clientSocket << std::endl;
+    getClientConfig().erase(clientSocket);
+    getActiveClients().erase(clientSocket);
+    getRequests().erase(clientSocket);
+    close(clientSocket);
+}
+
+void Selector::examineCgiExecution()
+{
+    std::map<int, cgiProcessInfo*>::const_iterator it = _cgiProcesses.begin();
+    int status;
+    while (it != _cgiProcesses.end())
+    {
+        int result = waitpid(it->second->_pid, &status, WNOHANG);
+        if (!result && std::time(0) -  it->second->getStartTime() > CLIENT_TIMEOUT)
+        {
+            break;
+        }
+        it++;
+    }
+    if (it != _cgiProcesses.end())
+    {
+        if (WIFEXITED(status))
+        {
+            std::cout << "status code: " << WEXITSTATUS(status) << std::endl;
+        }
+        std::cout << "we killed someone" << std::endl;
+        kill(it->second->_pid, SIGKILL);
+
+        std::string response = HttpRequest::gatewayTimeout();
+        send(it->second->_clientFd, response.c_str(), response.size(), 0);
+
+        removeClient(it->second->_clientFd);        
+        deleteCgi(it->second);
     }
 }
 
 void Selector::processEvents(const std::vector<Server*>& servers )
 {
-    _eventCount = epoll_wait(_epollfd, _events, MAX_EVENTS, TIME_OUT); //timeout to calculate CGI timeout and potential kill
+    if (_cgiProcesses.size() > 0)
+        examineCgiExecution();
+    _eventCount = epoll_wait(_epollfd, _events, MAX_EVENTS, TIME_OUT); 
     if (_eventCount == 0)
         return;
     if (_eventCount == -1) 
@@ -170,7 +231,6 @@ void Selector::processEvents(const std::vector<Server*>& servers )
             for (int n = 0; n < _eventCount; ++n) 
             {
                 int event_fd = _events[n].data.fd;
-
                 // Reading requests
                 if (_events[n].events & EPOLLIN) 
                 {
@@ -210,7 +270,6 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                 }
                 if (_events[n].events & (EPOLLERR | EPOLLHUP)) 
                 {
-                    //kill CGI?
                     std::cerr << "Error on FD " << _events[n].data.fd << ": " << strerror(errno) << std::endl;
                     epoll_ctl(this->getEpollFD(), EPOLL_CTL_DEL, _events[n].data.fd, NULL);
                     _activeClients.erase(_events[n].data.fd);
@@ -222,6 +281,3 @@ void Selector::processEvents(const std::vector<Server*>& servers )
         }
     }
 }
-
-
-

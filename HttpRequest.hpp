@@ -102,12 +102,12 @@ public:
         this->tokenizer.setBuffer(buffer);
     }
 
-    std::string notAllowed(std::string const &str);
-
-    std::string forbidden();
-    std::string serverError();
-    std::string notFound();
-    std::string badRequest();
+    static std::string notAllowed(std::string const &str);
+    static std::string gatewayTimeout();
+    static std::string forbidden();
+    static std::string serverError();
+    static std::string notFound();
+    static std::string badRequest();
 
 
 	

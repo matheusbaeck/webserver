@@ -31,7 +31,7 @@ def main():
         greeting = "What's up!!!"
 
     # Output the HTTP headers
-    print("Content-Type: text/html")
+#    print("Content-Type: nsgrlrldgnkmssd/html")
     print()  # Blank line to separate headers from body
 
     # Output the HTML content
