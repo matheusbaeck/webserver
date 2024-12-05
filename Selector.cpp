@@ -145,6 +145,13 @@ bool Selector::isResponsePipe(int event_fd) const
     return (false);
 }
 
+bool Selector::isRequestChunked(int clientFd)
+{
+    std::string request = selector.getRequests()[clientFd];
+    size_t found = request.find("Transfer-Encoding: chunked");
+    return (found != std::string::npos);
+}
+
 void Selector::setClientFdEvent(int event_fd, int action)
 {
     struct epoll_event info; 

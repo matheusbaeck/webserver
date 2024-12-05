@@ -111,15 +111,46 @@ int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
     return (0);
 }
 
+bool Server::readWholeRequestHeaders(Selector& selector, int clientFD, size_t *end)
+{
+    static const std::string    RequestHeaderEnding = "\r\n\r\n";
+
+    while (*end == std::string::npos) 
+    {
+        char buffer[1024];
+        ssize_t count = read(clientFD, buffer, sizeof(buffer));
+        std::cout << "Request Headers: " << selector.getRequests()[clientFD] << std::endl;
+        std::cout << "bytes read from " << clientFD << ": " << count << std::endl;
+        if (count == -1) 
+            return false; // not done reading everything yet, so return
+        if (count == 0) 
+        { 
+            epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, clientFD, NULL);
+            selector.getClientConfig().erase(clientFD);
+            selector.getActiveClients().erase(clientFD);
+            close(clientFD); 
+            break; 
+        } 
+        selector.getRequests()[clientFD] += std::string(buffer, buffer + count);
+        *end = selector.getRequests()[clientFD].find(RequestHeaderEnding);
+        if (*end == std::string::npos) 
+            continue;
+    }
+    std::cout << "Request Headers: " << selector.getRequests()[clientFD] << std::endl;
+    return true;
+}
+
 void Server::readClientRequest(Selector& selector, int clientFD)
 {
     size_t                      pos = std::string::npos;
     static const std::string    RequestHeaderEnding = "\r\n\r\n";
+    static const std::string    ChunkEnding = "\r\n";
 
     while (pos == std::string::npos) 
     {
         char buffer[1024];
         ssize_t count = read(clientFD, buffer, sizeof(buffer));
+        std::cout << "Request Headers: " << selector.getRequests()[clientFD] << std::endl;
         std::cout << "bytes read from " << clientFD << ": " << count << std::endl;
         if (count == -1) 
             return; // not done reading everything yet, so return
@@ -132,11 +163,27 @@ void Server::readClientRequest(Selector& selector, int clientFD)
             break; 
         } 
         selector.getRequests()[clientFD] += std::string(buffer, buffer + count);
-        pos = selector.getRequests()[clientFD].find(RequestHeaderEnding);
+        pos = selector.getRequests()[clientFD].find(RequestHeaderEnding); 
         if (pos == std::string::npos) 
             continue;
-        selector.setClientFdEvent(clientFD, WRITE);
+        //found the headers ending
+        if (selector.isRequestChunked(clientFD) == false)
+        {
+                break;
+        }
+        else 
+        {
+            const std::string headers = selector.getRequests()[clientFD].substr(0, pos + RequestHeaderEnding.size());
+            std::cout << "headers of the request are: " << headers << std::endl;
+            std::string responseBody = selector.getRequests()[clientFD].substr(pos + RequestHeaderEnding.size());
+            std::stringstream ss(responseBody);
+            std::string line;
+            std::getline(ss, line);
+            std::cout << "line: " << line << std::endl;
+            exit(1);
+        }
     }
+    selector.setClientFdEvent(clientFD, WRITE);
 }
 
 
@@ -253,19 +300,10 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
     }
     std::stringstream tmp;
     tmp << bodyStream.rdbuf();
-    // <bodyStream>
-
-    //TODO: detect mime types
-    //headers += "Content-Type: text/html\r\n";
-    //std::string body = bodyStream.rdbuf()->str(); 
-    //ConfigFile::toNumber();
-
     contentLength << "Content-Length: " << tmp.str().size() << "\r\n";
     headers += contentLength.str();
     headers += "\r\n";
 
-    std::cout << "body is : " << tmp.str() << std::endl;
-    
     std::string response = statusLine + headers + tmp.str();
 
     //TODO: check for fails in send
@@ -381,21 +419,6 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 /*    return 0;*/
 /*}*/
 /**/
-/*void Server::removeClient(Selector& selector, int client_socket)*/
-/*{*/
-/**/
-/*    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL) == -1)*/
-/*    {*/
-/*        perror("epoll_ctl: remove eventFd");*/
-/*        std::cerr << "Failed to remove eventFd: " << client_socket << ", errno: " << errno << std::endl;*/
-/*        exit(1);*/
-/*    }*/
-/*    std::cout << "Removed clientSocket: " << client_socket << std::endl;*/
-/*    selector.getClientConfig().erase(client_socket);*/
-/*    selector.getActiveClients().erase(client_socket);*/
-/*    selector.getRequests().erase(client_socket);*/
-/*    close(client_socket);*/
-/*}*/
 
 Server::Server( const Server &other )
 {
