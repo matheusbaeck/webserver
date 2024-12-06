@@ -139,7 +139,8 @@ std::string HttpRequest::forbidden(void)
 
 HttpRequest::HttpRequest(void) 
 {
-    cgiPid = -1;
+    //TODO: execption if it fails
+    pipe(_bodyPipe);
 }
 
 HttpRequest::HttpRequest(const HttpRequest &other)
@@ -572,7 +573,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     if (route && route->isCgi())
     {
 		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
-		this->statusCode = handler->execute(selector, clientFd);
+		this->statusCode = handler->execute(selector, clientFd, this->_bodyPipe[0]);
         delete handler;
         if (this->statusCode == OK)
             return response;

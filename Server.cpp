@@ -111,35 +111,6 @@ int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
     return (0);
 }
 
-bool Server::readWholeRequestHeaders(Selector& selector, int clientFD, size_t *end)
-{
-    static const std::string    RequestHeaderEnding = "\r\n\r\n";
-
-    while (*end == std::string::npos) 
-    {
-        char buffer[1024];
-        ssize_t count = read(clientFD, buffer, sizeof(buffer));
-        std::cout << "Request Headers: " << selector.getRequests()[clientFD] << std::endl;
-        std::cout << "bytes read from " << clientFD << ": " << count << std::endl;
-        if (count == -1) 
-            return false; // not done reading everything yet, so return
-        if (count == 0) 
-        { 
-            epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, clientFD, NULL);
-            selector.getClientConfig().erase(clientFD);
-            selector.getActiveClients().erase(clientFD);
-            close(clientFD); 
-            break; 
-        } 
-        selector.getRequests()[clientFD] += std::string(buffer, buffer + count);
-        *end = selector.getRequests()[clientFD].find(RequestHeaderEnding);
-        if (*end == std::string::npos) 
-            continue;
-    }
-    std::cout << "Request Headers: " << selector.getRequests()[clientFD] << std::endl;
-    return true;
-}
-
 std::string Server::readBodyRequest(size_t contentLength, int clientFd)
 {
     char buffer[contentLength];
@@ -159,10 +130,8 @@ void Server::readClientRequest(Selector& selector, int clientFD)
 
     while (pos == std::string::npos) 
     {
-        char buffer[1024];
-        ssize_t count = read(clientFD, buffer, sizeof(buffer));
-        std::cout << "Request Headers: " << selector.getRequests()[clientFD] << std::endl;
-        std::cout << "bytes read from " << clientFD << ": " << count << std::endl;
+        char buffer[1];
+        ssize_t count = recv(clientFD, buffer, sizeof(buffer), 0);
         if (count == -1) 
             return; // not done reading everything yet, so return
         if (count == 0) 
@@ -175,9 +144,11 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         } 
         selector.getRequests()[clientFD] += std::string(buffer, buffer + count);
         pos = selector.getRequests()[clientFD].find(RequestHeaderEnding); 
+        std::cout << (pos != std::string::npos ? "found the end" : "didn't find the end") << std::endl;
         if (pos == std::string::npos) 
             continue;
     }
+    std::cout << "are we here" << std::endl;
     //found the headers ending
     //is there a body
     size_t contentLength = selector.getBodyContentLength(clientFD);
@@ -187,6 +158,16 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         selector.getRequests()[clientFD] += readBodyRequest(contentLength, clientFD);
     }
     selector.setClientFdEvent(clientFD, WRITE);
+}
+
+static void writeToBodyPipe(std::string request, int pipeIn)
+{
+    static const std::string    RequestHeaderEnding = "\r\n\r\n";
+
+    size_t start = request.find(RequestHeaderEnding);
+    std::string body = request.substr(start + RequestHeaderEnding.size());
+    write(pipeIn, body.c_str(), body.size());
+    close(pipeIn);
 }
 
 int Server::sendResponse(Selector& selector, int client_socket, std::string request)
@@ -201,6 +182,7 @@ int Server::sendResponse(Selector& selector, int client_socket, std::string requ
     HttpRequest* incomingRequestHTTP = new HttpRequest();
     incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
     incomingRequestHTTP->setBuffer(buffer);
+    writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
     std::string response = incomingRequestHTTP->handler(selector, client_socket);
     int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
     if (sent_bytes < 0) 

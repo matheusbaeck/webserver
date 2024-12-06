@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/06 21:26:25 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/06 22:11:48 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -97,7 +97,7 @@ void waitMicroseconds(long microseconds)
     select(0, NULL, NULL, NULL, &timeout);
 }
 
-StatusCode CgiHandler::execute(Selector& selector, int clientFd)
+StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
 {
 
     cgiProcessInfo* cgiInfo = new cgiProcessInfo();
@@ -109,7 +109,6 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         perror("pipe");
         return SERVERR;
     }
-
     const char *path = this->env["SCRIPT_FILENAME"].c_str();
     if (access(path, X_OK) == -1) 
     { 
@@ -132,6 +131,7 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
     if (cgiInfo->_pid == 0)
     {
 
+        dup2(bodyPipe, STDIN_FILENO); // CGI reads from inputPipe
         dup2(cgiInfo->_pipe[1], STDOUT_FILENO); // CGI writes to pipe
         close(cgiInfo->_pipe[0]);
         close(cgiInfo->_pipe[1]);
