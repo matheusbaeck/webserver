@@ -186,8 +186,6 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     selector.setClientFdEvent(clientFD, WRITE);
 }
 
-
-
 int Server::sendResponse(Selector& selector, int client_socket, std::string request)
 {
     const char* buffer = request.c_str();

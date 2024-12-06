@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/04 13:51:03 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/06 12:19:24 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -116,8 +116,8 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         if (errno == ELOOP || errno == ENOMEM || errno == EFAULT) return SERVERR; // Internal Server Error
         if (errno == ENAMETOOLONG) return BREQUEST; // Bad Request
     }
-    int pid = fork();
-    if (pid == -1) 
+    cgiInfo->_pid = fork();
+    if (cgiInfo->_pid == -1) 
     {
         perror("fork");
         close(cgiInfo->_pipe[0]);
@@ -126,7 +126,7 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         return SERVERR;
     }
     
-    if (pid == 0)
+    if (cgiInfo->_pid == 0)
     {
 
         dup2(cgiInfo->_pipe[1], STDOUT_FILENO); // CGI writes to pipe
@@ -139,21 +139,21 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         if (execve(argv[0], argv, envp) == -1) 
         {
             perror("execve");
-            std::cout << "errno is :" << errno << std::endl;
             if (errno == EACCES) exit(3); // Forbidden
             if (errno == ENOENT || errno == ENOTDIR) exit(1); // Not Found
             if (errno == E2BIG) exit(5); // Bad Request
             if (errno == ELOOP || errno == ENOMEM || errno == EFAULT || errno == ETXTBSY || errno == EINVAL) exit(2); // Internal Server Error
-            if (errno == EPERM) exit(4); // Forbidden
+            if (errno == EPERM || errno == 13) exit(4); // Forbidden
             exit(errno);
         }
     }
     else
     {
         close(cgiInfo->_pipe[1]);
-        waitMicroseconds(1000);
+        waitMicroseconds(2000);
         int status;
         int res = waitpid(cgiInfo->_pid, &status, WNOHANG);
+        std::cout << "res of waitpid: " << res << std::endl;
         if (res)
         {
             if (WIFEXITED(status))
@@ -161,7 +161,7 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
                 
                 int err = WEXITSTATUS(status);
                 std::cout << "status is " << err << std::endl;
-                if (err >= 1 && err <= 5)
+                if (err != 0)
                 {
                     delete[] envp;
                     delete cgiInfo;
@@ -170,6 +170,7 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
                     if (err == 3) return FORBIDDEN;
                     if (err == 4) return FORBIDDEN;
                     if (err == 5) return BREQUEST;
+                    return FORBIDDEN;
                 }
             }
         }
@@ -185,16 +186,14 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         }
         std::cout << "added ResponsePipe to epoll instance: " << cgiInfo->_pipe[0] << std::endl;
 
-        cgiInfo->addProcessInfo(pid, clientFd, cgiInfo->_pipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
+        cgiInfo->addProcessInfo(cgiInfo->_pid, clientFd, cgiInfo->_pipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
         selector.addCgi(cgiInfo->_pipe[0], cgiInfo);
         delete[] envp;
     }
     return OK;
 }
 
-CgiHandler::~CgiHandler(void)
-{
-}
+CgiHandler::~CgiHandler(void) {}
 
         /*SCRIPT_FILENAME $script_path;      # Full path to the script DONE*/
         /*QUERY_STRING $query_string;        # URL query string DONE*/
