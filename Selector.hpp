@@ -49,6 +49,8 @@ class Selector
         bool                            isServerSocket(int fd, int serverSocket);
         bool                            isResponsePipe(int event_fd) const;
         bool                            isRequestChunked(int clientFd);
+        bool                            isHeadersEnd(int clientFd);
+        size_t                          getBodyContentLength(int clientFd);
 
         void                            addCgi(int clientFd, cgiProcessInfo* CgiProcess);
         void                            deleteCgi(cgiProcessInfo* CgiProcess);

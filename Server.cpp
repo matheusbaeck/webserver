@@ -140,6 +140,17 @@ bool Server::readWholeRequestHeaders(Selector& selector, int clientFD, size_t *e
     return true;
 }
 
+std::string Server::readBodyRequest(size_t contentLength, int clientFd)
+{
+    char buffer[contentLength];
+    ssize_t count = recv(clientFd, buffer, sizeof(buffer), 0);
+    if (count == -1)
+        return std::string();
+    
+    return (buffer);
+}
+
+
 void Server::readClientRequest(Selector& selector, int clientFD)
 {
     size_t                      pos = std::string::npos;
@@ -166,22 +177,14 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         pos = selector.getRequests()[clientFD].find(RequestHeaderEnding); 
         if (pos == std::string::npos) 
             continue;
-        //found the headers ending
-        if (selector.isRequestChunked(clientFD) == false)
-        {
-                break;
-        }
-        else 
-        {
-            const std::string headers = selector.getRequests()[clientFD].substr(0, pos + RequestHeaderEnding.size());
-            std::cout << "headers of the request are: " << headers << std::endl;
-            std::string responseBody = selector.getRequests()[clientFD].substr(pos + RequestHeaderEnding.size());
-            std::stringstream ss(responseBody);
-            std::string line;
-            std::getline(ss, line);
-            std::cout << "line: " << line << std::endl;
-            exit(1);
-        }
+    }
+    //found the headers ending
+    //is there a body
+    size_t contentLength = selector.getBodyContentLength(clientFD);
+    std::cout << "Content-Length: " << contentLength << std::endl;
+    if (contentLength != std::string::npos)
+    {
+        selector.getRequests()[clientFD] += readBodyRequest(contentLength, clientFD);
     }
     selector.setClientFdEvent(clientFD, WRITE);
 }

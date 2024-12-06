@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/06 12:19:24 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/06 21:26:25 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,7 +44,10 @@ CgiHandler::CgiHandler(HttpRequest *_httpReq, std::string scriptName, std::strin
 {
     // TODO: do deep copy of config file to prevent double free
     this->httpReq = _httpReq;
-
+    //get request
+    //find end of headers
+    //do substr from the end of headers + sizeof \r\n\r\n
+    //use that to write within pipe as input
 
     //this->env["AUTH_TYPE"] = ;
     this->env["CONTENT_LENGTH"]         = _httpReq->getHeader("content-length");
