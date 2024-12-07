@@ -160,6 +160,7 @@ ConfigServer &ConfigServer::operator=(ConfigServer const &other)
 		this->index = other.index;
 		this->error_pages = other.error_pages;
 		this->routes = other.routes;
+        this->redirection = other.redirection;
 		this->tokenizer = other.tokenizer;
 	}
 	return *this;
@@ -375,6 +376,7 @@ void	ConfigServer::parseRoute(void)
 	{
 		route.root  = this->root;
 		route.index = this->index;
+        route.redirection = this->redirection;
 	}
 
 	this->tokenizer->trim();
@@ -577,6 +579,7 @@ Route	&Route::operator=(Route const &other)
 {
 	if (this != &other)
 	{
+        this->redirection = other.redirection;
 		this->path    = other.path;
 		this->methods = other.methods;
 		this->root = other.root;
@@ -630,8 +633,7 @@ void	Route::parseMethods(void)
 
 void	Route::parseRedirection(void)
 {
-
-	std::string token;
+    std::string key, value;
 
 	this->tokenizer->trim();
 
@@ -640,9 +642,9 @@ void	Route::parseRedirection(void)
 		this->tokenizer->consume();
 	}
 
-	token = this->tokenizer->next(ConfigFile::delim);
+	key = this->tokenizer->next(ConfigFile::delim);
 
-	if (!ConfigFile::isNumber(token))
+	if (!ConfigFile::isNumber(key))
 	{
 		error("status code must be a number");
 	}
@@ -661,13 +663,18 @@ void	Route::parseRedirection(void)
 // 	}
 
 	this->tokenizer->trim();
-	token = this->tokenizer->next(ConfigFile::delim);
-	if (token.empty())
+	value = this->tokenizer->next(ConfigFile::delim);
+	if (value.empty())
 	{
 		error("return: invalid argument");
 	}
 
-	this->redirection[static_cast<StatusCode>(ConfigFile::toNumber(token))] = token;
+    StatusCode statusCode = static_cast<StatusCode>(ConfigFile::toNumber(key));
+    this->redirection[statusCode] = value;
+
+    std::cout << "statusCode: " << statusCode << std::endl;
+    std::cout << "value: " << value << std::endl;
+	//this->redirection[] = value;
 	this->tokenizer->trim();
 	this->tokenizer->expected(';', ConfigFile::delim);
 }
