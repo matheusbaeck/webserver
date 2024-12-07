@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Multipart/Form-Data Test</title>
+</head>
+<body>
+<h1>Upload a File</h1>
+<form action="http://localhost:2525/cgi/postBody.py" method="POST" enctype="multipart/form-data">
+    <label for="desc">Description:</label><br/>
+    <input type="text" id="desc" name="description" value="My cool file" /><br/><br/>
+
+    <label for="fileUpload">Select a file:</label><br/>
+    <input type="file" id="fileUpload" name="file" /><br/><br/>
+
+    <input type="submit" value="Upload" />
+</form>
+</body>
+</html>
+

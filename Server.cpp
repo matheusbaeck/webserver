@@ -19,7 +19,6 @@ Server::Server(ConfigServer &configServer)
         this->_addrs.push_back(element);
         this->_addrlens.push_back(sizeof(*this->getAddr(i)));
         this->create_server_socket(i);
-
    }
 }
 
@@ -72,7 +71,7 @@ int Server::create_server_socket(int pos)
 	}
 	std::cout << "socket on fd " << this->_serv_sockets[pos] 
                 << " bound to " << this->_serv_ports[pos] << ": " << strerror(errno)<< std::endl;
-	if (listen(this->_serv_sockets[pos], BACKLOG) < 0)
+	if (listen(this->_serv_sockets[pos], SOMAXCONN) < 0)
 		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
 	return (this->_serv_sockets[pos]);
 }
@@ -144,19 +143,32 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         } 
         selector.getRequests()[clientFD] += std::string(buffer, buffer + count);
         pos = selector.getRequests()[clientFD].find(RequestHeaderEnding); 
-        std::cout << (pos != std::string::npos ? "found the end" : "didn't find the end") << std::endl;
         if (pos == std::string::npos) 
             continue;
     }
-    std::cout << "are we here" << std::endl;
-    //found the headers ending
     //is there a body
     size_t contentLength = selector.getBodyContentLength(clientFD);
     std::cout << "Content-Length: " << contentLength << std::endl;
     if (contentLength != std::string::npos)
     {
-        selector.getRequests()[clientFD] += readBodyRequest(contentLength, clientFD);
+    
+
+        char *bodyBuffer = new char[contentLength + 1];
+        recv(clientFD, bodyBuffer, contentLength, 0);
+        bodyBuffer[contentLength] = '\0';
+        std::cout << bodyBuffer << std::endl; 
+        std::string response(bodyBuffer);
+        selector.getRequests()[clientFD] += response;
+        delete[] bodyBuffer;
     }
+    
+    // char buffer[4096];
+    // headers
+    //  Content-Length: number
+    //  /r\n\r\n
+    
+    // char *bodyBuffer = new char[cone];
+
     selector.setClientFdEvent(clientFD, WRITE);
 }
 
@@ -213,10 +225,6 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
 
     cgiProcessInfo* cgiInfo = selector.getCgis()[eventFd];
     int clientFd = cgiInfo->_clientFd;
-
-    std::cout << "eventFd: " << eventFd << std::endl;
-    std::cout << "cgiInfo->responsePipe: " << cgiInfo->_responsePipe << std::endl;
-    std::cout << "cgiInfo->ScriptResponse: " << cgiInfo->_ScriptResponse << std::endl;
 
     // Read and send data incrementally
     /*while ((bytesRead = read(eventFd, buffer, sizeof(buffer))) > 0) */

@@ -135,6 +135,20 @@ std::string HttpRequest::forbidden(void)
 	return statusLine + headers + body + "\r\n";
 	
 }
+
+std::string HttpRequest::redirection(Route *route)
+{
+    //this->configServer->
+
+
+	const std::string statusLine = "HTTP/1.1 301 Forbidden\r\n";
+	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	std::string body    = HttpRequest::readFile("./err_pages/403.html");
+	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+	headers += "Connection: close\r\n\r\n";
+	return statusLine + headers + body + "\r\n";
+}
+
 #endif
 
 HttpRequest::HttpRequest(void) 
@@ -681,6 +695,8 @@ std::string	HttpRequest::GETmethod(const std::string &pathname)
     return statusLine + headers + body;
 }
 
+
+
 std::string HttpRequest::POSTmethodRAW(const std::string &pathname)
 {
 	(void)pathname;
@@ -817,7 +833,7 @@ std::string	HttpRequest::getMimeType(std::string const &file)
     // Find the file extension
     size_t dotPos = file.find_last_of('.');
     if (dotPos == std::string::npos) {
-        return "text/html"; // Default MIME type for unknown files
+        return "application/octet-stream"; // Default MIME type for unknown files
     }
 
     std::string extension = file.substr(dotPos);

@@ -41,6 +41,13 @@
     <div class="image-container">
         <img src="https://letsenhance.io/static/8f5e523ee6b2479e26ecc91b9c25261e/1015f/MainAfter.jpg" alt="Descriptive Alt Text">
     </div>
+    <h1>Send POST Data to CGI Script</h1>
+    <form action="http://localhost:2525/cgi/postBody.py" method="POST">
+        <label for="message">Message:</label><br/>
+        <textarea id="message" name="message" rows="4" cols="50">Hello from POST body!</textarea><br/><br/>
+        <input type="submit" value="Send POST" />
+    </form>
+
     <form action="http://www.example/cgi-bin/mult.cgi">
         <div><label>Multiplicand 1: <input name="m" size="5"></label></div>
         <div><label>Multiplicand 2: <input name="n" size="5"></label></div>

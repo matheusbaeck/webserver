@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/06 22:11:48 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/07 13:12:38 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -135,6 +135,7 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
         dup2(cgiInfo->_pipe[1], STDOUT_FILENO); // CGI writes to pipe
         close(cgiInfo->_pipe[0]);
         close(cgiInfo->_pipe[1]);
+        close(bodyPipe);
         
         std::cerr << "path: " << path << std::endl;
         char *const argv[] = { (char*)path, NULL};
