@@ -56,11 +56,11 @@ class Server
 
         int         acceptConnection(Selector& selector, int socketFD, int portFD);
         void        readClientRequest(Selector& selector, int clientFD);
+        std::string readBodyRequest(size_t contentLength, int clientFd);
+        bool        readWholeRequestHeaders(Selector& selector, int clientFD, size_t* end);
         int         handleResponsePipe(Selector& selector, int pipeFd);
 		int			sendResponse(Selector& selector, int clientSocket, std::string request);
         void        sendCGIResponse(cgiProcessInfo* cgiInfo);
-
-        void        removeClient(Selector& selector, int client_socket);
 };
 
 #endif

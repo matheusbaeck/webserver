@@ -5,6 +5,8 @@ for x in dir():
   localvars_table += '<tr><td>%s</td></tr>' % x
 localvars_table += '</table>'
 
+while True:
+    pass
 print("Content-Type: text/html")
 print("")
 print("""<html><body>

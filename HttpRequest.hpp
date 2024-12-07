@@ -21,6 +21,7 @@ class HttpRequest
 	static const char *CRLF;
 	static const char *delim;
 	static const size_t bufferSize = 4096;
+
 	//static ConfigFile *configFile;
 
 	ConfigServer *configServer;
@@ -33,7 +34,7 @@ class HttpRequest
 	// HTTP
 	std::map<std::string, std::string> headers;
     std::string query;
-    pid_t cgiPid;
+
 
 	
 	Method method;
@@ -58,6 +59,7 @@ public:
 	static std::string	toString(size_t num);
 	static std::string 	getMimeType(std::string const &file);
 	static std::string	&lower(std::string &str);
+    int                 _bodyPipe[2];
 
     // Setters
 	// Getters
@@ -102,12 +104,12 @@ public:
         this->tokenizer.setBuffer(buffer);
     }
 
-    std::string notAllowed(std::string const &str);
-
-    std::string forbidden();
-    std::string serverError();
-    std::string notFound();
-    std::string badRequest();
+    static std::string notAllowed(std::string const &str);
+    static std::string gatewayTimeout();
+    static std::string forbidden();
+    static std::string serverError();
+    static std::string notFound();
+    static std::string badRequest();
 
 
 	

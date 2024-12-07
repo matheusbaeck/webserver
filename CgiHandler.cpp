@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/03 11:36:03 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/07 13:12:38 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,8 +22,11 @@
 #include <unistd.h>
 #include <string>
 
-cgiProcessInfo::cgiProcessInfo()
+cgiProcessInfo::cgiProcessInfo() {}
+
+std::time_t& cgiProcessInfo::getStartTime()
 {
+    return (this->_startTime);
 }
 
 void cgiProcessInfo::addProcessInfo(int pid, int clientFd, int responsePipe, std::string scriptFileName) 
@@ -32,6 +35,7 @@ void cgiProcessInfo::addProcessInfo(int pid, int clientFd, int responsePipe, std
     _clientFd = clientFd;
     _responsePipe = responsePipe;
     _path = scriptFileName;
+    _startTime = std::time(0);
 }
 
 cgiProcessInfo::~cgiProcessInfo() {}
@@ -40,7 +44,10 @@ CgiHandler::CgiHandler(HttpRequest *_httpReq, std::string scriptName, std::strin
 {
     // TODO: do deep copy of config file to prevent double free
     this->httpReq = _httpReq;
-
+    //get request
+    //find end of headers
+    //do substr from the end of headers + sizeof \r\n\r\n
+    //use that to write within pipe as input
 
     //this->env["AUTH_TYPE"] = ;
     this->env["CONTENT_LENGTH"]         = _httpReq->getHeader("content-length");
@@ -82,7 +89,15 @@ std::map<std::string, std::string>& CgiHandler::getEnvMap()
     return (this->env);
 }
 
-StatusCode CgiHandler::execute(Selector& selector, int clientFd)
+void waitMicroseconds(long microseconds) 
+{
+    struct timeval timeout;
+    timeout.tv_sec = microseconds / 1000000;       // Convert to seconds
+    timeout.tv_usec = microseconds % 1000000;     // Remaining microseconds
+    select(0, NULL, NULL, NULL, &timeout);
+}
+
+StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
 {
 
     cgiProcessInfo* cgiInfo = new cgiProcessInfo();
@@ -94,41 +109,75 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         perror("pipe");
         return SERVERR;
     }
-    int pid = fork();
-    if (pid == -1) 
+    const char *path = this->env["SCRIPT_FILENAME"].c_str();
+    if (access(path, X_OK) == -1) 
+    { 
+        perror("access");
+        if (errno == EACCES) return FORBIDDEN; // Forbidden
+        if (errno == ENOENT || errno == ENOTDIR) return NFOUND; // Not Found
+        if (errno == ELOOP || errno == ENOMEM || errno == EFAULT) return SERVERR; // Internal Server Error
+        if (errno == ENAMETOOLONG) return BREQUEST; // Bad Request
+    }
+    cgiInfo->_pid = fork();
+    if (cgiInfo->_pid == -1) 
     {
         perror("fork");
         close(cgiInfo->_pipe[0]);
         close(cgiInfo->_pipe[1]);
+        delete cgiInfo;
         return SERVERR;
     }
     
-    if (pid == 0)
+    if (cgiInfo->_pid == 0)
     {
 
+        dup2(bodyPipe, STDIN_FILENO); // CGI reads from inputPipe
         dup2(cgiInfo->_pipe[1], STDOUT_FILENO); // CGI writes to pipe
         close(cgiInfo->_pipe[0]);
         close(cgiInfo->_pipe[1]);
+        close(bodyPipe);
         
-        const char *path = this->env["SCRIPT_FILENAME"].c_str();
         std::cerr << "path: " << path << std::endl;
         char *const argv[] = { (char*)path, NULL};
 
-        if (access(path, X_OK) == -1) 
-        {
-            perror("access");
-            exit(EXIT_FAILURE); //should just say 404
-        }
         if (execve(argv[0], argv, envp) == -1) 
         {
             perror("execve");
-            exit(EXIT_FAILURE);
+            if (errno == EACCES) exit(3); // Forbidden
+            if (errno == ENOENT || errno == ENOTDIR) exit(1); // Not Found
+            if (errno == E2BIG) exit(5); // Bad Request
+            if (errno == ELOOP || errno == ENOMEM || errno == EFAULT || errno == ETXTBSY || errno == EINVAL) exit(2); // Internal Server Error
+            if (errno == EPERM || errno == 13) exit(4); // Forbidden
+            exit(errno);
         }
     }
     else
     {
-        //should i just WAITNOHANG here and check for the exit status
         close(cgiInfo->_pipe[1]);
+        waitMicroseconds(2000);
+        int status;
+        int res = waitpid(cgiInfo->_pid, &status, WNOHANG);
+        std::cout << "res of waitpid: " << res << std::endl;
+        if (res)
+        {
+            if (WIFEXITED(status))
+            {
+                
+                int err = WEXITSTATUS(status);
+                std::cout << "status is " << err << std::endl;
+                if (err != 0)
+                {
+                    delete[] envp;
+                    delete cgiInfo;
+                    if (err == 1) return NFOUND;
+                    if (err == 2) return SERVERR;
+                    if (err == 3) return FORBIDDEN;
+                    if (err == 4) return FORBIDDEN;
+                    if (err == 5) return BREQUEST;
+                    return FORBIDDEN;
+                }
+            }
+        }
         struct epoll_event ev;
         ev.events = EPOLLIN | EPOLLET;
         ev.data.fd = cgiInfo->_pipe[0];
@@ -136,24 +185,19 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd)
         {
             perror("epoll_ctl: cgiInfo->_pipe[0]");
             close(cgiInfo->_pipe[0]);
+            delete[] envp;
             return SERVERR;
         }
         std::cout << "added ResponsePipe to epoll instance: " << cgiInfo->_pipe[0] << std::endl;
 
-        cgiInfo->addProcessInfo(pid, clientFd, cgiInfo->_pipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
-
-        //could turn this into map for multiple cgis
+        cgiInfo->addProcessInfo(cgiInfo->_pid, clientFd, cgiInfo->_pipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
         selector.addCgi(cgiInfo->_pipe[0], cgiInfo);
         delete[] envp;
     }
     return OK;
 }
 
-CgiHandler::~CgiHandler(void)
-{
-    //close(this->pipeFd[STDIN_FILENO]);
-    //close(this->pipeFd[STDOUT_FILENO]);
-}
+CgiHandler::~CgiHandler(void) {}
 
         /*SCRIPT_FILENAME $script_path;      # Full path to the script DONE*/
         /*QUERY_STRING $query_string;        # URL query string DONE*/

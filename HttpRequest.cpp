@@ -104,6 +104,17 @@ std::string	HttpRequest::notFound(void)
 	return statusLine + headers + body + "\r\n";
 }
 
+
+std::string	HttpRequest::gatewayTimeout(void)
+{
+        std::string statusLine = "HTTP/1.1 504 Gateway Timeout\r\n";
+	    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	    std::string body    = HttpRequest::readFile("./err_pages/504.html");
+	    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+	    headers += "Connection: close\r\n\r\n";
+        return statusLine + headers + body + "\r\n";
+}
+
 std::string HttpRequest::badRequest(void)
 {
 	const std::string statusLine = "HTTP/1.1 400 Bad Request\r\n";
@@ -124,11 +135,26 @@ std::string HttpRequest::forbidden(void)
 	return statusLine + headers + body + "\r\n";
 	
 }
+
+std::string HttpRequest::redirection(Route *route)
+{
+    //this->configServer->
+
+
+	const std::string statusLine = "HTTP/1.1 301 Forbidden\r\n";
+	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	std::string body    = HttpRequest::readFile("./err_pages/403.html");
+	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+	headers += "Connection: close\r\n\r\n";
+	return statusLine + headers + body + "\r\n";
+}
+
 #endif
 
 HttpRequest::HttpRequest(void) 
 {
-    cgiPid = -1;
+    //TODO: execption if it fails
+    pipe(_bodyPipe);
 }
 
 HttpRequest::HttpRequest(const HttpRequest &other)
@@ -283,12 +309,16 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         }
         else 
         {
+            std::cout << "requestTarget: " << requestTarget << std::endl;
+            std::cout << "route->path: " << route->path << std::endl;
             if (requestTarget == route->path)
             {
                 std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
                 if (it == route->getIndex().end())
                 {
-                    this->path = requestTarget;
+                    std::cout << "not here" << std::endl;
+                    //this->path = requestTarget;
+                    this->path = route->getRoot() + requestTarget;
                     return FORBIDDEN;
                 }
                 target = *it;
@@ -548,6 +578,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 
 	this->parse();
 	Route *route = this->configServer->getRoute(this->path);
+    std::cout << "path is: " << path << std::endl;
     if (!route)
     {
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
@@ -555,11 +586,11 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     }
     if (route && route->isCgi())
     {
-        //TODO: is this necessary
 		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
-		handler->execute(selector, clientFd);
-        delete handler;//cannot have a response here because response is in Pipe
-        return response;
+		this->statusCode = handler->execute(selector, clientFd, this->_bodyPipe[0]);
+        delete handler;
+        if (this->statusCode == OK)
+            return response;
     }
     std::cout << "Status code: " << this->statusCode << std::endl;
 
@@ -567,6 +598,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 	{
 		case BREQUEST: response = badRequest(); break;
 		case NFOUND  : response = notFound();   break;
+        case SERVERR : response = serverError(); break;
 		case NALLOWED: response = notAllowed("Allow: GET, POST, DELETE"); break;
 		case OK:
 			switch (this->method)
@@ -712,6 +744,8 @@ Location: https://www.42madrid.com*/
     return statusLine + headers + body;
 }
 
+
+
 std::string HttpRequest::POSTmethodRAW(const std::string &pathname)
 {
 	(void)pathname;
@@ -848,7 +882,7 @@ std::string	HttpRequest::getMimeType(std::string const &file)
     // Find the file extension
     size_t dotPos = file.find_last_of('.');
     if (dotPos == std::string::npos) {
-        return "text/html"; // Default MIME type for unknown files
+        return "application/octet-stream"; // Default MIME type for unknown files
     }
 
     std::string extension = file.substr(dotPos);
