@@ -603,7 +603,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 		case OK:
 			switch (this->method)
 			{
-				case GET:    response = this->GETmethod(this->path);  break;
+				case GET:    response = this->GETmethod(this->path, route);  break;
 				case POST:   response = this->POSTmethod(this->path);	break;
 				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
@@ -683,13 +683,62 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 
 /* ---------- HTTP METHODS -------- */
 
-std::string	HttpRequest::GETmethod(const std::string &pathname)
+std::string getStatusLine(StatusCode statusCode)
 {
-    std::string statusLine  = "HTTP/1.1 200 OK\r\n";
-    std::string headers     = "Server: webserver/0.42\r\n";
-    std::string body        = HttpRequest::readFile(pathname.c_str());
+    std::map<StatusCode, std::string> statusPhrases;
+    const std::string protocolHTTP = "HTTP/1.1";
 
-    headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
+    statusPhrases[OK] = "200 OK";
+    statusPhrases[MVPERMANENT] = "301 Moved Permanently";
+    statusPhrases[FOUND] = "302 Found";
+	statusPhrases[BREQUEST] = "400 Bad Request";
+	statusPhrases[FORBIDDEN] = "403 Forbidden";
+	statusPhrases[NFOUND] = "404 Not Found";
+	statusPhrases[NALLOWED] = "405 Not Allowed";
+	statusPhrases[CTOOLARGE] = "413 Content Too Large";
+    statusPhrases[SERVERR]  = "500 Internal Server Error";
+	statusPhrases[NSUPPORTED] = "505 Not Supported";
+
+    return protocolHTTP + " " + statusPhrases[statusCode] + "\r\n"; 
+}
+
+std::string	HttpRequest::GETmethod(std::string &pathname, Route *route)
+{
+    std::string statusLine  = getStatusLine(OK);
+    std::string headers     = "Server: webserver/0.42\r\n";
+
+    //std::cout << "redi size: " << route->getRedirection().size() << std::endl;
+    //std::cout << "route path: " << route->path << std::endl;
+    //THROW("stop");
+    
+    /*HTTP/1.1 301 Moved Permanently
+Server: nginx/1.27.3
+Date: Sat, 07 Dec 2024 16:23:36 GMT
+Content-Type: text/html
+Content-Length: 169
+Connection: keep-alive
+Location: https://www.42madrid.com*/
+
+
+    std::string body;
+    if (route && route->getRedirection().size() != 0)
+    {
+        std::map<StatusCode, std::string>::iterator it = route->getRedirection().begin();
+        statusLine = getStatusLine(it->first);
+        if (it->first == MVPERMANENT || it->first == FOUND)
+            headers += "Location: " + it->second + "\r\n";
+        else
+        {
+            headers += "Content-Type: application/octet-stream\r\n"; 
+            body = it->second;
+        }
+        pathname = "./err_page/" + HttpRequest::toString(it->first) + ".html";
+    }
+    else
+    {
+        body = HttpRequest::readFile(pathname.c_str());
+        headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
+    }
     headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
     
     return statusLine + headers + body;
