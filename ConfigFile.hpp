@@ -17,6 +17,7 @@
 enum StatusCode
 {
 	OK 		   = 200,
+    NCONTENT   = 204,
     MVPERMANENT = 301,
     FOUND      = 302,
 	BREQUEST   = 400,

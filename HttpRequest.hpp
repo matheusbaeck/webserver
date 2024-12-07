@@ -110,7 +110,8 @@ public:
     static std::string serverError();
     static std::string notFound();
     static std::string badRequest();
-
+    
+    std::string getStatusLine(StatusCode statusCode);
 
 	
 	// Start Line
@@ -133,7 +134,9 @@ public:
 	//void	handler(void);
 
 	//std::string	GETmethod(const std::string &pathname);
+    
 	std::string	GETmethod(std::string &pathname, Route *route);
+	std::string	DELETEmethod(const std::string &pathname);
 	std::string	POSTmethod(const std::string &pathname);
 	std::string POSTmethodRAW(const std::string &pathname);
 	std::string POSTmethodURLENCODED(const std::string &pathname);
