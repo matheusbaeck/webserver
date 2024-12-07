@@ -20,20 +20,6 @@
 
 typedef struct epoll_event epoll_event;
 
-/*struct ClientRequest {*/
-/*    int                 clientFd;                        // Client's socket file descriptor*/
-/*    HttpRequest*        httpReq;*/
-/*    std::string         responseBuffer;          // Response to send back*/
-/*    size_t              bytesSent = 0;                // How much of the response has been sent*/
-/*    bool                isCGI = false;                  // Whether this request involves CGI*/
-/*    std::string         cgiScript;               // Associated CGI script path*/
-/*    int                 responsePipeFd = -1;             // CGI response pipe (if applicable)*/
-/*    int                 statusPipeFd = -1;               // CGI status pipe (if applicable)*/
-/*    time_t              startTime;                    // Request start time*/
-/*    time_t              timeout;                      // Request timeout*/
-/*};*/
-
-
 // this class is a singleton (ensures that a class has only one instance and provides a global point of access to that instance)
 class Selector 
 {
@@ -56,14 +42,19 @@ class Selector
 		/* Methods */
 		void                            addSocket(const Server *);
 		void                            processEvents (const std::vector<Server*> & servers);
+        void                            setClientFdEvent(int event_fd, int action);
+        void                            removeClient(int clientSocket);
+
         bool                            isClientFD(int fd);
         bool                            isServerSocket(int fd, int serverSocket);
         bool                            isResponsePipe(int event_fd) const;
-        void                            setClientFdEvent(int event_fd, int action);
+        bool                            isRequestChunked(int clientFd);
+        bool                            isHeadersEnd(int clientFd);
+        size_t                          getBodyContentLength(int clientFd);
+
         void                            addCgi(int clientFd, cgiProcessInfo* CgiProcess);
         void                            deleteCgi(cgiProcessInfo* CgiProcess);
         void                            examineCgiExecution();
-        void                            removeClient(int clientSocket);
 
         std::map<int, cgiProcessInfo*>::const_iterator getCgiProcessInfo(int clientFd);
 

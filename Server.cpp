@@ -19,7 +19,6 @@ Server::Server(ConfigServer &configServer)
         this->_addrs.push_back(element);
         this->_addrlens.push_back(sizeof(*this->getAddr(i)));
         this->create_server_socket(i);
-
    }
 }
 
@@ -72,7 +71,7 @@ int Server::create_server_socket(int pos)
 	}
 	std::cout << "socket on fd " << this->_serv_sockets[pos] 
                 << " bound to " << this->_serv_ports[pos] << ": " << strerror(errno)<< std::endl;
-	if (listen(this->_serv_sockets[pos], BACKLOG) < 0)
+	if (listen(this->_serv_sockets[pos], SOMAXCONN) < 0)
 		std::cerr << "create_serv_sockets[pos]: " << strerror(errno) << std::endl;
 	return (this->_serv_sockets[pos]);
 }
@@ -111,16 +110,27 @@ int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
     return (0);
 }
 
+std::string Server::readBodyRequest(size_t contentLength, int clientFd)
+{
+    char buffer[contentLength];
+    ssize_t count = recv(clientFd, buffer, sizeof(buffer), 0);
+    if (count == -1)
+        return std::string();
+    
+    return (buffer);
+}
+
+
 void Server::readClientRequest(Selector& selector, int clientFD)
 {
     size_t                      pos = std::string::npos;
     static const std::string    RequestHeaderEnding = "\r\n\r\n";
+    static const std::string    ChunkEnding = "\r\n";
 
     while (pos == std::string::npos) 
     {
-        char buffer[1024];
-        ssize_t count = read(clientFD, buffer, sizeof(buffer));
-        std::cout << "bytes read from " << clientFD << ": " << count << std::endl;
+        char buffer[1];
+        ssize_t count = recv(clientFD, buffer, sizeof(buffer), 0);
         if (count == -1) 
             return; // not done reading everything yet, so return
         if (count == 0) 
@@ -132,14 +142,45 @@ void Server::readClientRequest(Selector& selector, int clientFD)
             break; 
         } 
         selector.getRequests()[clientFD] += std::string(buffer, buffer + count);
-        pos = selector.getRequests()[clientFD].find(RequestHeaderEnding);
+        pos = selector.getRequests()[clientFD].find(RequestHeaderEnding); 
         if (pos == std::string::npos) 
             continue;
-        selector.setClientFdEvent(clientFD, WRITE);
     }
+    //is there a body
+    size_t contentLength = selector.getBodyContentLength(clientFD);
+    std::cout << "Content-Length: " << contentLength << std::endl;
+    if (contentLength != std::string::npos)
+    {
+    
+
+        char *bodyBuffer = new char[contentLength + 1];
+        recv(clientFD, bodyBuffer, contentLength, 0);
+        bodyBuffer[contentLength] = '\0';
+        std::cout << bodyBuffer << std::endl; 
+        std::string response(bodyBuffer);
+        selector.getRequests()[clientFD] += response;
+        delete[] bodyBuffer;
+    }
+    
+    // char buffer[4096];
+    // headers
+    //  Content-Length: number
+    //  /r\n\r\n
+    
+    // char *bodyBuffer = new char[cone];
+
+    selector.setClientFdEvent(clientFD, WRITE);
 }
 
+static void writeToBodyPipe(std::string request, int pipeIn)
+{
+    static const std::string    RequestHeaderEnding = "\r\n\r\n";
 
+    size_t start = request.find(RequestHeaderEnding);
+    std::string body = request.substr(start + RequestHeaderEnding.size());
+    write(pipeIn, body.c_str(), body.size());
+    close(pipeIn);
+}
 
 int Server::sendResponse(Selector& selector, int client_socket, std::string request)
 {
@@ -153,6 +194,7 @@ int Server::sendResponse(Selector& selector, int client_socket, std::string requ
     HttpRequest* incomingRequestHTTP = new HttpRequest();
     incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
     incomingRequestHTTP->setBuffer(buffer);
+    writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
     std::string response = incomingRequestHTTP->handler(selector, client_socket);
     int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
     if (sent_bytes < 0) 
@@ -183,10 +225,6 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
 
     cgiProcessInfo* cgiInfo = selector.getCgis()[eventFd];
     int clientFd = cgiInfo->_clientFd;
-
-    std::cout << "eventFd: " << eventFd << std::endl;
-    std::cout << "cgiInfo->responsePipe: " << cgiInfo->_responsePipe << std::endl;
-    std::cout << "cgiInfo->ScriptResponse: " << cgiInfo->_ScriptResponse << std::endl;
 
     // Read and send data incrementally
     /*while ((bytesRead = read(eventFd, buffer, sizeof(buffer))) > 0) */
@@ -253,19 +291,10 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
     }
     std::stringstream tmp;
     tmp << bodyStream.rdbuf();
-    // <bodyStream>
-
-    //TODO: detect mime types
-    //headers += "Content-Type: text/html\r\n";
-    //std::string body = bodyStream.rdbuf()->str(); 
-    //ConfigFile::toNumber();
-
     contentLength << "Content-Length: " << tmp.str().size() << "\r\n";
     headers += contentLength.str();
     headers += "\r\n";
 
-    std::cout << "body is : " << tmp.str() << std::endl;
-    
     std::string response = statusLine + headers + tmp.str();
 
     //TODO: check for fails in send
@@ -381,21 +410,6 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 /*    return 0;*/
 /*}*/
 /**/
-/*void Server::removeClient(Selector& selector, int client_socket)*/
-/*{*/
-/**/
-/*    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, client_socket, NULL) == -1)*/
-/*    {*/
-/*        perror("epoll_ctl: remove eventFd");*/
-/*        std::cerr << "Failed to remove eventFd: " << client_socket << ", errno: " << errno << std::endl;*/
-/*        exit(1);*/
-/*    }*/
-/*    std::cout << "Removed clientSocket: " << client_socket << std::endl;*/
-/*    selector.getClientConfig().erase(client_socket);*/
-/*    selector.getActiveClients().erase(client_socket);*/
-/*    selector.getRequests().erase(client_socket);*/
-/*    close(client_socket);*/
-/*}*/
 
 Server::Server( const Server &other )
 {

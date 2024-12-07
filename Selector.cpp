@@ -145,6 +145,38 @@ bool Selector::isResponsePipe(int event_fd) const
     return (false);
 }
 
+bool Selector::isRequestChunked(int clientFd)
+{
+    std::string request = selector.getRequests()[clientFd];
+    size_t found = request.find("Transfer-Encoding: chunked");
+    return (found != std::string::npos);
+}
+
+bool Selector::isHeadersEnd(int clientFd)
+{
+    static const std::string    RequestHeaderEnding = "\r\n\r\n";
+
+    std::string request = selector.getRequests()[clientFd];
+    size_t pos = selector.getRequests()[clientFd].find(RequestHeaderEnding);
+    return (pos != std::string::npos); 
+}
+
+size_t Selector::getBodyContentLength(int clientFd)
+{
+    std::string contentLenStr = "Content-Length: "; 
+    std::string request = selector.getRequests()[clientFd];
+    size_t pos = request.find(contentLenStr);
+    if (pos != std::string::npos)
+    {
+        std::stringstream ss(request.substr(pos + contentLenStr.size()));
+        size_t num;
+        ss >> num;
+        return (num);
+    }
+    return (pos);
+
+}
+
 void Selector::setClientFdEvent(int event_fd, int action)
 {
     struct epoll_event info; 
@@ -161,6 +193,7 @@ void Selector::setClientFdEvent(int event_fd, int action)
         close(event_fd);
     }
 }
+
 
 
 void Selector::removeClient(int clientSocket)
