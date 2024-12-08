@@ -6,11 +6,11 @@
 #    By: glacroix <PGCL>                            +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/11/10 18:04:52 by glacroix         ###   ########.fr        #
+#    Updated: 2024/12/08 13:59:25 by glacroix         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-NAME        = webserver
+NAME        = webserv
 SRCSDIR     = .
 INCLUDES    = .
 OBJDIR      = .obj
