@@ -136,24 +136,12 @@ std::string HttpRequest::forbidden(void)
 	
 }
 
-std::string HttpRequest::redirection(Route *route)
-{
-    //this->configServer->
-
-
-	const std::string statusLine = "HTTP/1.1 301 Forbidden\r\n";
-	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/403.html");
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	headers += "Connection: close\r\n\r\n";
-	return statusLine + headers + body + "\r\n";
-}
-
 #endif
 
 HttpRequest::HttpRequest(void) 
 {
-    //TODO: execption if it fails
+    //TODO: exception if it fails
+    this->headers["connection"] = "keep-alive";
     pipe(_bodyPipe);
 }
 
@@ -203,11 +191,7 @@ StatusCode HttpRequest::parseStartLine(void)
 
 	for (size_t i = 0; i < 3; i += 1)
 	{
-        std::cout << "which method: " << i << std::endl;
 		std::string token = this->tokenizer.next(HttpRequest::delim);
-		
-		std::cerr << "token -> " << token << std::endl;
-
 		this->statusCode  = (this->*calls[i])(token);
 		// TODO: make sure this condition is correct.
 		if (this->statusCode != OK) return this->statusCode;
@@ -550,6 +534,7 @@ void	HttpRequest::parse(void)
 		 *  	 server should take client_body_max_size characters.
 		 *		 rest of the body request should start parsing it again as new request!!
 		 * */
+    
 
 
 	this->parseBody();
@@ -568,6 +553,31 @@ std::string	fileUpload(std::string const &body, std::string const &filename)
 	std::cout << "filename: " << filename << std::endl;
 
 	return std::string("HTTP/1.1 201 Created\r\n\r\n");	
+}
+
+std::string HttpRequest::DELETEmethod(const std::string &pathname)
+{
+    std::string statusLine = this->getStatusLine(NCONTENT);
+	std::string headers = "Server: webserv/0.42\r\n";
+	std::string body;/*HttpRequest::readFile("./err_pages/400.html")*/;
+
+    /*if ((access(pathname.c_str(), F_OK) == -1))
+    {
+        statusLine = this->getStatusLine(NCONTENT);
+    }
+    else
+    {
+    }*/
+    std::remove(pathname.c_str());
+	headers += "Connection: keep-alive\r\n\r\n";
+        
+    std::cout << "{\n";
+    std::cout << statusLine << headers << body << std::endl;
+    std::cout << "}\n";
+
+
+
+	return statusLine + headers + body + "\r\n";
 }
 
 std::string	HttpRequest::handler(Selector& selector, int clientFd)
@@ -592,7 +602,8 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
         if (this->statusCode == OK)
             return response;
     }
-    std::cout << "Status code: " << this->statusCode << std::endl;
+        std::cout << "Status code: " << this->statusCode << std::endl;
+    
 
 	switch (this->statusCode)
 	{
@@ -601,11 +612,12 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
         case SERVERR : response = serverError(); break;
 		case NALLOWED: response = notAllowed("Allow: GET, POST, DELETE"); break;
 		case OK:
+            std::cout << "we are here: " << this->method << std::endl;
 			switch (this->method)
 			{
 				case GET:    response = this->GETmethod(this->path, route);  break;
 				case POST:   response = this->POSTmethod(this->path);	break;
-				case DELETE: std::invalid_argument("NOT IMPLEMENTED - DELETE"); break;
+				case DELETE: response = this->DELETEmethod(this->path); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
 			}
 			break;
@@ -683,7 +695,7 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 
 /* ---------- HTTP METHODS -------- */
 
-std::string getStatusLine(StatusCode statusCode)
+std::string HttpRequest::getStatusLine(StatusCode statusCode)
 {
     std::map<StatusCode, std::string> statusPhrases;
     const std::string protocolHTTP = "HTTP/1.1";
@@ -698,6 +710,7 @@ std::string getStatusLine(StatusCode statusCode)
 	statusPhrases[CTOOLARGE] = "413 Content Too Large";
     statusPhrases[SERVERR]  = "500 Internal Server Error";
 	statusPhrases[NSUPPORTED] = "505 Not Supported";
+    statusPhrases[NCONTENT] = "204 No Content";
 
     return protocolHTTP + " " + statusPhrases[statusCode] + "\r\n"; 
 }
@@ -707,40 +720,30 @@ std::string	HttpRequest::GETmethod(std::string &pathname, Route *route)
     std::string statusLine  = getStatusLine(OK);
     std::string headers     = "Server: webserver/0.42\r\n";
 
-    //std::cout << "redi size: " << route->getRedirection().size() << std::endl;
-    //std::cout << "route path: " << route->path << std::endl;
-    //THROW("stop");
-    
-    /*HTTP/1.1 301 Moved Permanently
-Server: nginx/1.27.3
-Date: Sat, 07 Dec 2024 16:23:36 GMT
-Content-Type: text/html
-Content-Length: 169
-Connection: keep-alive
-Location: https://www.42madrid.com*/
-
-
     std::string body;
     if (route && route->getRedirection().size() != 0)
     {
         std::map<StatusCode, std::string>::iterator it = route->getRedirection().begin();
         statusLine = getStatusLine(it->first);
         if (it->first == MVPERMANENT || it->first == FOUND)
+        {
             headers += "Location: " + it->second + "\r\n";
+            pathname = "./err_pages/" + HttpRequest::toString(it->first) + ".html";
+        }
         else
         {
             headers += "Content-Type: application/octet-stream\r\n"; 
             body = it->second;
         }
-        pathname = "./err_page/" + HttpRequest::toString(it->first) + ".html";
     }
     else
     {
-        body = HttpRequest::readFile(pathname.c_str());
         headers += "Content-Type: "   + HttpRequest::getMimeType(pathname) + "\r\n";
     }
+
+    body = HttpRequest::readFile(pathname.c_str());
+    headers += "Connection: " + this->headers["connection"] + "\r\n";
     headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n\r\n";
-    
     return statusLine + headers + body;
 }
 
