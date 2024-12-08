@@ -134,6 +134,10 @@ public:
     std::string getCgiPath(void);
     std::string getCgiScriptName(void);
 
+    void clear() {
+        this->redirection.clear();
+    }
+
     bool isCgi(void);
 };
 

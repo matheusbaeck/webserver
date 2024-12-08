@@ -379,6 +379,7 @@ void	ConfigServer::parseRoute(void)
         route.redirection = this->redirection;
 	}
 
+
 	this->tokenizer->trim();
 
 	if (this->tokenizer->peek() == '#')
@@ -507,7 +508,7 @@ void	ConfigServer::parse(void)
 
 void	ConfigServer::clear(void)
 {
-		
+
 }
 
 /* ------------- Getters --------------- */
@@ -633,6 +634,7 @@ void	Route::parseMethods(void)
 
 void	Route::parseRedirection(void)
 {
+    this->redirection.clear();
     std::string key, value;
 
 	this->tokenizer->trim();
@@ -672,11 +674,13 @@ void	Route::parseRedirection(void)
     StatusCode statusCode = static_cast<StatusCode>(ConfigFile::toNumber(key));
     this->redirection[statusCode] = value;
 
-    std::cout << "statusCode: " << statusCode << std::endl;
-    std::cout << "value: " << value << std::endl;
-	//this->redirection[] = value;
 	this->tokenizer->trim();
 	this->tokenizer->expected(';', ConfigFile::delim);
+
+
+    std::cout << "route.path: " <<  this->path << std::endl;
+    std::cout << "redi key   : " << this->redirection.begin()->first << std::endl;
+    std::cout << "redi value : " << this->redirection.begin()->first << std::endl;
 }
 
 void	Route::parseAutoIndex(void)

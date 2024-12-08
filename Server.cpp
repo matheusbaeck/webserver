@@ -148,7 +148,6 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     }
     //is there a body
     size_t contentLength = selector.getBodyContentLength(clientFD);
-    std::cout << "Content-Length: " << contentLength << std::endl;
     if (contentLength != std::string::npos)
     {
     

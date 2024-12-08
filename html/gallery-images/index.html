@@ -1,3 +1,128 @@
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Gallery</title>
+    <style>
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .gallery img {
+            max-width: 200px;
+            height: 200px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .form-dev form {
+            max-width: 500px;
+            padding: 10px;
+            border: 1px solid black;
+            display: flex;
+            justify-conetnet: space-between;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Image Gallery</h1>
+<div class="gallery" id="gallery"></div>
+
+<div class="form-dev">
+    <form id="uploadForm" method="post", enctype="multipart/form-data">
+        <label for="fileupload"></label>
+        <input type="file" id="fileupload" name="file" /><br/>
+        <input id="submit" type="submit" value="upload" />
+    </form>
+</div>
+
+<script>
+
+    const gallery = document.getElementById('gallery');
+    const uploadForm  = document.getElementById('uploadForm');
+
+    // Fetch image URLs from the server (the CGI script)
+    function getImages() {
+        fetch('http://localhost:2525/cgi/get-images.py')
+            .then(response => response.json())
+            .then(data => {
+                if (data.images.length === 0) {
+                    const p = document.createElement('p');
+                    const text = document.createTextNode("No Images on the server");
+                    p.appendChild(text);
+                    gallery.appendChild(p);
+                }
+                else {
+                    data.images.forEach(url => {
+                        // Create a container div for each image and its button
+                        const container = document.createElement('div');
+                        container.style.display = 'inline-block';
+                        container.style.textAlign = 'center';
+                        container.style.margin = '10px';
+
+                        // Create the image element
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = url.split('/').pop();
+                        img.style.width = '200px';
+
+                        // Create the delete button
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = 'Delete';
+                        deleteButton.style.display = 'block';
+                        deleteButton.style.marginTop = '5px';
+
+                        // Add a click event to handle delete functionality
+                        deleteButton.addEventListener('click', () => {
+                            fetch(img.src, { method: 'DELETE' })
+                                .then(result => {
+                                    if (result.status === 204) {
+                                        // Remove the alt attribute before removing the container
+                                        location.reload();
+                                        img.removeAttribute('alt');
+                                        gallery.removeChild(container);
+                                    }
+                                })
+                        });
+
+                        // Append the image and button to the container
+                        container.appendChild(img);
+                        container.appendChild(deleteButton);
+
+                        // Append the container to the gallery
+                        gallery.appendChild(container);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching images:', error);
+            });
+    }
+
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(uploadForm);
+        console.log(formData);
+            const response = await fetch('http://localhost:2525/cgi/upload-file.py', {
+                method: 'POST',
+                body: formData,
+            });
+            //if (ressonse.status === 201)
+                getImages();
+
+    });;
+
+    getImages();
+    
+
+</script>
+
+</body>
+</html>-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,72 +141,111 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
+        .form-dev form {
+            max-width: 500px;
+            padding: 10px;
+            border: 1px solid black;
+            display: flex;
+            justify-content: space-between;
+        }
     </style>
 </head>
 <body>
 
 <h1>Image Gallery</h1>
 <div class="gallery" id="gallery"></div>
+
+<div class="form-dev">
+    <form id="uploadForm" method="post" enctype="multipart/form-data">
+        <label for="fileupload"></label>
+        <input type="file" id="fileupload" name="file" accept="image/*" required /><br/>
+        <input id="submit" type="submit" value="Upload" />
+    </form>
+</div>
+
 <script>
     const gallery = document.getElementById('gallery');
+    const uploadForm = document.getElementById('uploadForm');
 
-    // Fetch image URLs from the server (the CGI script)
-    fetch('http://localhost:2525/cgi/get-images.py')
-        .then(response => response.json())
-        .then(data => {
-            if (data.images.length === 0) {
-                const p = document.createElement('p');
-                const text = document.createTextNode("No Images on the server");
-                p.appendChild(text);
-                gallery.appendChild(p);
-            }
-            else {
-                data.images.forEach(url => {
-                    // Create a container div for each image and its button
-                    const container = document.createElement('div');
-                    container.style.display = 'inline-block';
-                    container.style.textAlign = 'center';
-                    container.style.margin = '10px';
+    // Fetch image URLs from the server
+    function getImages() {
+        fetch('http://localhost:2525/cgi/get-images.py')
+            .then(response => response.json())
+            .then(data => {
+                gallery.innerHTML = ''; // Clear the gallery before adding new images
+                if (data.images.length === 0) {
+                    const p = document.createElement('p');
+                    const text = document.createTextNode("No Images on the server");
+                    p.appendChild(text);
+                    gallery.appendChild(p);
+                } else {
+                    data.images.forEach(url => {
+                        // Create a container div for each image and its button
+                        const container = document.createElement('div');
+                        container.style.display = 'inline-block';
+                        container.style.textAlign = 'center';
+                        container.style.margin = '10px';
 
-                    // Create the image element
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.alt = url.split('/').pop();
-                    img.style.width = '200px';
+                        // Create the image element
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = url.split('/').pop();
+                        img.style.width = '200px';
 
-                    // Create the delete button
-                    const deleteButton = document.createElement('button');
-                    deleteButton.textContent = 'Delete';
-                    deleteButton.style.display = 'block';
-                    deleteButton.style.marginTop = '5px';
+                        // Create the delete button
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = 'Delete';
+                        deleteButton.style.display = 'block';
+                        deleteButton.style.marginTop = '5px';
 
-                    // Add a click event to handle delete functionality
-                    deleteButton.addEventListener('click', () => {
-                        fetch(img.src, { method: 'DELETE' })
-                            .then(result => {
-                                if (result.status === 204) {
-                                    // Remove the alt attribute before removing the container
-                                    location.reload();
-                                    img.removeAttribute('alt');
-                                    gallery.removeChild(container);
-                                }
-                            })
+                        // Add a click event to handle delete functionality
+                        deleteButton.addEventListener('click', () => {
+                            fetch(img.src, { method: 'DELETE' })
+                                .then(result => {
+                                    if (result.status === 204) {
+                                        // Reload the gallery after deletion
+                                        getImages();
+                                    }
+                                });
+                        });
+
+                        // Append the image and button to the container
+                        container.appendChild(img);
+                        container.appendChild(deleteButton);
+
+                        // Append the container to the gallery
+                        gallery.appendChild(container);
                     });
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching images:', error);
+            });
+    }
 
-                    // Append the image and button to the container
-                    container.appendChild(img);
-                    container.appendChild(deleteButton);
-
-                    // Append the container to the gallery
-                    gallery.appendChild(container);
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching images:', error);
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(uploadForm);
+        const response = await fetch('http://localhost:2525/cgi/upload-file.py', {
+            method: 'POST',
+            body: formData,
         });
+
+        if (response.ok) {
+            // Reload the images after successful upload
+            getImages();
+            uploadForm.reset(); // Reset the form after upload
+        } else {
+            console.error('Upload failed:', response.statusText);
+        }
+    });
+
+    // Initial fetch of images
+    getImages();
 </script>
 
 </body>
 </html>
+
 

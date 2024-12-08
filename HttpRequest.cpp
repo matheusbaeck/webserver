@@ -582,12 +582,15 @@ std::string HttpRequest::DELETEmethod(const std::string &pathname)
 
 std::string	HttpRequest::handler(Selector& selector, int clientFd)
 {
+
+
 	std::string response;
 	std::string cgiResponse;
 
 
 	this->parse();
 	Route *route = this->configServer->getRoute(this->path);
+    std::cout << "size: " << route->getRedirection().size() << std::endl;
     std::cout << "path is: " << path << std::endl;
     if (!route)
     {
