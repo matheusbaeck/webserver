@@ -786,19 +786,28 @@ std::pair<std::string, std::string> HttpRequest::readBodyContent()
 
     std::getline(body, boundary); 
     int nbDashes = boundary.find_last_of('-') + 1;
-    boundary = boundary.substr(nbDashes - 2);
-    const std::string endBoundary(boundary + "--");
+    boundary = boundary.substr(nbDashes, boundary.find('\r'));
 
     while (std::getline(body, line))
     {
+        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
         if (line.find("Content-Disposition") != std::string::npos ||  line.find("Content-Type") != std::string::npos)
         {
             if (line.find("Content-Disposition") != std::string::npos)
                 fileName = extractFileName(line);
         }
-        else if (line.find(endBoundary) == std::string::npos)
+        else if (line.find(boundary) != std::string::npos)
+        {
+            std::cout << "on est la" << std::endl;
+            break;
+        }
+        else 
             fileContent += line + "\n";
     }
+    std::cout << "----------------------------------------\n";
+    std::cout << fileContent << std::endl;
+    std::cout << "----------------------------------------\n";
+    exit(1);
     return std::pair<std::string, std::string>(fileName, fileContent);
 }
 
@@ -834,7 +843,7 @@ std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
     std::string filePath = pathname + fileName;
     std::cout << filePath << std::endl;
     
-    std::ofstream newFile(filePath.c_str(), std::ios::out);
+    std::ofstream newFile(filePath.c_str(), std::ios::out | std::ios::binary);
     if (newFile.is_open())
     {
         newFile << fileContent;
