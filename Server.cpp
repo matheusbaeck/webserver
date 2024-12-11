@@ -196,7 +196,7 @@ int Server::sendResponse(Selector& selector, int client_socket, std::string requ
     writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
     std::string response = incomingRequestHTTP->handler(selector, client_socket);
     int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
-    if (sent_bytes < 0) 
+    if (sent_bytes < 0 || incomingRequestHTTP->getStatusCode() == CTOOLARGE) 
     {
         selector.removeClient(client_socket);
         delete incomingRequestHTTP;
@@ -246,6 +246,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     /*    }*/
     /*}*/
 
+    //TODO: for chunked data, implement vector of chars for scriptResponse
     bytesRead = read(eventFd, buffer, sizeof(buffer));
     std::cout << "buffer size: " << bytesRead << std::endl;
     std::cout << "buffer: " << buffer << std::endl;

@@ -135,6 +135,16 @@ std::string HttpRequest::forbidden(void)
 	return statusLine + headers + body + "\r\n";
 }
 
+
+std::string HttpRequest::payloadTooLarge(void)
+{
+	const std::string statusLine = "HTTP/1.1 413 Payload Too Large\r\n";
+	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	std::string body    = HttpRequest::readFile("./err_pages/413.html");
+	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+	headers += "Connection: close\r\n\r\n";
+	return statusLine + headers + body + "\r\n";
+}
 	
 
 #endif
@@ -375,16 +385,22 @@ StatusCode HttpRequest::parseBody(void)
 		return BREQUEST;
 
 	// TODO: be careful from overflow
-	const size_t size = ConfigFile::toNumber(this->headers["content-length"]);
+	this->body->size = ConfigFile::toNumber(this->headers["content-length"]);
+    
     //IF size > client-max-body-size then statusCode is 413 
-    /*if (size > */
+    std::cout << "bodysize: " << this->body->size << std::endl;
+    std::cout << "MaxclientSize: " << this->configServer->getClientMaxBodySize() << std::endl;
 
-	if (size == 0)
-		return BREQUEST;
+    if (this->body->size == 0)
+        return BREQUEST;
 
-	char body[size + 1];
-	this->tokenizer.get(body, size + 1, '\0');
-	body[size] = '\0';
+    if (this->body->size > this->configServer->getClientMaxBodySize())
+        return CTOOLARGE; 
+
+    char body[this->body->size + 1];
+    this->tokenizer.get(body, this->body->size + 1, '\0');
+    body[this->body->size] = '\0';
+
 
 	if (this->headers.find("content-type") == this->headers.end())
 		return BREQUEST;
@@ -535,7 +551,7 @@ void	HttpRequest::parse(void)
     
 
 
-	this->parseBody();
+	this->statusCode = this->parseBody();
 
 	/* -----------   generate response  ----------- */
 
@@ -592,7 +608,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
         exit(1);
     }
-    if (route && route->isCgi())
+    if (this->statusCode != OK && route->isCgi())
     {
 		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
 		this->statusCode = handler->execute(selector, clientFd, this->_bodyPipe[0]);
@@ -609,6 +625,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 		case NFOUND  : response = notFound();   break;
         case SERVERR : response = serverError(); break;
 		case NALLOWED: response = notAllowed("Allow: GET, POST, DELETE"); break;
+        case CTOOLARGE: response = payloadTooLarge(); break;
 		case OK:
 			switch (this->method)
 			{
@@ -837,22 +854,44 @@ std::string HttpRequest::createdFile(std::string filename)
 
 std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
 {
-    std::string fileName = this->readBodyContent().first;
-    std::cout << fileName << std::endl;
-    std::string fileContent = this->readBodyContent().second;
-    std::string filePath = pathname + fileName;
-    std::cout << filePath << std::endl;
-    
-    std::ofstream newFile(filePath.c_str(), std::ios::out | std::ios::binary);
-    if (newFile.is_open())
-    {
-        newFile << fileContent;
-        newFile.close();
-        return HttpRequest::createdFile(fileName);
-    }
-    else
-        return HttpRequest::badRequest();
+    /*std::string fileName = this->readBodyContent().first;*/
+    /*std::cout << fileName << std::endl;*/
+    /*std::string fileContent = this->readBodyContent().second;*/
+    /*std::string filePath = pathname + fileName;*/
+    /*std::cout << filePath << std::endl;*/
+    /**/
+    /*std::ofstream newFile(filePath.c_str(), std::ios::out | std::ios::binary);*/
+    /*if (newFile.is_open())*/
+    /*{*/
+    /*    newFile << fileContent;*/
+    /*    newFile.close();*/
+    /*    return HttpRequest::createdFile(fileName);*/
+    /*}*/
+    /*else*/
+    /*    return HttpRequest::badRequest();*/
         
+    std::cout << "pathname: " << pathname << std::endl;
+    std::cout<< *this->body->raw << std::endl;
+    exit(1);
+
+    /*std::ifstream inputFile(pathname, std::ios::binary);*/
+    /*if (!inputFile.is_open()) {*/
+    /*    throw std::runtime_error("Failed to open file: " + pathname);*/
+    /*}*/
+    /**/
+    /*// Get file size*/
+    /*inputFile.seekg(0, std::ios::end);*/
+    /*size_t fileSize = inputFile.tellg();*/
+    /*inputFile.seekg(0, std::ios::beg);*/
+    /**/
+    /*// Allocate memory and read*/
+    /*std::vector<char> buffer(fileSize);*/
+    /*inputFile.read(buffer.data(), fileSize);*/
+    /*inputFile.close();*/
+
+    /*return buffer;*/
+    return"";
+
 }
 
 std::string HttpRequest::POSTmethod(const std::string &pathname)
