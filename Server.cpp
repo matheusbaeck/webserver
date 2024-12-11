@@ -18,7 +18,9 @@ Server::Server(ConfigServer &configServer)
 
         this->_addrs.push_back(element);
         this->_addrlens.push_back(sizeof(*this->getAddr(i)));
-        this->create_server_socket(i);
+    
+        if (this->create_server_socket(i) == -1)
+            throw std::runtime_error("Error when creating socket");
    }
 }
 
@@ -67,7 +69,7 @@ int Server::create_server_socket(int pos)
 	{
 		std::cerr << "Couldn't bind socket " << this->_serv_sockets[pos] 
                     << " to port " << this->_serv_ports[pos] << ": " << strerror(errno) << std::endl;
-		exit(1);
+		return (-1);
 	}
 	std::cout << "socket on fd " << this->_serv_sockets[pos] 
                 << " bound to " << this->_serv_ports[pos] << ": " << strerror(errno)<< std::endl;
