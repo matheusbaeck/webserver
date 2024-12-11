@@ -8,7 +8,8 @@
 enum Type {NOTSET, RAW, URLENCODED, MULTIPART, JSON};
 struct BodyRequest
 {
-	enum Type type;
+	enum Type   type;
+    size_t      size;
 	union {
 		std::string *raw;
 		std::map<std::string, std::string> *urlencoded;
@@ -110,6 +111,8 @@ public:
     static std::string serverError();
     static std::string notFound();
     static std::string badRequest();
+    static std::string payloadTooLarge();
+    static std::string createdFile(std::string filename);
     
     std::string getStatusLine(StatusCode statusCode);
 
@@ -127,19 +130,19 @@ public:
 
 	// body
 	StatusCode	parseBody(void);
+    std::string extractFileName(const std::string& line);
+    std::pair<std::string, std::string> readBodyContent();
 
 	void		parse(void);
 
 	std::string handler(Selector& selector, int clientFd);
-	//void	handler(void);
 
-	//std::string	GETmethod(const std::string &pathname);
-    
 	std::string	GETmethod(std::string &pathname, Route *route);
 	std::string	DELETEmethod(const std::string &pathname);
 	std::string	POSTmethod(const std::string &pathname);
 	std::string POSTmethodRAW(const std::string &pathname);
 	std::string POSTmethodURLENCODED(const std::string &pathname);
+    std::string POSTmethodMULTIPART(const std::string& pathname);
 
 
 

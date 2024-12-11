@@ -133,8 +133,19 @@ std::string HttpRequest::forbidden(void)
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
 	headers += "Connection: close\r\n\r\n";
 	return statusLine + headers + body + "\r\n";
-	
 }
+
+
+std::string HttpRequest::payloadTooLarge(void)
+{
+	const std::string statusLine = "HTTP/1.1 413 Payload Too Large\r\n";
+	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	std::string body    = HttpRequest::readFile("./err_pages/413.html");
+	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+	headers += "Connection: close\r\n\r\n";
+	return statusLine + headers + body + "\r\n";
+}
+	
 
 #endif
 
@@ -374,14 +385,22 @@ StatusCode HttpRequest::parseBody(void)
 		return BREQUEST;
 
 	// TODO: be careful from overflow
-	const size_t size = ConfigFile::toNumber(this->headers["content-length"]);
+	this->body->size = ConfigFile::toNumber(this->headers["content-length"]);
+    
+    //IF size > client-max-body-size then statusCode is 413 
+    std::cout << "bodysize: " << this->body->size << std::endl;
+    std::cout << "MaxclientSize: " << this->configServer->getClientMaxBodySize() << std::endl;
 
-	if (size == 0)
-		return BREQUEST;
+    if (this->body->size == 0)
+        return BREQUEST;
 
-	char body[size + 1];
-	this->tokenizer.get(body, size + 1);
-	body[size] = '\0';
+    if (this->body->size > this->configServer->getClientMaxBodySize())
+        return CTOOLARGE; 
+
+    char body[this->body->size + 1];
+    this->tokenizer.get(body, this->body->size + 1, '\0');
+    body[this->body->size] = '\0';
+
 
 	if (this->headers.find("content-type") == this->headers.end())
 		return BREQUEST;
@@ -414,14 +433,9 @@ StatusCode HttpRequest::parseBody(void)
 		this->body->type = RAW;
 		this->body->raw = new std::string(body);
 	}
-	else if (contentType == "multipart/form-data")
+	else if (contentType.find("multipart/form-data") != std::string::npos)
 	{
 		this->body->type = MULTIPART;
-		this->body->raw = new std::string(body);
-	}
-	else if (contentType == "application/json")
-	{
-		this->body->type = JSON;
 		this->body->raw = new std::string(body);
 	}
 	return OK;
@@ -536,9 +550,10 @@ void	HttpRequest::parse(void)
 		 * */
     
 
-
-	this->parseBody();
-
+	if (this->statusCode == OK)
+    {
+	    this->statusCode = this->parseBody();
+    }
 	/* -----------   generate response  ----------- */
 
 }
@@ -585,16 +600,16 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 	std::string response;
 	std::string cgiResponse;
 
-
 	this->parse();
 	Route *route = this->configServer->getRoute(this->path);
+    std::cout << "size: " << route->getRedirection().size() << std::endl;
     std::cout << "path is: " << path << std::endl;
     if (!route)
     {
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
         exit(1);
     }
-    if (route && route->isCgi())
+    if (this->statusCode != OK && route->isCgi())
     {
 		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
 		this->statusCode = handler->execute(selector, clientFd, this->_bodyPipe[0]);
@@ -611,12 +626,12 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 		case NFOUND  : response = notFound();   break;
         case SERVERR : response = serverError(); break;
 		case NALLOWED: response = notAllowed("Allow: GET, POST, DELETE"); break;
+        case CTOOLARGE: response = payloadTooLarge(); break;
 		case OK:
-            std::cout << "we are here: " << this->method << std::endl;
 			switch (this->method)
 			{
 				case GET:    response = this->GETmethod(this->path, route);  break;
-				case POST:   response = this->POSTmethod(this->path);	break;
+				case POST:   response = this->POSTmethod(this->path);    break;
 				case DELETE: response = this->DELETEmethod(this->path); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
 			}
@@ -768,29 +783,120 @@ std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname)
 	return bodyStream.str();
 }
 
+// ----------------------------------59564165165461143
+// header
+// header
+// \r\n\r\n
+// content
+// conttent
+// content
+// \r\n\r\n
+// ----------------------------------59564165165461143
+
+std::pair<std::string, std::string> HttpRequest::readBodyContent()
+{
+    std::stringstream   body(*(this->body->raw));
+    const std::string   headersEnding("\r\n\r\n");
+    std::string         boundary;
+    std::string         fileContent;
+    std::string         fileName;
+    std::string         line;
+
+    std::getline(body, boundary); 
+    int nbDashes = boundary.find_last_of('-') + 1;
+    boundary = boundary.substr(nbDashes, boundary.find('\r'));
+
+    while (std::getline(body, line))
+    {
+        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+        if (line.find("Content-Disposition") != std::string::npos ||  line.find("Content-Type") != std::string::npos)
+        {
+            if (line.find("Content-Disposition") != std::string::npos)
+                fileName = extractFileName(line);
+        }
+        else if (line.find(boundary) != std::string::npos)
+        {
+            std::cout << "on est la" << std::endl;
+            break;
+        }
+        else 
+            fileContent += line + "\n";
+    }
+    std::cout << "----------------------------------------\n";
+    std::cout << fileContent << std::endl;
+    std::cout << "----------------------------------------\n";
+    exit(1);
+    return std::pair<std::string, std::string>(fileName, fileContent);
+}
+
+std::string HttpRequest::extractFileName(const std::string& line)
+{
+    const std::string   needle("filename=\"");
+    std::string         fileName;
+
+    size_t start = line.find(needle);
+    size_t end = line.find_last_of("\"");
+
+    if (start != std::string::npos)
+    {
+        fileName = line.substr(needle.size() + start, end - (needle.size() + start));
+    }
+    return fileName;
+}
+
+
+std::string HttpRequest::createdFile(std::string filename)
+{
+	const std::string statusLine = "HTTP/1.1 201 Created\r\n";
+	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+    headers += "\t\"filename\": " + filename + "\r\n";
+	return statusLine + headers + "\r\n";
+}
+
+std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
+{
+    /*std::string fileName = this->readBodyContent().first;*/
+    /*std::cout << fileName << std::endl;*/
+    /*std::string fileContent = this->readBodyContent().second;*/
+    /*std::string filePath = pathname + fileName;*/
+    /*std::cout << filePath << std::endl;*/
+    /**/
+    /*std::ofstream newFile(filePath.c_str(), std::ios::out | std::ios::binary);*/
+    /*if (newFile.is_open())*/
+    /*{*/
+    /*    newFile << fileContent;*/
+    /*    newFile.close();*/
+    /*    return HttpRequest::createdFile(fileName);*/
+    /*}*/
+    /*else*/
+    /*    return HttpRequest::badRequest();*/
+        
+    std::cout << "pathname: " << pathname << std::endl;
+    std::cout<< *this->body->raw << std::endl;
+    exit(1);
+
+    /*std::ifstream inputFile(pathname, std::ios::binary);*/
+    /*if (!inputFile.is_open()) {*/
+    /*    throw std::runtime_error("Failed to open file: " + pathname);*/
+    /*}*/
+    /**/
+    /*// Get file size*/
+    /*inputFile.seekg(0, std::ios::end);*/
+    /*size_t fileSize = inputFile.tellg();*/
+    /*inputFile.seekg(0, std::ios::beg);*/
+    /**/
+    /*// Allocate memory and read*/
+    /*std::vector<char> buffer(fileSize);*/
+    /*inputFile.read(buffer.data(), fileSize);*/
+    /*inputFile.close();*/
+
+    /*return buffer;*/
+    return"";
+
+}
+
 std::string HttpRequest::POSTmethod(const std::string &pathname)
 {
-	/*
-	post is just echooing all it reiceves
-	instead should
-	if (URLENCODED)
-	{
-		execute cgi passing map as input (cgi.run(map))
-	}
-	if(MULTIPART)
-	{
-		save as a file with some name in the route location 
-	}
-	if(RAW)
-	{
-		No idea (we can just echo it)
-	}
-	if (JSON)
-	{
-		i think this is no mandatory
-	}
-	TODO:pass map to form
-	*/
 	std::string statusLine = "HTTP/1.1 200 OK\r\n";
     std::string headers    = "Server: webserver/0.42\r\n";
     headers += "Content-Type: text/plain\r\n";
@@ -802,7 +908,7 @@ std::string HttpRequest::POSTmethod(const std::string &pathname)
 	{
 		case RAW:			response = POSTmethodRAW(pathname); break;
 		case URLENCODED:	response = POSTmethodURLENCODED(pathname); break;
-		case MULTIPART:		std::invalid_argument("NOT IMPLEMENTED - POST multipart/form-data"); break;
+		case MULTIPART:		response = POSTmethodMULTIPART(pathname); break;
 		case JSON:			std::invalid_argument("NOT IMPLEMENTED - POST application/json"); break;
 		default:			std::invalid_argument("NOT IMPLEMENTED - POST type not found"); break;
 	}

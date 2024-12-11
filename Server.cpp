@@ -18,7 +18,9 @@ Server::Server(ConfigServer &configServer)
 
         this->_addrs.push_back(element);
         this->_addrlens.push_back(sizeof(*this->getAddr(i)));
-        this->create_server_socket(i);
+    
+        if (this->create_server_socket(i) == -1)
+            throw std::runtime_error("Error when creating socket");
    }
 }
 
@@ -67,7 +69,7 @@ int Server::create_server_socket(int pos)
 	{
 		std::cerr << "Couldn't bind socket " << this->_serv_sockets[pos] 
                     << " to port " << this->_serv_ports[pos] << ": " << strerror(errno) << std::endl;
-		exit(1);
+		return (-1);
 	}
 	std::cout << "socket on fd " << this->_serv_sockets[pos] 
                 << " bound to " << this->_serv_ports[pos] << ": " << strerror(errno)<< std::endl;
@@ -148,7 +150,6 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     }
     //is there a body
     size_t contentLength = selector.getBodyContentLength(clientFD);
-    std::cout << "Content-Length: " << contentLength << std::endl;
     if (contentLength != std::string::npos)
     {
     
@@ -197,7 +198,7 @@ int Server::sendResponse(Selector& selector, int client_socket, std::string requ
     writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
     std::string response = incomingRequestHTTP->handler(selector, client_socket);
     int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
-    if (sent_bytes < 0) 
+    if (sent_bytes < 0 || incomingRequestHTTP->getStatusCode() == CTOOLARGE) 
     {
         selector.removeClient(client_socket);
         delete incomingRequestHTTP;
@@ -247,6 +248,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     /*    }*/
     /*}*/
 
+    //TODO: for chunked data, implement vector of chars for scriptResponse
     bytesRead = read(eventFd, buffer, sizeof(buffer));
     std::cout << "buffer size: " << bytesRead << std::endl;
     std::cout << "buffer: " << buffer << std::endl;
