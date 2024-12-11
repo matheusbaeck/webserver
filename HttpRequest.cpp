@@ -550,9 +550,10 @@ void	HttpRequest::parse(void)
 		 * */
     
 
-
-	this->statusCode = this->parseBody();
-
+	if (this->statusCode == OK)
+    {
+	    this->statusCode = this->parseBody();
+    }
 	/* -----------   generate response  ----------- */
 
 }
