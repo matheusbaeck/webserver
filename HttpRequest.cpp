@@ -609,7 +609,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
         exit(1);
     }
-    if (this->statusCode != OK && route->isCgi())
+    if (this->statusCode == OK && route->isCgi())
     {
 		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
 		this->statusCode = handler->execute(selector, clientFd, this->_bodyPipe[0]);
