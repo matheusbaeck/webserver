@@ -3,8 +3,6 @@
 
 import sys
 
-sys.stderr.write("Debug: CGI script is executing successfully.\n")
-sys.stderr.flush()  # Ensure the message is flushed to stderr
 # Write standard HTTP response to stdout
 print("Content-Type: text/html")
 print("")

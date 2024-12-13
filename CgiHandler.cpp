@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/07 13:12:38 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/13 15:31:55 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -99,7 +99,6 @@ void waitMicroseconds(long microseconds)
 
 StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
 {
-
     cgiProcessInfo* cgiInfo = new cgiProcessInfo();
 
     // Assign to CgiHandlerInfo
@@ -133,11 +132,11 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
 
         dup2(bodyPipe, STDIN_FILENO); // CGI reads from inputPipe
         dup2(cgiInfo->_pipe[1], STDOUT_FILENO); // CGI writes to pipe
+        dup2(cgiInfo->_pipe[1], STDERR_FILENO); // CGI error writes to pipe
         close(cgiInfo->_pipe[0]);
         close(cgiInfo->_pipe[1]);
         close(bodyPipe);
         
-        std::cerr << "path: " << path << std::endl;
         char *const argv[] = { (char*)path, NULL};
 
         if (execve(argv[0], argv, envp) == -1) 

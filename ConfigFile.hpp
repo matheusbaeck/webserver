@@ -24,6 +24,7 @@ enum StatusCode
 	FORBIDDEN  = 403,
 	NFOUND     = 404,
 	NALLOWED   = 405,
+    RETIMEOUT  = 408,
 	CTOOLARGE  = 413,
     SERVERR    = 500,
 	NSUPPORTED = 505,

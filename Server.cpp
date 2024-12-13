@@ -129,8 +129,29 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     static const std::string    RequestHeaderEnding = "\r\n\r\n";
     static const std::string    ChunkEnding = "\r\n";
 
+    std::time_t start_time = std::time(0);
     while (pos == std::string::npos) 
     {
+        if (std::time(0) - start_time > CLIENT_TIMEOUT)
+        {
+            send(clientFD, HttpRequest::requestTimeout().c_str(), HttpRequest::requestTimeout().size(), 0); 
+            selector.removeClient(clientFD);
+            return;
+        }
+        if (selector.getRequests()[clientFD].size() == 6)
+        {
+            std::string request = selector.getRequests()[clientFD];
+            if (request.find("GET") == std::string::npos 
+                    && request.find("POST") == std::string::npos
+                    && request.find("DELETE") == std::string::npos)
+            {
+                send(clientFD, HttpRequest::badRequest().c_str(), HttpRequest::badRequest().size(), 0);
+                epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, clientFD, NULL);
+                selector.getClientConfig().erase(clientFD);
+                selector.getActiveClients().erase(clientFD);
+                return;
+            }
+        }
         char buffer[1];
         ssize_t count = recv(clientFD, buffer, sizeof(buffer), 0);
         if (count == -1) 
@@ -148,12 +169,12 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         if (pos == std::string::npos) 
             continue;
     }
+    std::cout << selector.getRequests()[clientFD] << std::endl;
+    
     //is there a body
     size_t contentLength = selector.getBodyContentLength(clientFD);
     if (contentLength != std::string::npos)
     {
-    
-
         char *bodyBuffer = new char[contentLength + 1];
         recv(clientFD, bodyBuffer, contentLength, 0);
         bodyBuffer[contentLength] = '\0';
@@ -162,14 +183,6 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         selector.getRequests()[clientFD] += response;
         delete[] bodyBuffer;
     }
-    
-    // char buffer[4096];
-    // headers
-    //  Content-Length: number
-    //  /r\n\r\n
-    
-    // char *bodyBuffer = new char[cone];
-
     selector.setClientFdEvent(clientFD, WRITE);
 }
 
@@ -179,6 +192,10 @@ static void writeToBodyPipe(std::string request, int pipeIn)
 
     size_t start = request.find(RequestHeaderEnding);
     std::string body = request.substr(start + RequestHeaderEnding.size());
+
+	int flags = fcntl(pipeIn, F_GETFL, 0);
+	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
+
     write(pipeIn, body.c_str(), body.size());
     close(pipeIn);
 }
@@ -222,33 +239,10 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
 {
     char buffer[4096];
     ssize_t bytesRead;
-    //do i need to malloc memory here for the cgi process
 
     cgiProcessInfo* cgiInfo = selector.getCgis()[eventFd];
     int clientFd = cgiInfo->_clientFd;
 
-    // Read and send data incrementally
-    /*while ((bytesRead = read(eventFd, buffer, sizeof(buffer))) > 0) */
-    /*{*/
-    /*        ssize_t bytesSent = 0;*/
-    /*        while (bytesSent < bytesRead) */
-    /*        {*/
-    /*            ssize_t sent = send(clientFd, buffer + bytesSent, bytesRead - bytesSent, 0);*/
-    /*            std::cout << "bytesRead: " << bytesRead << std::endl;*/
-    /*            std::cout << "sent: " << sent << std::endl;*/
-    /*            if (sent == -1) */
-    /*            {*/
-    /*                if (errno == EAGAIN || errno == EWOULDBLOCK) */
-    /*                    break; // Buffer is full, stop*/
-    /*                perror("send");*/
-    /*                removeClient(selector, clientFd);*/
-    /*                return -1;*/
-    /*            }*/
-    /*            bytesSent += sent;*/
-    /*    }*/
-    /*}*/
-
-    //TODO: for chunked data, implement vector of chars for scriptResponse
     bytesRead = read(eventFd, buffer, sizeof(buffer));
     std::cout << "buffer size: " << bytesRead << std::endl;
     std::cout << "buffer: " << buffer << std::endl;
@@ -274,6 +268,8 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
 
 void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 {
+    if (cgiInfo->_ScriptResponse.find("SyntaxError") != std::string::npos)
+        send(cgiInfo->_clientFd, HttpRequest::badRequest().c_str(), HttpRequest::badRequest().size(), 0);
     std::string statusLine  = "HTTP/1.1 200 OK\r\n";
     std::string headers     = "Server: webserver/0.42\r\n";
     std::stringstream contentLength;
