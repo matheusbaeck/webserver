@@ -6,8 +6,9 @@
 #include "Tokenizer.hpp"
 
 enum Type {NOTSET, RAW, URLENCODED, MULTIPART, JSON};
-struct BodyRequest
+class BodyRequest
 {
+public:
 	enum Type   type;
     size_t      size;
 	union {
@@ -111,6 +112,8 @@ public:
     static std::string serverError();
     static std::string notFound();
     static std::string badRequest();
+    static std::string requestTimeout();
+
     static std::string payloadTooLarge();
     static std::string createdFile(std::string filename);
     
@@ -130,8 +133,11 @@ public:
 
 	// body
 	StatusCode	parseBody(void);
-    std::string extractFileName(const std::string& line);
-    std::pair<std::string, std::string> readBodyContent();
+    std::string getBoundaryMultipart(std::stringstream& ss);
+    std::string getFilenameMultipart(std::stringstream& ss);
+    std::string getContentTypeMultipart(std::stringstream& ss);
+    std::string createAbsoluteFilePath(const std::string& pathname, const std::string& filename);
+
 
 	void		parse(void);
 

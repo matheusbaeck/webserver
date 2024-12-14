@@ -6,7 +6,7 @@
 #    By: glacroix <PGCL>                            +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/04 18:22:37 by math42            #+#    #+#              #
-#    Updated: 2024/12/08 13:59:25 by glacroix         ###   ########.fr        #
+#    Updated: 2024/12/14 16:04:51 by glacroix         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -28,7 +28,7 @@ SRCS        = $(SRCSDIR)/HttpRequest.cpp \
 OBJS        = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 
 CC          = g++
-CFLAGS      = -g3 -Wall -Wextra -Werror -std=c++98 # -fsanitize=address
+CFLAGS      = -g3 -Wall -Wextra -Werror -std=c++98 #-fsanitize=address
 
 LOG_LEVEL   ?= 6
 DEFINES     = -DCOUT_LOG_LEVEL=$(LOG_LEVEL)

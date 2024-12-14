@@ -125,6 +125,17 @@ std::string HttpRequest::badRequest(void)
 	return statusLine + headers + body + "\r\n";
 }
 
+
+std::string HttpRequest::requestTimeout(void)
+{
+	const std::string statusLine = "HTTP/1.1 408 Forbidden\r\n";
+	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	std::string body    = HttpRequest::readFile("./err_pages/408.html");
+	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+	headers += "Connection: close\r\n\r\n";
+	return statusLine + headers + body + "\r\n";
+}
+
 std::string HttpRequest::forbidden(void)
 {
 	const std::string statusLine = "HTTP/1.1 403 Forbidden\r\n";
@@ -152,6 +163,9 @@ std::string HttpRequest::payloadTooLarge(void)
 HttpRequest::HttpRequest(void) 
 {
     //TODO: exception if it fails
+    /*this->body->raw = NULL;*/
+    /*this->body->urlencoded = NULL;*/
+    /*this->body = NULL;*/
     this->headers["connection"] = "keep-alive";
     pipe(_bodyPipe);
 }
@@ -180,7 +194,17 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 
 HttpRequest::~HttpRequest()
 {
-    //delete this->configServer;
+    /*if (this->body->size)*/
+    /*{*/
+    /*    if (this->body->raw)*/
+    /*        delete this->body->raw;*/
+    /*    else if (this->body->urlencoded)*/
+    /*        delete this->body->urlencoded;*/
+    /*    delete this->body;*/
+    /*}*/
+    delete this->body->raw;
+    delete this->body;
+    delete this->configServer;
 }
 
 HttpRequest::HttpRequest(const char *buffer)
@@ -296,7 +320,12 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
                 fullPath = route->getCgiPath() + requestTarget.substr(found);
                 size_t queryPos = requestTarget.find("?");
                 std::string scriptRAW = requestTarget.substr(0, queryPos);
-                route->setCgiScriptName(scriptRAW.substr(found + 1));
+                std::string scriptName = scriptRAW.substr(found + 1);
+                if (scriptName.size())
+                    route->setCgiScriptName(scriptRAW.substr(found + 1));
+                else 
+                    route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
+                    
                 std::cout << "PARSE_PATH| scriptName: " << route->getCgiScriptName() << std::endl;
             }
             std::cout << "route->path: " << route->path << std::endl;
@@ -384,6 +413,7 @@ StatusCode HttpRequest::parseBody(void)
 	if (this->headers.find("content-length") == this->headers.end())
 		return BREQUEST;
 
+
 	// TODO: be careful from overflow
 	this->body->size = ConfigFile::toNumber(this->headers["content-length"]);
     
@@ -401,9 +431,6 @@ StatusCode HttpRequest::parseBody(void)
     this->tokenizer.get(body, this->body->size + 1, '\0');
     body[this->body->size] = '\0';
 
-
-	if (this->headers.find("content-type") == this->headers.end())
-		return BREQUEST;
 
 	const std::string contentType = this->headers["content-type"];
 	if (contentType == "application/x-www-form-urlencoded")
@@ -549,7 +576,6 @@ void	HttpRequest::parse(void)
 		 *		 rest of the body request should start parsing it again as new request!!
 		 * */
     
-
 	if (this->statusCode == OK)
     {
 	    this->statusCode = this->parseBody();
@@ -602,8 +628,6 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 
 	this->parse();
 	Route *route = this->configServer->getRoute(this->path);
-    std::cout << "size: " << route->getRedirection().size() << std::endl;
-    std::cout << "path is: " << path << std::endl;
     if (!route)
     {
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
@@ -783,68 +807,6 @@ std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname)
 	return bodyStream.str();
 }
 
-// ----------------------------------59564165165461143
-// header
-// header
-// \r\n\r\n
-// content
-// conttent
-// content
-// \r\n\r\n
-// ----------------------------------59564165165461143
-
-std::pair<std::string, std::string> HttpRequest::readBodyContent()
-{
-    std::stringstream   body(*(this->body->raw));
-    const std::string   headersEnding("\r\n\r\n");
-    std::string         boundary;
-    std::string         fileContent;
-    std::string         fileName;
-    std::string         line;
-
-    std::getline(body, boundary); 
-    int nbDashes = boundary.find_last_of('-') + 1;
-    boundary = boundary.substr(nbDashes, boundary.find('\r'));
-
-    while (std::getline(body, line))
-    {
-        line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-        if (line.find("Content-Disposition") != std::string::npos ||  line.find("Content-Type") != std::string::npos)
-        {
-            if (line.find("Content-Disposition") != std::string::npos)
-                fileName = extractFileName(line);
-        }
-        else if (line.find(boundary) != std::string::npos)
-        {
-            std::cout << "on est la" << std::endl;
-            break;
-        }
-        else 
-            fileContent += line + "\n";
-    }
-    std::cout << "----------------------------------------\n";
-    std::cout << fileContent << std::endl;
-    std::cout << "----------------------------------------\n";
-    exit(1);
-    return std::pair<std::string, std::string>(fileName, fileContent);
-}
-
-std::string HttpRequest::extractFileName(const std::string& line)
-{
-    const std::string   needle("filename=\"");
-    std::string         fileName;
-
-    size_t start = line.find(needle);
-    size_t end = line.find_last_of("\"");
-
-    if (start != std::string::npos)
-    {
-        fileName = line.substr(needle.size() + start, end - (needle.size() + start));
-    }
-    return fileName;
-}
-
-
 std::string HttpRequest::createdFile(std::string filename)
 {
 	const std::string statusLine = "HTTP/1.1 201 Created\r\n";
@@ -853,46 +815,132 @@ std::string HttpRequest::createdFile(std::string filename)
 	return statusLine + headers + "\r\n";
 }
 
+static size_t stringFound(const std::string& line, const std::string& toFind)
+{
+    if (toFind.empty() || line.size() < toFind.size())
+        return std::string::npos; // Handle edge cases
+
+    for (size_t pos = 0; pos <= line.size() - toFind.size(); ++pos) // Iterate within bounds
+    {
+        size_t i = 0;
+        for (; i < toFind.size(); ++i)
+        {
+            if (line[pos + i] != toFind[i]) // Check for character match
+                break;
+        }
+        if (i == toFind.size()) // If full match, return starting position
+            return pos;
+    }
+    return std::string::npos; // No match found
+}
+
+static bool isBoundaryLine(const std::string& line, const std::string& boundary) 
+{
+    std::string finalBoundary = "--" + boundary + "--";
+    return (stringFound(line, finalBoundary) != std::string::npos);
+}
+
+std::string HttpRequest::getBoundaryMultipart(std::stringstream& ss)
+{
+    std::string     line;
+    std::string     contentTypeHeader = this->headers["content-type"];
+    
+    std::getline(ss, line);
+    size_t boundaryStart = contentTypeHeader.find_last_of('-');
+    std::string boundary = contentTypeHeader.substr(boundaryStart + 1);
+    return boundary;
+
+}
+
+std::string HttpRequest::getFilenameMultipart(std::stringstream& ss)
+{
+    std::string     line;
+    std::string     tmp = "filename=\"";
+
+    std::getline(ss, line);
+    size_t pos = line.find(tmp);
+    std::string filename = line.substr(pos + tmp.size(), line.size() - (pos + tmp.size()) - 2);
+    return filename;
+
+}
+
+
+std::string HttpRequest::getContentTypeMultipart(std::stringstream& ss)
+{
+    std::string     line;
+    std::string     tmp = "Content-Type: ";
+
+    std::getline(ss, line);
+    size_t start = line.find(tmp);
+    size_t end   = line.find('\r');
+    start += tmp.size();
+    std::string contentType = line.substr(start, end - start);
+    return contentType;
+
+}
+
+std::string HttpRequest::createAbsoluteFilePath(const std::string& pathname, const std::string& filename)
+{
+    size_t pathEnd = pathname.find_last_of('/');
+    std::string filePath = pathname.substr(0, pathEnd + 1);
+    return (filePath + filename);
+}
+
+
+
 std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
 {
-    /*std::string fileName = this->readBodyContent().first;*/
-    /*std::cout << fileName << std::endl;*/
-    /*std::string fileContent = this->readBodyContent().second;*/
-    /*std::string filePath = pathname + fileName;*/
-    /*std::cout << filePath << std::endl;*/
-    /**/
-    /*std::ofstream newFile(filePath.c_str(), std::ios::out | std::ios::binary);*/
-    /*if (newFile.is_open())*/
-    /*{*/
-    /*    newFile << fileContent;*/
-    /*    newFile.close();*/
-    /*    return HttpRequest::createdFile(fileName);*/
-    /*}*/
-    /*else*/
-    /*    return HttpRequest::badRequest();*/
-        
-    std::cout << "pathname: " << pathname << std::endl;
-    std::cout<< *this->body->raw << std::endl;
-    exit(1);
+    std::stringstream ss(*this->body->raw);
 
-    /*std::ifstream inputFile(pathname, std::ios::binary);*/
-    /*if (!inputFile.is_open()) {*/
-    /*    throw std::runtime_error("Failed to open file: " + pathname);*/
-    /*}*/
-    /**/
-    /*// Get file size*/
-    /*inputFile.seekg(0, std::ios::end);*/
-    /*size_t fileSize = inputFile.tellg();*/
-    /*inputFile.seekg(0, std::ios::beg);*/
-    /**/
-    /*// Allocate memory and read*/
-    /*std::vector<char> buffer(fileSize);*/
-    /*inputFile.read(buffer.data(), fileSize);*/
-    /*inputFile.close();*/
+    std::cout << "pathname: "<<pathname << std::endl;
 
-    /*return buffer;*/
-    return"";
+    //getting boundary from line
+    std::string boundary = this->getBoundaryMultipart(ss);
+    std::cout << "boundary: '" << boundary <<"'" << std::endl;
 
+
+    //getting fileName from line
+    std::string filename = this->getFilenameMultipart(ss);
+    std::cout << "filename: '" << filename << "'" << std::endl;
+
+    //getting content-type from line
+    std::string contentType = this->getContentTypeMultipart(ss);
+    std::cout << "contentType: '" << contentType << "'" << std::endl;
+
+
+    //skipping header line
+    std::string line;
+    std::getline(ss, line);
+
+    //getting upload-folder path
+    std::string uploadFilePathName = this->createAbsoluteFilePath(pathname, filename);
+    std::cout << "uploadFilePathName: " <<uploadFilePathName << std::endl;
+
+    
+    
+    //getting file contents
+    std::ofstream output(uploadFilePathName.c_str(), std::ios::binary | std::ios_base::trunc);
+    while (std::getline(ss, line)) 
+    {
+        if (line[0] == '\r') continue;
+        if (!isBoundaryLine(line, boundary)) 
+        {
+            line += "\n";
+            output.write(line.c_str(), line.size());
+            std::cout << "Writing line: " << line;
+            std::cout << "Line size: " << line.size() << std::endl;
+        } 
+        else 
+        {
+            break;
+        }
+    }
+
+    // Close the output file
+    output.close();
+
+    //sending response with filename created 
+    return HttpRequest::createdFile(filename);
 }
 
 std::string HttpRequest::POSTmethod(const std::string &pathname)
