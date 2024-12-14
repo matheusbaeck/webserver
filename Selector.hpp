@@ -13,7 +13,7 @@
 #include "Server.hpp"
 #include "CgiHandler.hpp"
 
-#define MAX_EVENTS 10		//epoll_wait max events at time
+#define MAX_EVENTS 10 //epoll_wait max events at time
 #define TIME_OUT 200			//epoll_wait max time
 #define READ 0
 #define WRITE 1
@@ -31,6 +31,7 @@ class Selector
         int                             _epollfd;
         std::set<int>                   _activeClients;
         std::map<int, std::string>      _requests;
+        std::map<int, HttpRequest*>     _httpRequests;
         std::map<int, ConfigServer>     _clientConfig;
         std::map<int, cgiProcessInfo*>  _cgiProcesses;
 		Selector( void );
@@ -65,6 +66,7 @@ class Selector
         std::map<int, cgiProcessInfo*>&  getCgis();
         std::map<int, ConfigServer>&     getClientConfig();
         std::map<int, std::string>&      getRequests();
+        std::map<int, HttpRequest*>&     getHTTPRequests();
         int&                             getEpollFD();
 
 };

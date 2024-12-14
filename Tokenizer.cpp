@@ -28,7 +28,6 @@ void	Tokenizer::setBuffer(const char *buffer)
 	this->str(buffer);
 }
 
-
 bool	Tokenizer::isCRLF(void)
 {
 	if (this->peek() == '\r')

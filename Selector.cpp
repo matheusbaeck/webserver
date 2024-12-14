@@ -94,6 +94,11 @@ std::map<int, std::string>& Selector::getRequests()
     return (this->_requests);
 }
 
+std::map<int, HttpRequest*>& Selector::getHTTPRequests()
+{
+    return (this->_httpRequests);
+}
+
 int& Selector::getEpollFD()
 {
     return (this->_epollfd);
@@ -204,6 +209,7 @@ void Selector::removeClient(int clientSocket)
     }
     std::cout << "Removed clientSocket: " << clientSocket << std::endl;
     getClientConfig().erase(clientSocket);
+    getHTTPRequests().erase(clientSocket);
     getActiveClients().erase(clientSocket);
     getRequests().erase(clientSocket);
     close(clientSocket);
@@ -290,14 +296,9 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                 // Answering clients
                 if (_events[n].events & EPOLLOUT) 
                 {
-                    err = server->sendResponse(*this, event_fd, _requests[event_fd]);
-                    if (err == -1)
-                    {
-                        _requests.erase(event_fd);
-                        continue;
-                    }
-                    else 
-                        return;
+                    err = server->sendResponse(*this, event_fd);
+                    if (err == 1) continue;
+                    return;
                 }
                 if (_events[n].events & (EPOLLERR | EPOLLHUP)) 
                 {

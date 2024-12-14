@@ -122,6 +122,23 @@ std::string Server::readBodyRequest(size_t contentLength, int clientFd)
     return (buffer);
 }
 
+static void writeToBodyPipe(std::string& request, int pipeIn)
+{
+    static const std::string    RequestHeaderEnding = "\r\n\r\n";
+
+    size_t start = request.find(RequestHeaderEnding);
+    std::string body = request.substr(start + RequestHeaderEnding.size());
+
+    std::cout << "-----------------------\n" << std::endl;
+    std::cout << "body: " << body << std::endl;
+    std::cout << "-----------------------\n" << std::endl;
+
+	int flags = fcntl(pipeIn, F_GETFL, 0);
+	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
+
+    write(pipeIn, body.c_str(), body.size());
+    close(pipeIn);
+}
 
 void Server::readClientRequest(Selector& selector, int clientFD)
 {
@@ -130,12 +147,17 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     static const std::string    ChunkEnding = "\r\n";
 
     std::time_t start_time = std::time(0);
+
+    HttpRequest* incomingRequestHTTP = new HttpRequest();
+    incomingRequestHTTP->setConfig(selector.getClientConfig()[clientFD]);
     while (pos == std::string::npos) 
     {
+        //error checking if request is bad
         if (std::time(0) - start_time > CLIENT_TIMEOUT)
         {
             send(clientFD, HttpRequest::requestTimeout().c_str(), HttpRequest::requestTimeout().size(), 0); 
             selector.removeClient(clientFD);
+            delete incomingRequestHTTP;
             return;
         }
         if (selector.getRequests()[clientFD].size() == 6)
@@ -147,6 +169,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
             {
                 send(clientFD, HttpRequest::badRequest().c_str(), HttpRequest::badRequest().size(), 0);
                 selector.removeClient(clientFD);
+                delete incomingRequestHTTP;
                 return;
             }
         }
@@ -176,63 +199,185 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         char *bodyBuffer = new char[contentLength + 1];
         recv(clientFD, bodyBuffer, contentLength, 0);
         bodyBuffer[contentLength] = '\0';
-        std::cout << bodyBuffer << std::endl; 
-        std::string response(bodyBuffer);
-        selector.getRequests()[clientFD] += response;
+        std::string requestBody(bodyBuffer);
+        selector.getRequests()[clientFD] += requestBody;
         delete[] bodyBuffer;
     }
-    selector.setClientFdEvent(clientFD, WRITE);
-}
-
-static void writeToBodyPipe(std::string request, int pipeIn)
-{
-    static const std::string    RequestHeaderEnding = "\r\n\r\n";
-
-    size_t start = request.find(RequestHeaderEnding);
-    std::string body = request.substr(start + RequestHeaderEnding.size());
-
-	int flags = fcntl(pipeIn, F_GETFL, 0);
-	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
-
-    write(pipeIn, body.c_str(), body.size());
-    close(pipeIn);
-}
-
-int Server::sendResponse(Selector& selector, int client_socket, std::string request)
-{
-    int sent_bytes =1; 
-    const char* buffer = request.c_str();
+    std::string request = selector.getRequests()[clientFD].c_str();
     if (request.size() == 0)
     {
-        selector.getRequests()[client_socket].erase();
-        return (-1);
-    }
-
-    HttpRequest* incomingRequestHTTP = new HttpRequest();
-    incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
-    incomingRequestHTTP->setBuffer(buffer);
-    writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
-
-    std::string response = incomingRequestHTTP->handler(selector, client_socket);
-
-
-    sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
-    if (sent_bytes < 0 || incomingRequestHTTP->getStatusCode() == CTOOLARGE) 
-    {
-        selector.removeClient(client_socket);
+        selector.getRequests()[clientFD].erase();
+        selector.getHTTPRequests().erase(clientFD);
         delete incomingRequestHTTP;
-        return (-1);
+        return;
     }
-    delete incomingRequestHTTP;
-    selector.getRequests().erase(client_socket);
-    /*struct epoll_event ev;*/
+    incomingRequestHTTP->setBuffer(request.c_str());
+    selector.getHTTPRequests()[clientFD] = incomingRequestHTTP;
+    writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
+    selector.setClientFdEvent(clientFD, WRITE);
+    //should i handle here
+    incomingRequestHTTP->handler(selector, clientFD);
+}
+
+
+int Server::sendResponse(Selector& selector, int client_socket)
+{
+
+    // Retrieve the HttpRequest object and the associated response string.
+    HttpRequest* clientHTTP = selector.getHTTPRequests()[client_socket];
+    const std::string& response = clientHTTP->getResponse();
+    size_t totalSize = response.size();
+    size_t pos       = clientHTTP->getPos();
+
+
+    // If there's nothing left to send (should rarely happen unless you check earlier),
+    // clean up and return.
+    if (pos >= totalSize)
+    {
+        selector.getRequests().erase(client_socket);
+        selector.getHTTPRequests().erase(client_socket);
+        selector.setClientFdEvent(client_socket, READ);
+        delete clientHTTP;
+        return 0;  // Done sending.
+    }
+
+    // Calculate how many bytes we want to send this round. Typically min(remaining, 4096).
+    size_t bytesToSend = totalSize - pos;
+    if (bytesToSend > 4096)
+        bytesToSend = 4096;
+
+    // Attempt to send.
+    ssize_t bytesSent = send(client_socket, response.c_str() + pos, bytesToSend, 0);
+    std::cerr << "pos: " << pos << std::endl;
+    std::cerr << "totalSize is now: " << totalSize << std::endl;
+    std::cerr << "sent: " << bytesSent << std::endl;
+
+    if (bytesSent > 0)
+    {
+        // We successfully sent some bytes. Update position.
+        clientHTTP->incrementPos(bytesSent);
+
+        // Check if we’ve now sent everything.
+        if (clientHTTP->getPos() >= totalSize)
+        {
+            selector.getHTTPRequests().erase(client_socket);
+            selector.getRequests().erase(client_socket);
+            selector.setClientFdEvent(client_socket, READ);
+            delete clientHTTP;
+            return 0;
+        }
+        else
+        {
+            // Still have more data left to send. 
+            // In a level-triggered epoll scenario, you'll keep getting EPOLLOUT until
+            // the socket's buffer is full or you've finished sending. Return 1
+            // meaning "we're not done, but we succeeded so far."
+            return 1;
+        }
+    }
+    else if (bytesSent == 0)
+    {
+        // bytesSent == 0 usually means the client closed the connection (TCP FIN).
+        selector.removeClient(client_socket);
+        delete clientHTTP;
+        return 0;
+    }
+    else // bytesSent == -1
+    {
+        // Check errno to distinguish between a temporary "not ready" vs. a real error.
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            // The socket is not ready for writing this instant. 
+            // Don't close; just wait for the next EPOLLOUT event. 
+            // Return 1 or some "try again later" code.
+            return 1;
+        }
+        else
+        {
+            // Hard error (e.g., ECONNRESET). Close out everything.
+            selector.removeClient(client_socket);
+            delete clientHTTP;
+            return 0;
+        }
+    }
+    return 0;
+}
+
+
+
+    /*------------------------------------------------------------------------------*/
+    /*char buffer[4096];*/
+    /*std::memset(buffer, 0, sizeof(buffer));*/
+    /**/
+    /*const char *p = clientHTTP->getResponse().c_str();*/
+    /**/
+    /*ssize_t bytesSent;*/
+    /*bytesSent = send(client_socket, p + clientHTTP->getPos(), 4096, 0);*/
+    /*std::cout << "POS: " << clientHTTP->getPos() << std::endl;*/
+    /*std::cout << "bytesSent: " << bytesSent << std::endl;*/
+    /*std::cout << "SIZE: " << clientHTTP->getResponse().size() << std::endl;*/
+    /*clientHTTP->incrementPos(bytesSent);*/
+    /**/
+    /*//sent the whole response to client*/
+    /*if (bytesSent == 0)*/
+    /*{*/
+    /*    delete clientHTTP; */
+    /*    selector.getHTTPRequests().erase(client_socket);*/
+    /*    selector.setClientFdEvent(client_socket, READ);*/
+    /*    return 0;*/
+    /*}*/
+    /*else if (bytesSent == -1)*/
+    /*{*/
+    /*    delete clientHTTP; */
+    /*    //maybe other stuff;*/
+    /*}*/
+    /*return 1; */
+    /*delete clientHTTP;*/
+    /*selector.getRequests().erase(client_socket);*/
+    /*selector.getHTTPRequests().erase(client_socket);*/
+    /*------------------------------------------------------------------------------*/
+
+
+
+
+    /*size_t response_size = clientHTTP->getResponse().size();*/
+    /**/
+    /*while (clientHTTP->getTotalSent() < (ssize_t) response_size) */
+    /*{*/
+    /*    clientHTTP->setSentBytes(send(client_socket, clientHTTP->getResponse().c_str() + clientHTTP->getTotalSent(), response_size - clientHTTP->getTotalSent(), 0));*/
+    /*    if (clientHTTP->getSentBytes() > 0) */
+    /*    {*/
+    /*        clientHTTP->setTotalSent(clientHTTP->getSentBytes());*/
+    /*    } */
+    /*    else if (clientHTTP->getSentBytes() == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))*/
+    /*    {*/
+    /*        // Socket is not ready for writing; wait for it to be writable*/
+    /*        return -1;*/
+    /*    } */
+    /*    else */
+    /*    {*/
+    /*        // Handle other errors*/
+    /*        selector.removeClient(client_socket);*/
+    /*        return -1;*/
+    /*    }*/
+    /*}*/
+    /**/
+    /*if (clientHTTP->getTotalSent() == (ssize_t)response_size) */
+    /*{*/
+    /*    // Entire response sent; switch back to reading*/
+    /*    selector.setClientFdEvent(client_socket, READ);*/
+    /*} */
+    /*else */
+    /*{*/
+    /*    // Not all data was sent; store state and continue later*/
+    /*    // Store 'total_sent' for this client to resume sending later*/
+    /*}*/
+
+
+    /*structepoll_event ev;*/
     /*ev.events = EPOLLIN | EPOLLOUT | EPOLLET;*/
     /*ev.data.fd = client_socket;*/
     /*epoll_ctl(selector.getEpollFD(), EPOLL_CTL_MOD, client_socket, &ev);*/
-
-    selector.setClientFdEvent(client_socket, READ);
-    return (0);
-}
 
 std::string	toString(size_t num)
 {
