@@ -200,6 +200,7 @@ static void writeToBodyPipe(std::string request, int pipeIn)
 
 int Server::sendResponse(Selector& selector, int client_socket, std::string request)
 {
+    int sent_bytes =1; 
     const char* buffer = request.c_str();
     if (request.size() == 0)
     {
@@ -211,8 +212,11 @@ int Server::sendResponse(Selector& selector, int client_socket, std::string requ
     incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
     incomingRequestHTTP->setBuffer(buffer);
     writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
+
     std::string response = incomingRequestHTTP->handler(selector, client_socket);
-    int sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
+
+
+    sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
     if (sent_bytes < 0 || incomingRequestHTTP->getStatusCode() == CTOOLARGE) 
     {
         selector.removeClient(client_socket);
@@ -221,6 +225,11 @@ int Server::sendResponse(Selector& selector, int client_socket, std::string requ
     }
     delete incomingRequestHTTP;
     selector.getRequests().erase(client_socket);
+    /*struct epoll_event ev;*/
+    /*ev.events = EPOLLIN | EPOLLOUT | EPOLLET;*/
+    /*ev.data.fd = client_socket;*/
+    /*epoll_ctl(selector.getEpollFD(), EPOLL_CTL_MOD, client_socket, &ev);*/
+
     selector.setClientFdEvent(client_socket, READ);
     return (0);
 }

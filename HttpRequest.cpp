@@ -162,10 +162,7 @@ std::string HttpRequest::payloadTooLarge(void)
 
 HttpRequest::HttpRequest(void) 
 {
-    //TODO: exception if it fails
-    /*this->body->raw = NULL;*/
-    /*this->body->urlencoded = NULL;*/
-    /*this->body = NULL;*/
+    this->bufferFlag = false;
     this->headers["connection"] = "keep-alive";
     pipe(_bodyPipe);
 }
@@ -202,8 +199,8 @@ HttpRequest::~HttpRequest()
     /*        delete this->body->urlencoded;*/
     /*    delete this->body;*/
     /*}*/
-    delete this->body->raw;
-    delete this->body;
+    //delete this->body->raw;
+    //delete this->body;
     delete this->configServer;
 }
 
@@ -402,8 +399,8 @@ StatusCode HttpRequest::getStatusCode(void) const
 
 StatusCode HttpRequest::parseBody(void)
 {
-	this->body = new BodyRequest(); // TODO: handle delete
-	this->body->type = NOTSET;
+	//this->body = new BodyRequest(); // TODO: handle delete
+	this->body.type = NOTSET;
 
 	// TODO: try to return if size 0
 	if (this->method != POST)
@@ -415,28 +412,27 @@ StatusCode HttpRequest::parseBody(void)
 
 
 	// TODO: be careful from overflow
-	this->body->size = ConfigFile::toNumber(this->headers["content-length"]);
+	this->body.size = ConfigFile::toNumber(this->headers["content-length"]);
     
     //IF size > client-max-body-size then statusCode is 413 
-    std::cout << "bodysize: " << this->body->size << std::endl;
+    std::cout << "bodysize: " << this->body.size << std::endl;
     std::cout << "MaxclientSize: " << this->configServer->getClientMaxBodySize() << std::endl;
 
-    if (this->body->size == 0)
+    if (this->body.size == 0)
         return BREQUEST;
 
-    if (this->body->size > this->configServer->getClientMaxBodySize())
+    if (this->body.size > this->configServer->getClientMaxBodySize())
         return CTOOLARGE; 
 
-    char body[this->body->size + 1];
-    this->tokenizer.get(body, this->body->size + 1, '\0');
-    body[this->body->size] = '\0';
+    char body[this->body.size + 1];
+    this->tokenizer.get(body, this->body.size + 1, '\0');
+    body[this->body.size] = '\0';
 
 
 	const std::string contentType = this->headers["content-type"];
 	if (contentType == "application/x-www-form-urlencoded")
 	{
-		this->body->type = URLENCODED;
-		this->body->urlencoded = new std::map<std::string, std::string>;
+		this->body.type = URLENCODED;
 		Tokenizer t(body);
 		while (!t.end())
 		{
@@ -452,18 +448,18 @@ StatusCode HttpRequest::parseBody(void)
 				t.get();
 			}
 			// TODO: try to access by []
-			this->body->urlencoded->insert(std::make_pair(key, value));
+			this->body.urlencoded.insert(std::make_pair(key, value));
 		}
 	}
 	else if (contentType == "text/plain")
 	{
-		this->body->type = RAW;
-		this->body->raw = new std::string(body);
+		this->body.type = RAW;
+		this->body.raw = body;
 	}
 	else if (contentType.find("multipart/form-data") != std::string::npos)
 	{
-		this->body->type = MULTIPART;
-		this->body->raw = new std::string(body);
+		this->body.type = MULTIPART;
+		this->body.raw = body;
 	}
 	return OK;
 }
@@ -602,12 +598,12 @@ std::string HttpRequest::DELETEmethod(const std::string &pathname)
 	std::string headers = "Server: webserv/0.42\r\n";
 	std::string body;/*HttpRequest::readFile("./err_pages/400.html")*/;
 
-    /*if ((access(pathname.c_str(), F_OK) == -1))
+
+
+    
+    /*if ((access(pathname.c_str(), R_OK | W_OK) == -1))
     {
-        statusLine = this->getStatusLine(NCONTENT);
-    }
-    else
-    {
+        statusLine = this->getStatusLine(NALLOWED);
     }*/
     std::remove(pathname.c_str());
 	headers += "Connection: keep-alive\r\n\r\n";
@@ -631,7 +627,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     if (!route)
     {
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
-        exit(1);
+        this->statusCode = NFOUND;
     }
     if (this->statusCode == OK && route->isCgi())
     {
@@ -791,17 +787,17 @@ std::string	HttpRequest::GETmethod(std::string &pathname, Route *route)
 std::string HttpRequest::POSTmethodRAW(const std::string &pathname)
 {
 	(void)pathname;
-	/*(void)cgiResponse;*/
-	return *(this->body->raw);
+	return (this->body.raw);
 }
+
 
 std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname)
 {
 	(void)pathname;
 	/*(void)cgiResponse;*/
 	std::ostringstream bodyStream;
-	for (std::map<std::string, std::string>::iterator it = this->body->urlencoded->begin();
-			it != this->body->urlencoded->end(); ++it) {
+	for (std::map<std::string, std::string>::iterator it = this->body.urlencoded.begin();
+			it != this->body.urlencoded.end(); ++it) {
 		bodyStream << it->first << "=" << it->second << "\n";
 	}
 	return bodyStream.str();
@@ -890,7 +886,7 @@ std::string HttpRequest::createAbsoluteFilePath(const std::string& pathname, con
 
 std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
 {
-    std::stringstream ss(*this->body->raw);
+    std::stringstream ss(this->body.raw);
 
     std::cout << "pathname: "<<pathname << std::endl;
 
@@ -952,12 +948,11 @@ std::string HttpRequest::POSTmethod(const std::string &pathname)
     std::string response;
 
 	std::cout << "------------------------------------------------------------------------------------\n";
-	switch (this->body->type)
+	switch (this->body.type)
 	{
 		case RAW:			response = POSTmethodRAW(pathname); break;
 		case URLENCODED:	response = POSTmethodURLENCODED(pathname); break;
 		case MULTIPART:		response = POSTmethodMULTIPART(pathname); break;
-		case JSON:			std::invalid_argument("NOT IMPLEMENTED - POST application/json"); break;
 		default:			std::invalid_argument("NOT IMPLEMENTED - POST type not found"); break;
 	}
 	headers += "Content-Length: " + toString(response.size()) + "\r\n\r\n";

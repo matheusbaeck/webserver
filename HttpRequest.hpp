@@ -5,17 +5,14 @@
 #include "Selector.hpp"
 #include "Tokenizer.hpp"
 
-enum Type {NOTSET, RAW, URLENCODED, MULTIPART, JSON};
+enum Type {NOTSET, RAW, MULTIPART, URLENCODED};
 class BodyRequest
 {
 public:
 	enum Type   type;
     size_t      size;
-	union {
-		std::string *raw;
-		std::map<std::string, std::string> *urlencoded;
-	};
-
+    std::string raw;
+    std::map<std::string, std::string> urlencoded;
 };
 
 class HttpRequest
@@ -37,6 +34,7 @@ class HttpRequest
 	std::map<std::string, std::string> headers;
     std::string query;
 
+    bool bufferFlag;
 
 	
 	Method method;
@@ -47,7 +45,7 @@ class HttpRequest
 
 	static void	toLower(char &c);
 
-	struct BodyRequest *body;
+	struct BodyRequest body;
 
 public:
 	HttpRequest(void);
@@ -84,6 +82,15 @@ public:
     std::string getQuery(void)
     {
         return this->query;
+    }
+
+    bool getBufferFlag(void)
+    {
+        return this->bufferFlag;
+    }
+    void setBufferFlag(bool flag)
+    {
+        this->bufferFlag = flag;
     }
 
     std::string getServerPort(void)
