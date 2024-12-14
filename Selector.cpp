@@ -58,14 +58,12 @@ std::map<int, cgiProcessInfo*>::const_iterator Selector::getCgiProcessInfo(int c
 
 void Selector::deleteCgi(cgiProcessInfo* CgiProcess)
 {
-    std::cout << "Deleting CGI Process for response pipe: " << CgiProcess->_responsePipe << std::endl;
-
     // Remove from epoll instance
     if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, CgiProcess->_responsePipe, NULL) == -1) 
     {
         perror("epoll_ctl: remove eventFd");
         std::cerr << "Failed to remove eventFd: " << CgiProcess->_responsePipe << ", errno: " << errno << std::endl;
-        exit(1);
+        /*exit(1);*/
     }
 
     // Remove from _cgiProcesses

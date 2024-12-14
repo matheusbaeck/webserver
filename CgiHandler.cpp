@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/13 15:31:55 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/14 16:22:23 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,7 +38,11 @@ void cgiProcessInfo::addProcessInfo(int pid, int clientFd, int responsePipe, std
     _startTime = std::time(0);
 }
 
-cgiProcessInfo::~cgiProcessInfo() {}
+cgiProcessInfo::~cgiProcessInfo() 
+{
+    /*close(_pipe[0]);*/
+    /*close(_pipe[1]);*/
+}
 
 CgiHandler::CgiHandler(HttpRequest *_httpReq, std::string scriptName, std::string cgiPath)
 {
@@ -78,6 +82,7 @@ char    **CgiHandler::getEnvp(void)
    {
        std::string var = it->first + "=" + it->second;
        envp[i] = strdup(var.c_str());
+       /*if (envp[i] != NULL) return NULL;*/
        it++;
    }
    envp[this->env.size()] = NULL;
@@ -97,26 +102,37 @@ void waitMicroseconds(long microseconds)
     select(0, NULL, NULL, NULL, &timeout);
 }
 
+static void freeDoublePointer(char **envp)
+{
+    for (size_t i = 0; envp[i]; i +=1)
+        free(envp[i]);
+    delete[] envp;
+}
+
 StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
 {
     cgiProcessInfo* cgiInfo = new cgiProcessInfo();
 
     // Assign to CgiHandlerInfo
-    char **envp = this->getEnvp();
+    //char **envp = this->getEnvp();
+    char **envp;
     if (pipe(cgiInfo->_pipe) == -1)
     {
         perror("pipe");
+        delete cgiInfo;
         return SERVERR;
     }
     const char *path = this->env["SCRIPT_FILENAME"].c_str();
     if (access(path, X_OK) == -1) 
     { 
         perror("access");
+        delete cgiInfo;
         if (errno == EACCES) return FORBIDDEN; // Forbidden
         if (errno == ENOENT || errno == ENOTDIR) return NFOUND; // Not Found
         if (errno == ELOOP || errno == ENOMEM || errno == EFAULT) return SERVERR; // Internal Server Error
         if (errno == ENAMETOOLONG) return BREQUEST; // Bad Request
     }
+    envp = this->getEnvp();
     cgiInfo->_pid = fork();
     if (cgiInfo->_pid == -1) 
     {
@@ -124,6 +140,7 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
         close(cgiInfo->_pipe[0]);
         close(cgiInfo->_pipe[1]);
         delete cgiInfo;
+        freeDoublePointer(envp);
         return SERVERR;
     }
     
@@ -141,7 +158,10 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
 
         if (execve(argv[0], argv, envp) == -1) 
         {
+            freeDoublePointer(envp);
+            delete cgiInfo;
             perror("execve");
+            std::cerr << "errno: " << errno << std::endl;
             if (errno == EACCES) exit(3); // Forbidden
             if (errno == ENOENT || errno == ENOTDIR) exit(1); // Not Found
             if (errno == E2BIG) exit(5); // Bad Request
@@ -157,42 +177,41 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
         int status;
         int res = waitpid(cgiInfo->_pid, &status, WNOHANG);
         std::cout << "res of waitpid: " << res << std::endl;
-        if (res)
+        if (WIFEXITED(status))
         {
-            if (WIFEXITED(status))
+            int err = WEXITSTATUS(status);
+            std::cout << "status is " << err << std::endl;
+            if (err != 0)
             {
-                
-                int err = WEXITSTATUS(status);
-                std::cout << "status is " << err << std::endl;
-                if (err != 0)
-                {
-                    delete[] envp;
-                    delete cgiInfo;
-                    if (err == 1) return NFOUND;
-                    if (err == 2) return SERVERR;
-                    if (err == 3) return FORBIDDEN;
-                    if (err == 4) return FORBIDDEN;
-                    if (err == 5) return BREQUEST;
-                    return FORBIDDEN;
-                }
+                freeDoublePointer(envp);
+                delete cgiInfo;
+                if (err == 1) return NFOUND;
+                if (err == 2) return SERVERR;
+                if (err == 3) return FORBIDDEN;
+                if (err == 4) return FORBIDDEN;
+                if (err == 5) return BREQUEST;
+                return FORBIDDEN;
             }
         }
+        
         struct epoll_event ev;
         ev.events = EPOLLIN | EPOLLET;
         ev.data.fd = cgiInfo->_pipe[0];
+        std::cout << "cgiInfo.responsePipe: " << cgiInfo->_pipe[0] << std::endl;
         if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, cgiInfo->_pipe[0], &ev) == -1) 
         {
             perror("epoll_ctl: cgiInfo->_pipe[0]");
             close(cgiInfo->_pipe[0]);
-            delete[] envp;
+            freeDoublePointer(envp);
+            delete cgiInfo;
             return SERVERR;
         }
         std::cout << "added ResponsePipe to epoll instance: " << cgiInfo->_pipe[0] << std::endl;
 
         cgiInfo->addProcessInfo(cgiInfo->_pid, clientFd, cgiInfo->_pipe[0], this->getEnvMap()["SCRIPT_FILENAME"]);
         selector.addCgi(cgiInfo->_pipe[0], cgiInfo);
-        delete[] envp;
     }
+    freeDoublePointer(envp);
     return OK;
 }
 

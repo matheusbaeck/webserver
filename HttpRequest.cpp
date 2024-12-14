@@ -163,6 +163,9 @@ std::string HttpRequest::payloadTooLarge(void)
 HttpRequest::HttpRequest(void) 
 {
     //TODO: exception if it fails
+    /*this->body->raw = NULL;*/
+    /*this->body->urlencoded = NULL;*/
+    /*this->body = NULL;*/
     this->headers["connection"] = "keep-alive";
     pipe(_bodyPipe);
 }
@@ -191,7 +194,17 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 
 HttpRequest::~HttpRequest()
 {
-    //delete this->configServer;
+    /*if (this->body->size)*/
+    /*{*/
+    /*    if (this->body->raw)*/
+    /*        delete this->body->raw;*/
+    /*    else if (this->body->urlencoded)*/
+    /*        delete this->body->urlencoded;*/
+    /*    delete this->body;*/
+    /*}*/
+    delete this->body->raw;
+    delete this->body;
+    delete this->configServer;
 }
 
 HttpRequest::HttpRequest(const char *buffer)
@@ -307,7 +320,12 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
                 fullPath = route->getCgiPath() + requestTarget.substr(found);
                 size_t queryPos = requestTarget.find("?");
                 std::string scriptRAW = requestTarget.substr(0, queryPos);
-                route->setCgiScriptName(scriptRAW.substr(found + 1));
+                std::string scriptName = scriptRAW.substr(found + 1);
+                if (scriptName.size())
+                    route->setCgiScriptName(scriptRAW.substr(found + 1));
+                else 
+                    route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
+                    
                 std::cout << "PARSE_PATH| scriptName: " << route->getCgiScriptName() << std::endl;
             }
             std::cout << "route->path: " << route->path << std::endl;

@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/06 22:04:29 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/14 13:31:42 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,9 +32,6 @@
 
 class HttpRequest;
 class Selector;
-
-
-
 
 class CgiHandler
 {

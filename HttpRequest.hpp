@@ -6,8 +6,9 @@
 #include "Tokenizer.hpp"
 
 enum Type {NOTSET, RAW, URLENCODED, MULTIPART, JSON};
-struct BodyRequest
+class BodyRequest
 {
+public:
 	enum Type   type;
     size_t      size;
 	union {

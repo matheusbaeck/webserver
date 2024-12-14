@@ -146,9 +146,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
                     && request.find("DELETE") == std::string::npos)
             {
                 send(clientFD, HttpRequest::badRequest().c_str(), HttpRequest::badRequest().size(), 0);
-                epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, clientFD, NULL);
-                selector.getClientConfig().erase(clientFD);
-                selector.getActiveClients().erase(clientFD);
+                selector.removeClient(clientFD);
                 return;
             }
         }
@@ -238,6 +236,7 @@ std::string	toString(size_t num)
 int Server::handleResponsePipe(Selector& selector, int eventFd) 
 {
     char buffer[4096];
+    std::memset(buffer, 0, sizeof(buffer));
     ssize_t bytesRead;
 
     cgiProcessInfo* cgiInfo = selector.getCgis()[eventFd];
@@ -269,7 +268,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
 void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 {
     if (cgiInfo->_ScriptResponse.find("SyntaxError") != std::string::npos)
-        send(cgiInfo->_clientFd, HttpRequest::badRequest().c_str(), HttpRequest::badRequest().size(), 0);
+        send(cgiInfo->_clientFd, HttpRequest::serverError().c_str(), HttpRequest::serverError().size(), 0);
     std::string statusLine  = "HTTP/1.1 200 OK\r\n";
     std::string headers     = "Server: webserver/0.42\r\n";
     std::stringstream contentLength;
