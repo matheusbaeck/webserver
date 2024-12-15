@@ -21,8 +21,6 @@ class HttpRequest
 	static const char *delim;
 	static const size_t bufferSize = 4096;
 
-	//static ConfigFile *configFile;
-
 	ConfigServer *configServer;
 
 	Tokenizer tokenizer;
@@ -68,38 +66,11 @@ public:
     // Setters
 	// Getters
 	Method 		getMethod(void) const;
-    std::string getMethodStr(void)
-    {
-        const std::string methods[] = {"GET", "POST", "DELETE"};
-        if (this->method < GET || this->method > DELETE)
-            return "";
-        return methods[this->method];
-    }
-
-    size_t getPos(void) 
-    {
-        return this->pos;
-    }
-    void    incrementPos(size_t incrPos)
-    {
-        this->pos += incrPos;
-    }
-
+    std::string getMethodStr(void);
 	StatusCode 	getStatusCode(void) const;
-
-    std::string getHeader(std::string const &key)
-    {
-        return this->headers[key]; 
-    }
-    std::string& getResponse()
-    {
-        return this->response;
-    }
-
-    std::string getQuery(void)
-    {
-        return this->query;
-    }
+    std::string getHeader(std::string const &key);
+    std::string getQuery(void);
+    std::string getServerPort(void);
 
     bool getBufferFlag(void)
     {
@@ -110,42 +81,25 @@ public:
         this->bufferFlag = flag;
     }
 
-    std::string getServerPort(void)
-    {
-        return this->serverPort == "" ? "80" : this->serverPort;
-    }
 
-	// method that generate HTML page of list directory.
 	std::string	dirList(std::string const &dirpath);
+	void	setConfig(ConfigServer &_configServer);
+    void    setBuffer(const char *buffer);
 
-
-	void	setConfig(ConfigServer &_configServer)
-	{
-        /*std::cout << _configServer << std::endl;*/
-        this->configServer = new ConfigServer(_configServer);
-		//*this->configServer = _configServer;
-	}
-    void    setBuffer(const char *buffer)
-    {
-        this->tokenizer.setBuffer(buffer);
-    }
-
-    static std::string notAllowed(std::string const &str);
-    static std::string gatewayTimeout();
-    static std::string forbidden();
-    static std::string serverError();
-    static std::string notFound();
-    static std::string badRequest();
-    static std::string requestTimeout();
-
-    static std::string payloadTooLarge();
+    static std::string notAllowed(std::string const &str, std::string const &errPage);
+    static std::string gatewayTimeout(std::string const &errPage);
+    static std::string forbidden(std::string const &errPage);
+    static std::string serverError(std::string const &errPage);
+    static std::string notFound(std::string const &errPage);
+    static std::string badRequest(std::string const &errPage);
+    static std::string requestTimeout(std::string const &errPage);
+    static std::string payloadTooLarge(std::string const &errPage);
     static std::string createdFile(std::string filename);
     
     std::string getStatusLine(StatusCode statusCode);
 
 	
 	// Start Line
-	//StatusCode 	parseStartLine(const std::string &startLine);
 	StatusCode	parseStartLine(void);
 	StatusCode 	parseMethod(const std::string &_method);
 	StatusCode 	parsePath(const std::string &path);
