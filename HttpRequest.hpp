@@ -85,13 +85,11 @@ public:
     static std::string badRequest(std::string const &errPage);
     static std::string requestTimeout(std::string const &errPage);
     static std::string payloadTooLarge(std::string const &errPage);
-
     static std::string createdFile(std::string filename);
     
     std::string getStatusLine(StatusCode statusCode);
 	
 	// Start Line
-	//StatusCode 	parseStartLine(const std::string &startLine);
 	StatusCode	parseStartLine(void);
 	StatusCode 	parseMethod(const std::string &_method);
 	StatusCode 	parsePath(const std::string &path);

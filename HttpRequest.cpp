@@ -260,20 +260,16 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 	if (requestTarget.find_first_of("/") == 0)
 	{
 		route = HttpRequest::configServer->getRoute(requestTarget);
-        if (!route)
-			return NFOUND;
-
+        if (!route) return NFOUND;
         size_t      found;
         std::string target;
         std::string fullPath;
-        //TODO: condition for CGi
         if (route->isCgi())
         {
             found = requestTarget.find_last_of("/");
             if (requestTarget == route->getPath())
             {
                 fullPath = route->getCgiPath();
-                //DO i need to add a scriptName
                 route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
                 std::cout << "absence of scriptName, found: " << route->getCgiScriptName() << std::endl;
             }
@@ -289,10 +285,10 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
                 else 
                     route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
             }
-                
         }
         else 
         {
+
             if (requestTarget == route->getPath())
             {
                 std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
@@ -341,30 +337,57 @@ Method	HttpRequest::getMethod(void) const
 	return this->method;
 }
 
+std::string HttpRequest::getMethodStr(void)
+{
+    const std::string methods[] = {"GET", "POST", "DELETE"};
+    if (this->method < GET || this->method > DELETE)
+        return "";
+    return methods[this->method];
+}
+
+std::string HttpRequest::getHeader(std::string const &key)
+{
+	return this->headers[key]; 
+}
+
+std::string HttpRequest::getQuery(void)
+{
+	return this->query;
+}
+
+std::string HttpRequest::getServerPort(void)
+{
+	return this->serverPort == "" ? "80" : this->serverPort;
+}
+
+void    HttpRequest::setBuffer(const char *buffer)
+{
+	this->tokenizer.setBuffer(buffer);
+}
+
+void	HttpRequest::setConfig(ConfigServer &_configServer)
+{
+	this->configServer = new ConfigServer(_configServer);
+}
+
 StatusCode HttpRequest::getStatusCode(void) const
 {
 	return this->statusCode;
 }
 
-
 StatusCode HttpRequest::parseBody(void)
 {
-	//this->body = new BodyRequest(); // TODO: handle delete
 	this->body.type = NOTSET;
 
-	// TODO: try to return if size 0
 	if (this->method != POST)
 		return OK;
 
-	// Bad Request: content-length required
 	if (this->headers.find("content-length") == this->headers.end())
 		return BREQUEST;
 
 
-	// TODO: be careful from overflow
 	this->body.size = ConfigFile::toNumber(this->headers["content-length"]);
     
-    //IF size > client-max-body-size then statusCode is 413 
     std::cout << "bodysize: " << this->body.size << std::endl;
     std::cout << "MaxclientSize: " << this->configServer->getClientMaxBodySize() << std::endl;
 
@@ -397,7 +420,6 @@ StatusCode HttpRequest::parseBody(void)
 			{
 				t.get();
 			}
-			// TODO: try to access by []
 			this->body.urlencoded.insert(std::make_pair(key, value));
 		}
 	}
@@ -427,7 +449,6 @@ StatusCode HttpRequest::parseHeaders(void)
 		tokenizer.trimSpace();
 		value = tokenizer.next(HttpRequest::CRLF);
 
-
 		if (key == "host")
 		{
 			if (value.empty() || this->headers.count(key) > 0) return BREQUEST;
@@ -437,6 +458,7 @@ StatusCode HttpRequest::parseHeaders(void)
 		{
 			this->headers[key] = "keep-alive";
 			if (value == "close") this->headers[key] = value;
+
 		}
 		if (key == "content-length")
 		{
@@ -451,6 +473,7 @@ StatusCode HttpRequest::parseHeaders(void)
 		{
 			this->headers[key] = value;
 		}
+
 		if (this->tokenizer.isCRLF())
 			if (this->tokenizer.isCRLF()) break;
 	}
@@ -888,10 +911,6 @@ std::string HttpRequest::POSTmethod(const std::string &pathname)
     return statusLine + headers + response;
 }
 
-
-
-
-
 /* ---------- static methods -------- */
 
 std::string HttpRequest::readFile(const char *pathname)
@@ -971,12 +990,4 @@ std::string	HttpRequest::getMimeType(std::string const &file)
         return it->second;
     return "text/html"; // Default MIME type for unknown files
     //return "application/octet-stream"; // Default MIME type for unknown files
-}
-
-std::string execCGI(void)
-{
-	std::string response;
-	// TODO: unchunked data
-	throw std::invalid_argument("TODO: " + std::string(__FUNCTION__));
-	return response;
 }
