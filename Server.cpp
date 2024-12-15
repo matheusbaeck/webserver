@@ -339,12 +339,18 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     int clientFd = cgiInfo->_clientFd;
 
     bytesRead = read(eventFd, buffer, sizeof(buffer));
-    std::cout << "buffer size: " << bytesRead << std::endl;
+    std::cout << "bytesRead: " << bytesRead << std::endl;
     std::cout << "buffer: " << buffer << std::endl;
+
+    std::cout << "------------- CGI body ----------------------\n";
+    std::cout << buffer << std::endl;
+    std::cout << "------------- CGI body ----------------------\n";
+        
     if (bytesRead > 0)
         cgiInfo->_ScriptResponse.append(buffer, bytesRead);
     else if (bytesRead == 0) 
     {
+        /*exit(1);*/
         this->sendCGIResponse(cgiInfo);
         selector.deleteCgi(cgiInfo);
         std::memset(buffer, 0, sizeof(buffer));
