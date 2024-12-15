@@ -134,7 +134,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     {
         if (std::time(0) - start_time > CLIENT_TIMEOUT)
         {
-            send(clientFD, HttpRequest::requestTimeout().c_str(), HttpRequest::requestTimeout().size(), 0); 
+            send(clientFD, HttpRequest::requestTimeout("").c_str(), HttpRequest::requestTimeout("").size(), 0); 
             selector.removeClient(clientFD);
             return;
         }
@@ -145,7 +145,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
                     && request.find("POST") == std::string::npos
                     && request.find("DELETE") == std::string::npos)
             {
-                send(clientFD, HttpRequest::badRequest().c_str(), HttpRequest::badRequest().size(), 0);
+                send(clientFD, HttpRequest::badRequest("").c_str(), HttpRequest::badRequest("").size(), 0);
                 selector.removeClient(clientFD);
                 return;
             }
@@ -277,7 +277,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
 void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 {
     if (cgiInfo->_ScriptResponse.find("SyntaxError") != std::string::npos)
-        send(cgiInfo->_clientFd, HttpRequest::serverError().c_str(), HttpRequest::serverError().size(), 0);
+        send(cgiInfo->_clientFd, HttpRequest::serverError("").c_str(), HttpRequest::serverError("").size(), 0);
     std::string statusLine  = "HTTP/1.1 200 OK\r\n";
     std::string headers     = "Server: webserver/0.42\r\n";
     std::stringstream contentLength;
