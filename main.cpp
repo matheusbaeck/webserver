@@ -6,6 +6,7 @@ int main(int argc, char **argv)
 {
     try 
     {
+        signal(SIGPIPE, SIG_IGN);
         if (argc > 2)
         {
             std::cerr << "too many arguments" << std::endl;

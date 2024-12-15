@@ -59,7 +59,7 @@ class Server
         std::string readBodyRequest(size_t contentLength, int clientFd);
         bool        readWholeRequestHeaders(Selector& selector, int clientFD, size_t* end);
         int         handleResponsePipe(Selector& selector, int pipeFd);
-		int			sendResponse(Selector& selector, int clientSocket, std::string request);
+		int			sendResponse(Selector& selector, int clientSocket);
         void        sendCGIResponse(cgiProcessInfo* cgiInfo);
 };
 

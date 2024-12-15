@@ -34,6 +34,7 @@ class HttpRequest
 
     bool bufferFlag;
 
+    std::string response;
 	
 	Method method;
 	std::string path;
@@ -44,6 +45,9 @@ class HttpRequest
 	static void	toLower(char &c);
 
 	struct BodyRequest body;
+
+    size_t pos;
+
 
 public:
 	HttpRequest(void);
