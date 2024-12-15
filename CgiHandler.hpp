@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:28:21 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/14 13:31:42 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/15 11:28:21 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,6 +47,8 @@ class CgiHandler
         CgiHandler(HttpRequest *httpReq, std::string scriptName, std::string cgiPath);
         ~CgiHandler(void);
 };
+
+void waitMicroseconds(long microseconds); 
 
 class cgiProcessInfo 
 {

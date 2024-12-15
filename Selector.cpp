@@ -205,7 +205,8 @@ void Selector::removeClient(int clientSocket)
     {
         perror("epoll_ctl: remove eventFd");
         std::cerr << "Failed to remove eventFd: " << clientSocket << ", errno: " << errno << std::endl;
-        exit(1);
+        return;
+        /*exit(1);*/
     }
     std::cout << "Removed clientSocket: " << clientSocket << std::endl;
     getClientConfig().erase(clientSocket);
@@ -297,8 +298,14 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                 if (_events[n].events & EPOLLOUT) 
                 {
                     err = server->sendResponse(*this, event_fd);
-                    if (err == 1) continue;
-                    return;
+                    if (err == 0) continue;
+                    else if (err == 2) return;
+                    else
+                    {
+                        selector.getRequests().erase(event_fd);
+                        selector.setClientFdEvent(event_fd, READ);
+                        return;
+                    }
                 }
                 if (_events[n].events & (EPOLLERR | EPOLLHUP)) 
                 {
@@ -306,6 +313,7 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                     epoll_ctl(this->getEpollFD(), EPOLL_CTL_DEL, _events[n].data.fd, NULL);
                     _activeClients.erase(_events[n].data.fd);
                     _clientConfig.erase(_events[n].data.fd);
+                    _httpRequests.erase(_events[n].data.fd);
                     _requests.erase(_events[n].data.fd);
                     close(_events[n].data.fd);
                 }
