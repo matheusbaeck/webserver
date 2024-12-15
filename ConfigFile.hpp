@@ -8,11 +8,7 @@
 #include <sstream>
 #include <iostream>
 #include "Tokenizer.hpp"
-#include "stdint.h"
-
-#define PEEK(e) std::cout << "peek -> " << (char)e << std::endl
-
-// TODO: make route inherite from server config.
+#include <stdint.h>
 
 enum StatusCode
 {
@@ -43,6 +39,7 @@ class ConfigServer
 {
 	std::vector<Route> routes;
 	Tokenizer *tokenizer;
+
 protected:
 	bool	isResized;
 
@@ -99,23 +96,18 @@ public:
 class Route : public ConfigServer
 {
     bool cgiFlag;
-	//bool isResized;
 	std::vector<Method>  methods;
 	bool				 autoindex;
 
     std::string cgiPath;
     std::string cgiScriptName;
     std::vector<std::string> cgiExtensions;
-
+	std::string path;
 	Tokenizer *tokenizer;
 public:
-	// temp
-	std::string path;
-
 	Route(void);
 	~Route(void);
 	Route(Route const &other);
-	//Route(ConfigServer const &other); ---- why do you call ConfigServer
 	Route	&operator=(Route const &other);
 
 	void	parseMethods(void);
@@ -123,7 +115,6 @@ public:
 	void	parseAutoIndex(void);
     void    parseCgiPath(void);
     void    parseCgiExtensions(void);
-	//void	parseIndex(void);
     void    setCgiScriptName(std::string scriptName);
 
 	bool				getAutoIndex(void);
@@ -135,20 +126,17 @@ public:
     std::string getCgiPath(void);
     std::string getCgiScriptName(void);
 
-    void clear() {
-        this->redirection.clear();
-    }
-
+	void setPath(std::string const &_path);
+	std::string &getPath(void);
     bool isCgi(void);
 };
 
 class ConfigFile
 {
-  static Tokenizer tokenizer;
+  	static Tokenizer tokenizer;
 	std::ifstream file;
 	std::vector<ConfigServer> servers;
 public:
-
 	static const char *delim;
 	static const char *pathname;
 
@@ -159,12 +147,9 @@ public:
 	ConfigFile(ConfigFile const &other);
 	ConfigFile	&operator=(ConfigFile const &other);
 
-
 	/* ------- Methods ------- */
 	void	parse(void);
 	std::vector<ConfigServer>	&getServersConfig(void);
-	//std::vector<std::vector<uint16_t> > getPorts(void);
-
 
 	/* ------- Static Methods ------- */
 	static bool 	 isNumber(std::string const &str);

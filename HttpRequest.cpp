@@ -8,22 +8,9 @@
 #include <dirent.h>
 #include <unistd.h>
 
-// NOTE: connection closes if there is BAD REQUEST, otherwise depend on Connection header.
-
 const char  *METHODS[] = {"GET", "POST", "DELETE"};
-//ConfigFile   *HttpRequest::configFile;
-//ConfigServer *HttpRequest::configServer;
 const char	*HttpRequest::delim = " \r\n";
 const char	*HttpRequest::CRLF  = "\r\n";
-
-#define THROW(str) throw std::invalid_argument(str)
-
-template<typename T>
-void	print(T const &e)
-{
-	std::cout << e << std::endl;
-}
-
 
 bool	isFile(const char *pathname)
 {
@@ -67,103 +54,118 @@ std::vector<std::string>::const_iterator findIndex(std::string const& root, cons
 	return indices.end();
 }
 
-
-
-#if 1
-std::string	HttpRequest::notAllowed(std::string const &str)
+std::string	HttpRequest::notAllowed(std::string const &str, std::string const &errPage)
 {
+	const char *filepathname = "./err_pages/405.html";
+	if (!errPage.empty())
+		filepathname = errPage.c_str();
 	const std::string statusLine = "HTTP/1.1 405 Not Allowed\r\n";
-
 	std::string headers = "Server: webserv/0.42\r\n";
 	headers += str + "\r\n";
 	headers += "Content-Type: text/html\r\n";
-
-	std::string body = HttpRequest::readFile("./err_pages/405.html");
+	std::string body = HttpRequest::readFile(filepathname);
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
 	headers += "Connection: keep-alive\r\n\r\n";
 	return statusLine + headers + body + "\r\n";
 }
 
-std::string	HttpRequest::serverError(void)
+std::string	HttpRequest::serverError(std::string const &errPage)
 {
+	const char *filepathname = "./err_pages/500.html";
+	if (!errPage.empty())
+		filepathname = errPage.c_str();
 	const std::string statusLine = "HTTP/1.1 500 Internal Server Error\r\n";
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/500.html");
+	std::string body    = HttpRequest::readFile(filepathname);
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
 	headers += "Connection: keep-alive\r\n\r\n";
 	return statusLine + headers + body + "\r\n";
 }
 
-std::string	HttpRequest::notFound(void)
+std::string	HttpRequest::notFound(std::string const &errPage)
 {
+	const char *filepathname = "./err_pages/404.html";
+	if (!errPage.empty())
+		filepathname = errPage.c_str();
 	const std::string statusLine = "HTTP/1.1 404 Not Found\r\n";
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/404.html");
+	std::string body    = HttpRequest::readFile(filepathname);
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
 	headers += "Connection: keep-alive\r\n\r\n";
 	return statusLine + headers + body + "\r\n";
 }
 
 
-std::string	HttpRequest::gatewayTimeout(void)
+std::string	HttpRequest::gatewayTimeout(std::string const &errPage)
 {
-        std::string statusLine = "HTTP/1.1 504 Gateway Timeout\r\n";
-	    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	    std::string body    = HttpRequest::readFile("./err_pages/504.html");
-	    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	    headers += "Connection: close\r\n\r\n";
-        return statusLine + headers + body + "\r\n";
+	const char *filepathname = "./err_pages/504.html";
+	if (!errPage.empty())
+		filepathname = errPage.c_str();
+	std::string statusLine = "HTTP/1.1 504 Gateway Timeout\r\n";
+	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	std::string body    = HttpRequest::readFile(filepathname);
+	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+	headers += "Connection: close\r\n\r\n";
+	return statusLine + headers + body + "\r\n";
 }
 
-std::string HttpRequest::badRequest(void)
+std::string HttpRequest::badRequest(std::string const &errPage)
 {
+	const char *filepathname = "./err_pages/400.html";
+	if (!errPage.empty())
+		filepathname = errPage.c_str();
 	const std::string statusLine = "HTTP/1.1 400 Bad Request\r\n";
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/400.html");
+	std::string body    = HttpRequest::readFile(filepathname);
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
 	headers += "Connection: close\r\n\r\n";
 	return statusLine + headers + body + "\r\n";
 }
 
 
-std::string HttpRequest::requestTimeout(void)
+std::string HttpRequest::requestTimeout(std::string const &errPage)
 {
-	const std::string statusLine = "HTTP/1.1 408 Forbidden\r\n";
+	const char *filepathname = "./err_pages/408.html";
+	if (!errPage.empty())
+		filepathname = errPage.c_str();
+	const std::string statusLine = "HTTP/1.1 408 Request Timeout\r\n";
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/408.html");
+	std::string body    = HttpRequest::readFile(filepathname);
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
 	headers += "Connection: close\r\n\r\n";
 	return statusLine + headers + body + "\r\n";
 }
 
-std::string HttpRequest::forbidden(void)
+std::string HttpRequest::forbidden(std::string const &errPage)
 {
+	const char *filepathname = "./err_pages/403.html";
+	if (!errPage.empty())
+		filepathname = errPage.c_str();
 	const std::string statusLine = "HTTP/1.1 403 Forbidden\r\n";
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/403.html");
+	std::string body    = HttpRequest::readFile(filepathname);
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
 	headers += "Connection: close\r\n\r\n";
 	return statusLine + headers + body + "\r\n";
 }
 
 
-std::string HttpRequest::payloadTooLarge(void)
+std::string HttpRequest::payloadTooLarge(std::string const &errPage)
 {
+	const char *filepathname = "./err_pages/413.html";
+	if (!errPage.empty())
+		filepathname = errPage.c_str();
 	const std::string statusLine = "HTTP/1.1 413 Payload Too Large\r\n";
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/413.html");
+	std::string body    = HttpRequest::readFile(filepathname);
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
 	headers += "Connection: close\r\n\r\n";
 	return statusLine + headers + body + "\r\n";
 }
-	
-
-#endif
 
 HttpRequest::HttpRequest(void) 
 {
     this->pos  = 0;
-    this->bufferFlag = false;
     this->headers["connection"] = "keep-alive";
     pipe(_bodyPipe);
 }
@@ -182,9 +184,6 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 		this->method  		= other.method;
 		this->path    		= other.path;
 		this->statusCode	= other.statusCode;
-		//
-		//this->clientFd = other.clientFd;
-		//this->port = other.port;
 		this->tokenizer.setBuffer(other.tokenizer.str().c_str());
 	}
 	return *this;
@@ -192,16 +191,6 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 
 HttpRequest::~HttpRequest()
 {
-    /*if (this->body->size)*/
-    /*{*/
-    /*    if (this->body->raw)*/
-    /*        delete this->body->raw;*/
-    /*    else if (this->body->urlencoded)*/
-    /*        delete this->body->urlencoded;*/
-    /*    delete this->body;*/
-    /*}*/
-    //delete this->body->raw;
-    //delete this->body;
     delete this->configServer;
 }
 
@@ -212,12 +201,6 @@ HttpRequest::HttpRequest(const char *buffer)
 
 typedef StatusCode (HttpRequest::*parseCalls)(const std::string &token);
 
-/*
- *	request-line = method SP request-target SP HTTP-version CRLF is not a valid subnet mask:
-
-The binary representation 00101101 does not have a contiguous sequence of 1s followed by 0s.
- * */
-
 StatusCode HttpRequest::parseStartLine(void)
 {
 	parseCalls calls[3] = {&HttpRequest::parseMethod, &HttpRequest::parsePath, &HttpRequest::parseProtocol};
@@ -226,16 +209,11 @@ StatusCode HttpRequest::parseStartLine(void)
 	{
 		std::string token = this->tokenizer.next(HttpRequest::delim);
 		this->statusCode  = (this->*calls[i])(token);
-		// TODO: make sure this condition is correct.
 		if (this->statusCode != OK) return this->statusCode;
 		this->tokenizer.trimSpace();
 	}
 	return this->tokenizer.isCRLF() ? this->statusCode : BREQUEST;
 }
-
-/*
- *	method = "GET" | "POST" | "DELETE"
- * */
 
 StatusCode HttpRequest::parseMethod(const std::string &_method)
 {
@@ -247,18 +225,10 @@ StatusCode HttpRequest::parseMethod(const std::string &_method)
 	return BREQUEST;
 }
 
-/*
- * request-target = origin-form | absolute-form | authority-form | asterisk-form
- * origin-form    = "/" path [ "?" query ]
- * absolute-form  = "http" "://" host [ : port ] [ abs-path [ "?" query ]]
- * authority-form = "*"
- * */
-
 std::string findCGIScript(const std::string& cgi_path, const std::vector<std::string>& cgi_extensions) 
 {
     DIR* dir = opendir(cgi_path.c_str());
     if (dir == NULL) {
-        // Error opening the directory
         return "";
     }
 
@@ -277,9 +247,8 @@ std::string findCGIScript(const std::string& cgi_path, const std::vector<std::st
             }
         }
     }
-
     closedir(dir);
-    return ""; // No matching CGI script found
+    return "";
 }
 
 
@@ -290,9 +259,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 
 	if (requestTarget.find_first_of("/") == 0)
 	{
-			/*
-		 	*	TODO: Now let' handle one server and multiple routes.
-		 	* */
 		route = HttpRequest::configServer->getRoute(requestTarget);
         if (!route)
 			return NFOUND;
@@ -304,7 +270,7 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         if (route->isCgi())
         {
             found = requestTarget.find_last_of("/");
-            if (requestTarget == route->path)
+            if (requestTarget == route->getPath())
             {
                 fullPath = route->getCgiPath();
                 //DO i need to add a scriptName
@@ -327,9 +293,7 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         }
         else 
         {
-            std::cout << "requestTarget: " << requestTarget << std::endl;
-            std::cout << "route->path: " << route->path << std::endl;
-            if (requestTarget == route->path)
+            if (requestTarget == route->getPath())
             {
                 std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
                 if (it == route->getIndex().end())
@@ -341,8 +305,8 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             }
             else
             {
-                found = requestTarget.find(route->path);
-                target = requestTarget.substr(found + route->path.size(), requestTarget.size());
+                found = requestTarget.find(route->getPath());
+                target = requestTarget.substr(found + route->getPath().size(), requestTarget.size());
                 if (target[0] == '/')
                     target = target.substr(1, target.size());
             }
@@ -358,10 +322,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         }
         else
             this->path = fullPath;
-
-		std::cout << "---------------- " << this->path << " ----------------" << std::endl;
-
-
 		if (access(this->path.c_str(), F_OK) == -1)
             return NFOUND;
 		return OK;
@@ -369,13 +329,8 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 	return BREQUEST;
 }
 
-/*
- * HTTP-version = "HTTP" "/" 1*DIGIT "." 1*DIGIT
- * */
-
 StatusCode HttpRequest::parseProtocol(const std::string &protocol)
 {
-	// TODO: parse major and minor number of http version with status code 505
 	return protocol == "HTTP/1.1" ? OK : BREQUEST;
 }
 
@@ -470,58 +425,39 @@ StatusCode HttpRequest::parseHeaders(void)
 		if (tokenizer.peek() == ':') tokenizer.get();
 		HttpRequest::lower(key);
 		tokenizer.trimSpace();
-		value = tokenizer.next(HttpRequest::CRLF/*HttpRequest::delim*/);
+		value = tokenizer.next(HttpRequest::CRLF);
 
-		/*std::cout << "key  : " << key << std::endl;*/
-		/*std::cout << "value: " << value << std::endl;*/
 
 		if (key == "host")
 		{
 			if (value.empty() || this->headers.count(key) > 0) return BREQUEST;
-			// NOTE: match host with server_names
-
-			std::cout << "host: " << value << std::endl;
-
 			this->headers[key] = tokenizer.next(HttpRequest::CRLF);
-// 			if (!this->matchHost(value))
-// 				return NFOUND;
 		}
 		if (key == "connection")
 		{
 			this->headers[key] = "keep-alive";
-			
-			if (value == "close")
-			{
-				this->headers[key] = value;//tokenizer.next(HttpRequest::CRLF);
-			}
+			if (value == "close") this->headers[key] = value;
 		}
 		if (key == "content-length")
 		{
 			if (!ConfigFile::isNumber(value)) return BREQUEST;
-// 			if (ConfigFile::toNumber(value) > this->configFile.getServers()[0].getClientBodySize())
-// 			{
-// 				return CTOOLARGE;
-// 			}
-			this->headers[key] = value;//tokenizer.next(HttpRequest::CRLF);
+			this->headers[key] = value;
 		}
 		if (key == "content-type")
 		{
-			this->headers[key] = value;//tokenizer.next(";\r\n");
+			this->headers[key] = value;
 		}
 		if (key == "user-agent")
 		{
-			this->headers[key] = value;//tokenizer.next(HttpRequest::CRLF);
+			this->headers[key] = value;
 		}
-
-		if (this->tokenizer.isCRLF()) // checking "\r\n" and skip them
+		if (this->tokenizer.isCRLF())
 			if (this->tokenizer.isCRLF()) break;
 	}
-	// *NOTE: client must send one host header.
 	if (this->headers.count("host") == 0) return BREQUEST;
 	return OK;	
 }
 
-// TODO: try to put this function in configFile class
 bool HttpRequest::matchHost(const std::string &host)
 {
 	this->serverName = host;
@@ -537,78 +473,31 @@ bool HttpRequest::matchHost(const std::string &host)
 	return std::find(begin, end, this->serverName) != end;
 }
 
-// TODO: what about CRLF at the EOF
-//void	HttpRequest::parse(const char *buffer)
 void	HttpRequest::parse(void)
 {
-	// TODO: how do i generate a HTTP response?
-
 	/* ----------- Start Line ----------- */
     this->statusCode = this->parseStartLine();
-
     std::cout << "status code of start line: " << this->statusCode << std::endl;
-
     /* -----------   Headers  ----------- */
-
-	/*	after ":" only space allow
-	 *  no spaces allow before key of header
-	 * */
 	if (this->statusCode == OK)
 	{
 		this->statusCode = this->parseHeaders();
 		std::cout << "status code of headers: " << this->statusCode << std::endl;
 	}
-
-
-
 	/* -----------   Body  ----------- */
-		/* NOTE: if the body request has more client_body_max_size,
-		 *  	 server should take client_body_max_size characters.
-		 *		 rest of the body request should start parsing it again as new request!!
-		 * */
-    
 	if (this->statusCode == OK)
     {
 	    this->statusCode = this->parseBody();
     }
-	/* -----------   generate response  ----------- */
-
-}
-
-std::string	fileUpload(std::string const &body, std::string const &filename)
-{
-	///std::ofstream file()
-
-	(void) body;
-
-	std::cout << "body    : " << body << std::endl;
-	std::cout << "filename: " << filename << std::endl;
-
-	return std::string("HTTP/1.1 201 Created\r\n\r\n");	
 }
 
 std::string HttpRequest::DELETEmethod(const std::string &pathname)
 {
     std::string statusLine = this->getStatusLine(NCONTENT);
 	std::string headers = "Server: webserv/0.42\r\n";
-	std::string body;/*HttpRequest::readFile("./err_pages/400.html")*/;
-
-
-
-    
-    /*if ((access(pathname.c_str(), R_OK | W_OK) == -1))
-    {
-        statusLine = this->getStatusLine(NALLOWED);
-    }*/
+	std::string body;
     std::remove(pathname.c_str());
 	headers += "Connection: keep-alive\r\n\r\n";
-        
-    std::cout << "{\n";
-    std::cout << statusLine << headers << body << std::endl;
-    std::cout << "}\n";
-
-
-
 	return statusLine + headers + body + "\r\n";
 }
 
@@ -633,13 +522,14 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     }
         std::cout << "Status code: " << this->statusCode << std::endl;
 
+	std::map<StatusCode, std::string> errorPages = route->getErrorPages();
 	switch (this->statusCode)
 	{
-		case BREQUEST: this->response = badRequest(); break;
-		case NFOUND  : this->response = notFound();   break;
-        case SERVERR : this->response = serverError(); break;
-		case NALLOWED: this->response = notAllowed("Allow: GET, POST, DELETE"); break;
-        case CTOOLARGE: this->response = payloadTooLarge(); break;
+		case BREQUEST: this->response = badRequest(errorPages[this->statusCode]); break;
+		case NFOUND  : this->response = notFound(errorPages[this->statusCode]);   break;
+        case SERVERR : this->response = serverError(errorPages[this->statusCode]); break;
+		case NALLOWED: this->response = notAllowed("Allow: GET, POST, DELETE", errorPages[this->statusCode]); break;
+        case CTOOLARGE: this->response = payloadTooLarge(errorPages[this->statusCode]); break;
 		case OK:
 			switch (this->method)
 			{
@@ -653,7 +543,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 			if (route->getAutoIndex() && this->method == GET)
 				this->response = this->dirList(this->path);
 			else
-				this->response = forbidden();
+				this->response = forbidden(errorPages[this->statusCode]);
 			break;
 		default: std::invalid_argument("NOT IMPLEMENTED - STATUS CODE");
 	}
@@ -667,15 +557,11 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 	DIR	*dir;
 	char buff[100];
 
-	
-
 	std::string startLine = "HTTP/1.1 200 OK\r\n";
 	std::string headers   = "Server: webserver/0.42\r\nContent-Type: text/html\r\n";
-
     std::string s = "Index of " + dirpath.substr(1, dirpath.size());
     std::string body = "<html>\n<head><title>" + s + "</title></head>\n";
     body += "<body>\n<h1>" + s + "</h1><hr><pre>";
-
     dir = opendir(dirpath.c_str());
     if (dir)
     {
@@ -741,6 +627,53 @@ std::string HttpRequest::getStatusLine(StatusCode statusCode)
     statusPhrases[NCONTENT] = "204 No Content";
 
     return protocolHTTP + " " + statusPhrases[statusCode] + "\r\n"; 
+}
+
+std::string HttpRequest::getMethodStr(void)
+{
+	const std::string methods[] = {"GET", "POST", "DELETE"};
+	if (this->method < GET || this->method > DELETE)
+		return "";
+	return methods[this->method];
+}
+
+size_t HttpRequest::getPos(void) 
+{
+	return this->pos;
+}
+
+void    HttpRequest::incrementPos(size_t incrPos)
+{
+	this->pos += incrPos;
+}
+
+std::string HttpRequest::getHeader(std::string const &key)
+{
+	return this->headers[key]; 
+}
+std::string& HttpRequest::getResponse()
+{
+	return this->response;
+}
+
+std::string HttpRequest::getQuery(void)
+{
+	return this->query;
+}
+
+std::string HttpRequest::getServerPort(void)
+{
+	return this->serverPort == "" ? "80" : this->serverPort;
+}
+
+void	HttpRequest::setConfig(ConfigServer &_configServer)
+{
+	this->configServer = new ConfigServer(_configServer);
+}
+
+void    HttpRequest::setBuffer(const char *buffer)
+{
+	this->tokenizer.setBuffer(buffer);
 }
 
 std::string	HttpRequest::GETmethod(std::string &pathname, Route *route)
