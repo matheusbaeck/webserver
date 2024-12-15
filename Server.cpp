@@ -90,25 +90,42 @@ int Server::setnonblocking(int sockfd)
 
 int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
 {
-    int client_fd = accept(socketFD, NULL, NULL);
+    while (true) 
+    {
+        struct sockaddr_in clientAddr;
+        socklen_t clientLen = sizeof(clientAddr);
+        int clientFd = accept(socketFD, (struct sockaddr*)&clientAddr, &clientLen);
 
-    std::cout << "New client_fd " << client_fd << " accepted on port: " << portFD << std::endl;
-    if (client_fd < 0)
-    {
-        std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
-        return (-1);
+        if (clientFd == -1) 
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) 
+            {
+                // No more connections to accept
+                break;
+            } else {
+                perror("accept");
+                return -1;
+            }
+        }
+        if (clientFd < 0)
+        {
+            std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
+            return (-1);
+        }
+        std::cout << "New clientFd " << clientFd << " accepted on port: " << portFD << std::endl;
+        fcntl(clientFd, F_SETFL, O_NONBLOCK);
+        epoll_event ev;
+        ev.events = EPOLLIN | EPOLLET; 
+        ev.data.fd = clientFd;
+        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, clientFd, &ev) == -1) 
+        {
+            std::cerr << "Failed to add client socket to epoll: " << strerror(errno) << std::endl;
+            close(clientFd);
+            return (-1);
+        }
+        selector.getActiveClients().insert(clientFd);
+        selector.getClientConfig()[clientFd] = this->getConfig();
     }
-    epoll_event ev;
-    ev.events = EPOLLIN | EPOLLET; 
-    ev.data.fd = client_fd;
-    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, client_fd, &ev) == -1) 
-    {
-        std::cerr << "Failed to add client socket to epoll: " << strerror(errno) << std::endl;
-        close(client_fd);
-        return (-1);
-    }
-    selector.getActiveClients().insert(client_fd);
-    selector.getClientConfig()[client_fd] = this->getConfig();
     return (0);
 }
 
@@ -243,7 +260,7 @@ int Server::sendResponse(Selector& selector, int client_socket)
         bytesToSend = 4096;
 
     // Attempt to send.
-    waitMicroseconds(20);
+    waitMicroseconds(200);
     
     //response is the html page?
     ssize_t bytesSent = send(client_socket, &response[pos], bytesToSend, MSG_CONFIRM);
