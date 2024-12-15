@@ -35,9 +35,7 @@ for filename in os.listdir(image_directory):
         images.append(base_url + filename)
 
 # Create a JSON response
-response = {
-    "images": images
-}
+response = {"images": images}
 
 # Print the JSON response
 print(json.dumps(response))

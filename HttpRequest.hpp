@@ -36,6 +36,7 @@ class HttpRequest
 
     bool bufferFlag;
 
+    std::string response;
 	
 	Method method;
 	std::string path;
@@ -46,6 +47,9 @@ class HttpRequest
 	static void	toLower(char &c);
 
 	struct BodyRequest body;
+
+    size_t pos;
+
 
 public:
 	HttpRequest(void);
@@ -72,11 +76,24 @@ public:
         return methods[this->method];
     }
 
+    size_t getPos(void) 
+    {
+        return this->pos;
+    }
+    void    incrementPos(size_t incrPos)
+    {
+        this->pos += incrPos;
+    }
+
 	StatusCode 	getStatusCode(void) const;
 
     std::string getHeader(std::string const &key)
     {
         return this->headers[key]; 
+    }
+    std::string& getResponse()
+    {
+        return this->response;
     }
 
     std::string getQuery(void)

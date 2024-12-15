@@ -162,6 +162,7 @@ std::string HttpRequest::payloadTooLarge(void)
 
 HttpRequest::HttpRequest(void) 
 {
+    this->pos  = 0;
     this->bufferFlag = false;
     this->headers["connection"] = "keep-alive";
     pipe(_bodyPipe);
@@ -294,10 +295,8 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 		 	* */
 		route = HttpRequest::configServer->getRoute(requestTarget);
         if (!route)
-		{
-			THROW("HERE");
 			return NFOUND;
-		}
+
         size_t      found;
         std::string target;
         std::string fullPath;
@@ -316,16 +315,14 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             {
                 fullPath = route->getCgiPath() + requestTarget.substr(found);
                 size_t queryPos = requestTarget.find("?");
+                std::cout << queryPos << std::endl;
                 std::string scriptRAW = requestTarget.substr(0, queryPos);
                 std::string scriptName = scriptRAW.substr(found + 1);
                 if (scriptName.size())
                     route->setCgiScriptName(scriptRAW.substr(found + 1));
                 else 
                     route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
-                    
-                std::cout << "PARSE_PATH| scriptName: " << route->getCgiScriptName() << std::endl;
             }
-            std::cout << "route->path: " << route->path << std::endl;
                 
         }
         else 
@@ -337,8 +334,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
                 std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
                 if (it == route->getIndex().end())
                 {
-                    std::cout << "not here" << std::endl;
-                    //this->path = requestTarget;
                     this->path = route->getRoot() + requestTarget;
                     return FORBIDDEN;
                 }
@@ -619,7 +614,6 @@ std::string HttpRequest::DELETEmethod(const std::string &pathname)
 
 std::string	HttpRequest::handler(Selector& selector, int clientFd)
 {
-	std::string response;
 	std::string cgiResponse;
 
 	this->parse();
@@ -629,42 +623,41 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
         this->statusCode = NFOUND;
     }
-    if (this->statusCode == OK && route->isCgi())
+    if (this->statusCode == OK && route && route->isCgi())
     {
 		CgiHandler *handler = new CgiHandler(this, route->getCgiScriptName(), route->getCgiPath());
 		this->statusCode = handler->execute(selector, clientFd, this->_bodyPipe[0]);
         delete handler;
         if (this->statusCode == OK)
-            return response;
+            return this->response;
     }
         std::cout << "Status code: " << this->statusCode << std::endl;
-    
 
 	switch (this->statusCode)
 	{
-		case BREQUEST: response = badRequest(); break;
-		case NFOUND  : response = notFound();   break;
-        case SERVERR : response = serverError(); break;
-		case NALLOWED: response = notAllowed("Allow: GET, POST, DELETE"); break;
-        case CTOOLARGE: response = payloadTooLarge(); break;
+		case BREQUEST: this->response = badRequest(); break;
+		case NFOUND  : this->response = notFound();   break;
+        case SERVERR : this->response = serverError(); break;
+		case NALLOWED: this->response = notAllowed("Allow: GET, POST, DELETE"); break;
+        case CTOOLARGE: this->response = payloadTooLarge(); break;
 		case OK:
 			switch (this->method)
 			{
-				case GET:    response = this->GETmethod(this->path, route);  break;
-				case POST:   response = this->POSTmethod(this->path);    break;
-				case DELETE: response = this->DELETEmethod(this->path); break;
+				case GET:    this->response = this->GETmethod(this->path, route);  break;
+				case POST:   this->response = this->POSTmethod(this->path);    break;
+				case DELETE: this->response = this->DELETEmethod(this->path); break;
 				default:	 std::invalid_argument("NOT IMPLEMENTED - OTHER METHOD");
 			}
 			break;
 		case FORBIDDEN:
 			if (route->getAutoIndex() && this->method == GET)
-				response = this->dirList(this->path);
+				this->response = this->dirList(this->path);
 			else
-				response = forbidden();
+				this->response = forbidden();
 			break;
 		default: std::invalid_argument("NOT IMPLEMENTED - STATUS CODE");
 	}
-	return response;
+	return this->response;
 }
 
 std::string HttpRequest::dirList(std::string const &dirpath)

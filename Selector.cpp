@@ -94,6 +94,11 @@ std::map<int, std::string>& Selector::getRequests()
     return (this->_requests);
 }
 
+std::map<int, HttpRequest*>& Selector::getHTTPRequests()
+{
+    return (this->_httpRequests);
+}
+
 int& Selector::getEpollFD()
 {
     return (this->_epollfd);
@@ -192,21 +197,21 @@ void Selector::setClientFdEvent(int event_fd, int action)
     }
 }
 
-
-
 void Selector::removeClient(int clientSocket)
 {
     if (epoll_ctl(getEpollFD(), EPOLL_CTL_DEL, clientSocket, NULL) == -1)
     {
         perror("epoll_ctl: remove eventFd");
         std::cerr << "Failed to remove eventFd: " << clientSocket << ", errno: " << errno << std::endl;
-        exit(1);
+        return;
+        /*exit(1);*/
     }
-    std::cout << "Removed clientSocket: " << clientSocket << std::endl;
     getClientConfig().erase(clientSocket);
+    getHTTPRequests().erase(clientSocket);
     getActiveClients().erase(clientSocket);
     getRequests().erase(clientSocket);
     close(clientSocket);
+    std::cout << "Removed clientSocket: " << clientSocket << std::endl;
 }
 
 void Selector::examineCgiExecution()
@@ -252,19 +257,20 @@ void Selector::processEvents(const std::vector<Server*>& servers )
         return;
     }
     int err;
-    for (size_t i = 0; i < servers.size(); i += 1)
+    for (int n = 0; n < _eventCount; ++n) 
     {
-        Server *server = servers[i];
-        for (size_t j = 0; j < server->getSockets().size(); ++j) 
+        for (size_t i = 0; i < servers.size(); i += 1)
         {
-            int serverSocket    = server->getSockets()[j];
-            int serverPort      = server->getPorts()[j];
-            for (int n = 0; n < _eventCount; ++n) 
+            Server *server = servers[i];
+            int event_fd = _events[n].data.fd;
+            // Reading requests
+            if (_events[n].events & EPOLLIN) 
             {
-                int event_fd = _events[n].data.fd;
-                // Reading requests
-                if (_events[n].events & EPOLLIN) 
+
+                for (size_t j = 0; j < server->getSockets().size(); ++j) 
                 {
+                    int serverSocket    = server->getSockets()[j];
+                    int serverPort      = server->getPorts()[j];
                     if (isServerSocket(event_fd, serverSocket)) 
                     {
                         std::cout << "event_Fd: " << event_fd << std::endl;
@@ -286,28 +292,24 @@ void Selector::processEvents(const std::vector<Server*>& servers )
                             return;
                     }
                 }
-
-                // Answering clients
-                if (_events[n].events & EPOLLOUT) 
+            }
+            // Answering clients
+            if (_events[n].events & EPOLLOUT) 
+            {
+                err = server->sendResponse(*this, event_fd);
+                if (err == 0) continue;
+                else if (err == 2) return;
+                else
                 {
-                    err = server->sendResponse(*this, event_fd, _requests[event_fd]);
-                    if (err == -1)
-                    {
-                        _requests.erase(event_fd);
-                        continue;
-                    }
-                    else 
-                        return;
+                    selector.getRequests().erase(event_fd);
+                    selector.setClientFdEvent(event_fd, READ);
+                    return;
                 }
-                if (_events[n].events & (EPOLLERR | EPOLLHUP)) 
-                {
-                    std::cerr << "Error on FD " << _events[n].data.fd << ": " << strerror(errno) << std::endl;
-                    epoll_ctl(this->getEpollFD(), EPOLL_CTL_DEL, _events[n].data.fd, NULL);
-                    _activeClients.erase(_events[n].data.fd);
-                    _clientConfig.erase(_events[n].data.fd);
-                    _requests.erase(_events[n].data.fd);
-                    close(_events[n].data.fd);
-                }
+            }
+            if (_events[n].events & (EPOLLERR | EPOLLHUP)) 
+            {
+                std::cerr << "Error on FD " << _events[n].data.fd << ": " << strerror(errno) << std::endl;
+                removeClient(event_fd);
             }
         }
     }

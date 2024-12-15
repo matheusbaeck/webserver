@@ -90,25 +90,42 @@ int Server::setnonblocking(int sockfd)
 
 int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
 {
-    int client_fd = accept(socketFD, NULL, NULL);
+    while (true) 
+    {
+        struct sockaddr_in clientAddr;
+        socklen_t clientLen = sizeof(clientAddr);
+        int clientFd = accept(socketFD, (struct sockaddr*)&clientAddr, &clientLen);
 
-    std::cout << "New client_fd " << client_fd << " accepted on port: " << portFD << std::endl;
-    if (client_fd < 0)
-    {
-        std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
-        return (-1);
+        if (clientFd == -1) 
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) 
+            {
+                // No more connections to accept
+                break;
+            } else {
+                perror("accept");
+                return -1;
+            }
+        }
+        if (clientFd < 0)
+        {
+            std::cerr << "Failed to accept new connection: " << strerror(errno) << std::endl;
+            return (-1);
+        }
+        std::cout << "New clientFd " << clientFd << " accepted on port: " << portFD << std::endl;
+        fcntl(clientFd, F_SETFL, O_NONBLOCK);
+        epoll_event ev;
+        ev.events = EPOLLIN | EPOLLET; 
+        ev.data.fd = clientFd;
+        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, clientFd, &ev) == -1) 
+        {
+            std::cerr << "Failed to add client socket to epoll: " << strerror(errno) << std::endl;
+            close(clientFd);
+            return (-1);
+        }
+        selector.getActiveClients().insert(clientFd);
+        selector.getClientConfig()[clientFd] = this->getConfig();
     }
-    epoll_event ev;
-    ev.events = EPOLLIN | EPOLLET; 
-    ev.data.fd = client_fd;
-    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_ADD, client_fd, &ev) == -1) 
-    {
-        std::cerr << "Failed to add client socket to epoll: " << strerror(errno) << std::endl;
-        close(client_fd);
-        return (-1);
-    }
-    selector.getActiveClients().insert(client_fd);
-    selector.getClientConfig()[client_fd] = this->getConfig();
     return (0);
 }
 
@@ -122,6 +139,25 @@ std::string Server::readBodyRequest(size_t contentLength, int clientFd)
     return (buffer);
 }
 
+static void writeToBodyPipe(std::string& request, int pipeIn)
+{
+    static const std::string    RequestHeaderEnding = "\r\n\r\n";
+
+    size_t start = request.find(RequestHeaderEnding);
+    std::string body = request.substr(start + RequestHeaderEnding.size());
+
+    std::cout << "-----------------------\n" << std::endl;
+    std::cout << "body: " << body << std::endl;
+    std::cout << "-----------------------\n" << std::endl;
+
+	int flags = fcntl(pipeIn, F_GETFL, 0);
+	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
+
+    std::string strBody = body;
+
+    write(pipeIn, &strBody[0], strBody.size());
+    close(pipeIn);
+}
 
 void Server::readClientRequest(Selector& selector, int clientFD)
 {
@@ -130,12 +166,17 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     static const std::string    ChunkEnding = "\r\n";
 
     std::time_t start_time = std::time(0);
+
+    HttpRequest* incomingRequestHTTP = new HttpRequest();
+    incomingRequestHTTP->setConfig(selector.getClientConfig()[clientFD]);
     while (pos == std::string::npos) 
     {
+        //error checking if request is bad
         if (std::time(0) - start_time > CLIENT_TIMEOUT)
         {
             send(clientFD, HttpRequest::requestTimeout().c_str(), HttpRequest::requestTimeout().size(), 0); 
             selector.removeClient(clientFD);
+            delete incomingRequestHTTP;
             return;
         }
         if (selector.getRequests()[clientFD].size() == 6)
@@ -147,6 +188,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
             {
                 send(clientFD, HttpRequest::badRequest().c_str(), HttpRequest::badRequest().size(), 0);
                 selector.removeClient(clientFD);
+                delete incomingRequestHTTP;
                 return;
             }
         }
@@ -176,62 +218,107 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         char *bodyBuffer = new char[contentLength + 1];
         recv(clientFD, bodyBuffer, contentLength, 0);
         bodyBuffer[contentLength] = '\0';
-        std::cout << bodyBuffer << std::endl; 
-        std::string response(bodyBuffer);
-        selector.getRequests()[clientFD] += response;
+        std::string requestBody(bodyBuffer);
+        selector.getRequests()[clientFD] += requestBody;
         delete[] bodyBuffer;
     }
-    selector.setClientFdEvent(clientFD, WRITE);
-}
-
-static void writeToBodyPipe(std::string request, int pipeIn)
-{
-    static const std::string    RequestHeaderEnding = "\r\n\r\n";
-
-    size_t start = request.find(RequestHeaderEnding);
-    std::string body = request.substr(start + RequestHeaderEnding.size());
-
-	int flags = fcntl(pipeIn, F_GETFL, 0);
-	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
-
-    write(pipeIn, body.c_str(), body.size());
-    close(pipeIn);
-}
-
-int Server::sendResponse(Selector& selector, int client_socket, std::string request)
-{
-    int sent_bytes =1; 
-    const char* buffer = request.c_str();
+    std::string request = selector.getRequests()[clientFD].c_str();
     if (request.size() == 0)
     {
-        selector.getRequests()[client_socket].erase();
-        return (-1);
-    }
-
-    HttpRequest* incomingRequestHTTP = new HttpRequest();
-    incomingRequestHTTP->setConfig(selector.getClientConfig()[client_socket]);
-    incomingRequestHTTP->setBuffer(buffer);
-    writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
-
-    std::string response = incomingRequestHTTP->handler(selector, client_socket);
-
-
-    sent_bytes = send(client_socket, response.c_str(), response.size(), 0);
-    if (sent_bytes < 0 || incomingRequestHTTP->getStatusCode() == CTOOLARGE) 
-    {
-        selector.removeClient(client_socket);
+        selector.getRequests()[clientFD].erase();
+        selector.getHTTPRequests().erase(clientFD);
         delete incomingRequestHTTP;
-        return (-1);
+        return;
     }
-    delete incomingRequestHTTP;
-    selector.getRequests().erase(client_socket);
-    /*struct epoll_event ev;*/
-    /*ev.events = EPOLLIN | EPOLLOUT | EPOLLET;*/
-    /*ev.data.fd = client_socket;*/
-    /*epoll_ctl(selector.getEpollFD(), EPOLL_CTL_MOD, client_socket, &ev);*/
+    incomingRequestHTTP->setBuffer(request.c_str());
+    selector.getHTTPRequests()[clientFD] = incomingRequestHTTP;
+    writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
+    selector.setClientFdEvent(clientFD, WRITE);
+    //should i handle here
+    incomingRequestHTTP->handler(selector, clientFD);
+}
 
-    selector.setClientFdEvent(client_socket, READ);
-    return (0);
+
+int Server::sendResponse(Selector& selector, int client_socket)
+{
+    HttpRequest*    clientHTTP  = selector.getHTTPRequests()[client_socket];
+    size_t          pos         = clientHTTP->getPos();
+    size_t          totalSize   = clientHTTP->getResponse().size();
+
+    if (pos >= totalSize)
+    {
+        delete clientHTTP;
+        return 1;  // Done sending.
+    }
+
+    const std::string &response = clientHTTP->getResponse();
+
+
+    //checking how much is left to read
+    size_t bytesToSend = totalSize - pos;
+    if (bytesToSend > 4096)
+        bytesToSend = 4096;
+
+    // Attempt to send.
+    waitMicroseconds(200);
+    
+    //response is the html page?
+    ssize_t bytesSent = send(client_socket, &response[pos], bytesToSend, MSG_CONFIRM);
+    std::cerr << "pos: " << pos << std::endl;
+    std::cerr << "totalSize is: " << totalSize << std::endl;
+    std::cerr << "bytesSent: " << bytesSent << std::endl;
+
+    // We successfully sent some bytes. Update position.
+    if (bytesSent < 0) 
+    {
+        if (bytesSent < 0) 
+        {
+            if (errno == EPIPE) {
+                std::cerr << "Client disconnected: " << strerror(errno) << "\n";
+                selector.getHTTPRequests().erase(client_socket);
+                delete clientHTTP;
+                return 1; // Treat as a completed transaction
+            } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                std::cerr << "Send failed: " << strerror(errno) << "\n";
+                selector.getHTTPRequests().erase(client_socket);
+                delete clientHTTP;
+                return 2; // Hard error
+            }
+            return 0; // Temporary failure, retry later
+        }
+        /*if (errno != EAGAIN && errno != EWOULDBLOCK) */
+        /*{*/
+        /*    std::cerr << "Send failed: " << strerror(errno) << "\n";*/
+        /*    selector.removeClient(client_socket);*/
+        /*    delete clientHTTP;*/
+        /*    return 2;*/
+        /*}*/
+        /*return 0;*/
+    }
+    else if (bytesSent > 0)
+    {
+        clientHTTP->incrementPos(bytesSent);
+
+        if (clientHTTP->getPos() == totalSize)
+        {
+            std::cout << "pos is: " << pos << std::endl;
+            selector.getHTTPRequests().erase(client_socket);
+            delete clientHTTP;
+            return 1;
+        }
+        return 0;
+
+    }
+    else if (bytesSent == 0) //client disconnected
+    {
+        selector.getHTTPRequests().erase(client_socket);
+        delete clientHTTP;
+        return 1;
+    }
+    std::cout << "do we get here" << std::endl;
+    selector.getHTTPRequests().erase(client_socket);
+    delete clientHTTP;
+    return 1;
 }
 
 std::string	toString(size_t num)
@@ -252,12 +339,18 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     int clientFd = cgiInfo->_clientFd;
 
     bytesRead = read(eventFd, buffer, sizeof(buffer));
-    std::cout << "buffer size: " << bytesRead << std::endl;
+    std::cout << "bytesRead: " << bytesRead << std::endl;
     std::cout << "buffer: " << buffer << std::endl;
+
+    std::cout << "------------- CGI body ----------------------\n";
+    std::cout << buffer << std::endl;
+    std::cout << "------------- CGI body ----------------------\n";
+        
     if (bytesRead > 0)
-        cgiInfo->_ScriptResponse += buffer;
+        cgiInfo->_ScriptResponse.append(buffer, bytesRead);
     else if (bytesRead == 0) 
     {
+        /*exit(1);*/
         this->sendCGIResponse(cgiInfo);
         selector.deleteCgi(cgiInfo);
         std::memset(buffer, 0, sizeof(buffer));
@@ -304,8 +397,33 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
     std::string response = statusLine + headers + tmp.str();
 
     //TODO: check for fails in send
-    send(cgiInfo->_clientFd, response.c_str(), response.size(), 0);
+    std::vector<char> vec(response.begin(), response.end());
+    send(cgiInfo->_clientFd, &vec[0], response.size(), 0);
 }
+
+Server::Server( const Server &other )
+{
+	Server::operator=(other);
+}
+
+
+Server& Server::operator=(const Server& other)
+{
+	if (this != &other)
+	{
+		_server_name = other._server_name;
+		_configServer =  other._configServer;
+	}
+	return (*this);
+}
+
+
+ConfigServer&   Server::getConfig(void)
+{
+	return _configServer;
+}
+
+Server::~Server() {}
 
 /*int Server::handleResponsePipe(Selector& selector, int pipeFd) */
 /*{*/
@@ -417,28 +535,5 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 /*}*/
 /**/
 
-Server::Server( const Server &other )
-{
-	Server::operator=(other);
-}
-
-
-Server& Server::operator=(const Server& other)
-{
-	if (this != &other)
-	{
-		_server_name = other._server_name;
-		_configServer =  other._configServer;
-	}
-	return (*this);
-}
-
-
-ConfigServer&   Server::getConfig(void)
-{
-	return _configServer;
-}
-
-Server::~Server() {}
 
 
