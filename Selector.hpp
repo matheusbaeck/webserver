@@ -13,7 +13,7 @@
 #include "Server.hpp"
 #include "CgiHandler.hpp"
 
-#define MAX_EVENTS 10 //epoll_wait max events at time
+#define MAX_EVENTS 100		//epoll_wait max events at time
 #define TIME_OUT 200			//epoll_wait max time
 #define READ 0
 #define WRITE 1
