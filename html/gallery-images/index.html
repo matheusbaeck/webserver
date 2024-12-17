@@ -27,17 +27,8 @@
 </head>
 <body>
 
-<h1>Image Gallery</h1>
+<h1>My beautiful image</h1>
 <div class="gallery" id="gallery"></div>
-
-
-<!--<div class="form-dev">-->
-<!--    <form id="uploadForm" method="post" enctype="multipart/form-data">-->
-<!--        <label for="fileupload"></label>-->
-<!--        <input type="file" id="fileupload" name="file" accept="image/*" required /><br/>-->
-<!--        <input id="submit" type="submit" value="Upload" />-->
-<!--    </form>-->
-<!--</div>-->
 
 <script>
     const gallery = document.getElementById('gallery');
@@ -57,6 +48,7 @@
                     gallery.appendChild(p);
                 } else {
                     data.images.forEach(url => {
+                        console.log(url);
                         // Create a container div for each image and its button
                         const container = document.createElement('div');
                         container.style.display = 'inline-block';
@@ -82,6 +74,7 @@
                                     if (result.status === 204) {
                                         // Reload the gallery after deletion
                                         getImages();
+                                        console.log("deleted " + img.src);
                                     }
                                 });
                         });
@@ -99,27 +92,6 @@
                 console.error('Error fetching images:', error);
             });
     }
-
-    /*
-    uploadForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const formData = new FormData(uploadForm);
-        const response = await fetch('http://localhost:2525/cgi/upload-file.py', {
-            method: 'POST',
-            body: formData,
-        });
-
-        if (response.ok) {
-            // Reload the images after successful upload
-            getImages();
-            uploadForm.reset(); // Reset the form after upload
-        } else {
-            console.error('Upload failed:', response.statusText);
-        }
-    });*/
-
-    // Initial fetch of images
     getImages();
 </script>
 

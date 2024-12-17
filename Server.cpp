@@ -99,10 +99,9 @@ int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
         if (clientFd == -1) 
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK) 
-            {
-                // No more connections to accept
                 break;
-            } else {
+            else 
+            {
                 perror("accept");
                 return -1;
             }
@@ -146,15 +145,19 @@ static void writeToBodyPipe(std::string& request, int pipeIn)
     size_t start = request.find(RequestHeaderEnding);
     std::string body = request.substr(start + RequestHeaderEnding.size());
 
-    std::cout << "-----------------------\n" << std::endl;
-    std::cout << "body: " << body << std::endl;
-    std::cout << "-----------------------\n" << std::endl;
+    if (body.size() > 0)
+    {
+        std::cout << "-----------------------\n" << std::endl;
+        std::cout << "body: " << body << std::endl;
+        std::cout << "-----------------------\n" << std::endl;
+    }
 
 	int flags = fcntl(pipeIn, F_GETFL, 0);
 	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
 
     std::string strBody = body;
 
+    //check for -1 or 0
     write(pipeIn, &strBody[0], strBody.size());
     close(pipeIn);
 }
@@ -242,82 +245,16 @@ void Server::readClientRequest(Selector& selector, int clientFD)
 int Server::sendResponse(Selector& selector, int client_socket)
 {
     HttpRequest*    clientHTTP  = selector.getHTTPRequests()[client_socket];
-    size_t          pos         = clientHTTP->getPos();
     size_t          totalSize   = clientHTTP->getResponse().size();
 
-    if (pos >= totalSize)
-    {
-        delete clientHTTP;
-        return 1;  // Done sending.
-    }
-
-    const std::string &response = clientHTTP->getResponse();
+    std::vector<char> vec(clientHTTP->getResponse().begin(), clientHTTP->getResponse().end());
 
 
-    //checking how much is left to read
-    size_t bytesToSend = totalSize - pos;
-    if (bytesToSend > 4096)
-        bytesToSend = 4096;
-
-    // Attempt to send.
-    waitMicroseconds(200);
-    
-    //response is the html page?
-    ssize_t bytesSent = send(client_socket, &response[pos], bytesToSend, MSG_CONFIRM);
-    std::cerr << "pos: " << pos << std::endl;
-    std::cerr << "totalSize is: " << totalSize << std::endl;
-    std::cerr << "bytesSent: " << bytesSent << std::endl;
-
-    // We successfully sent some bytes. Update position.
-    if (bytesSent < 0) 
-    {
-        if (bytesSent < 0) 
-        {
-            if (errno == EPIPE) {
-                std::cerr << "Client disconnected: " << strerror(errno) << "\n";
-                selector.getHTTPRequests().erase(client_socket);
-                delete clientHTTP;
-                return 1; // Treat as a completed transaction
-            } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
-                std::cerr << "Send failed: " << strerror(errno) << "\n";
-                selector.getHTTPRequests().erase(client_socket);
-                delete clientHTTP;
-                return 2; // Hard error
-            }
-            return 0; // Temporary failure, retry later
-        }
-        /*if (errno != EAGAIN && errno != EWOULDBLOCK) */
-        /*{*/
-        /*    std::cerr << "Send failed: " << strerror(errno) << "\n";*/
-        /*    selector.removeClient(client_socket);*/
-        /*    delete clientHTTP;*/
-        /*    return 2;*/
-        /*}*/
-        /*return 0;*/
-    }
-    else if (bytesSent > 0)
-    {
-        clientHTTP->incrementPos(bytesSent);
-
-        if (clientHTTP->getPos() == totalSize)
-        {
-            std::cout << "pos is: " << pos << std::endl;
-            selector.getHTTPRequests().erase(client_socket);
-            delete clientHTTP;
-            return 1;
-        }
-        return 0;
-
-    }
-    else if (bytesSent == 0) //client disconnected
-    {
-        selector.getHTTPRequests().erase(client_socket);
-        delete clientHTTP;
-        return 1;
-    }
-    std::cout << "do we get here" << std::endl;
-    selector.getHTTPRequests().erase(client_socket);
+    //check for -1 or 0
+    int err = send(client_socket, &vec[0], totalSize, 0);
+    std::cout << "err: " << err << std::endl; 
     delete clientHTTP;
+    selector.getHTTPRequests().erase(client_socket);
     return 1;
 }
 
@@ -338,9 +275,21 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     cgiProcessInfo* cgiInfo = selector.getCgis()[eventFd];
     int clientFd = cgiInfo->_clientFd;
 
+    if (selector.checkCgiStatus(cgiInfo) != 0)
+    {
+        int err = send(clientFd, HttpRequest::serverError().c_str(), HttpRequest::serverError().size(), 0);
+        if (err <= 0)
+        {
+            selector.removeClient(clientFd);
+            selector.deleteCgi(cgiInfo);
+            return -1;
+        }
+        selector.removeClient(clientFd);
+        selector.deleteCgi(cgiInfo);
+        return -1;
+    }
+
     bytesRead = read(eventFd, buffer, sizeof(buffer));
-    std::cout << "buffer size: " << bytesRead << std::endl;
-    std::cout << "buffer: " << buffer << std::endl;
     if (bytesRead > 0)
         cgiInfo->_ScriptResponse.append(buffer, bytesRead);
     else if (bytesRead == 0) 
@@ -363,8 +312,6 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
 
 void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 {
-    if (cgiInfo->_ScriptResponse.find("SyntaxError") != std::string::npos)
-        send(cgiInfo->_clientFd, HttpRequest::serverError().c_str(), HttpRequest::serverError().size(), 0);
     std::string statusLine  = "HTTP/1.1 200 OK\r\n";
     std::string headers     = "Server: webserver/0.42\r\n";
     std::stringstream contentLength;
@@ -418,116 +365,4 @@ ConfigServer&   Server::getConfig(void)
 }
 
 Server::~Server() {}
-
-/*int Server::handleResponsePipe(Selector& selector, int pipeFd) */
-/*{*/
-/*    char buffer[4096];*/
-/*    ssize_t bytesRead;*/
-/*    cgiProcessInfo& cgiInfo = selector.getCgiProcessInfo();*/
-/*    int clientFd = cgiInfo._clientFd;*/
-/**/
-/*    // Determine if the response should be chunked or unchunked*/
-/*    std::string request = selector.getRequests()[clientFd];*/
-/*    //bool isChunked = request.isChunked(); // Assume isChunked() checks the transfer type*/
-/**/
-/*    // Read and send data incrementally*/
-/*    while ((bytesRead = read(pipeFd, buffer, sizeof(buffer))) > 0) */
-/*    {*/
-/*        if (isChunked) */
-/*        {*/
-/*            // Format and send chunked data*/
-/*            std::ostringstream chunk;*/
-/*            chunk << std::hex << bytesRead << "\r\n"; // Chunk size in hex*/
-/*            chunk.write(buffer, bytesRead);          // Chunk data*/
-/*            chunk << "\r\n";                         // End of chunk*/
-/**/
-/*            std::string chunkStr = chunk.str();*/
-/*            ssize_t bytesSent = 0;*/
-/*            while (bytesSent < chunkStr.size()) {*/
-/*                ssize_t sent = send(clientFd, chunkStr.c_str() + bytesSent, chunkStr.size() - bytesSent, 0);*/
-/*                if (sent == -1) {*/
-/*                    if (errno == EAGAIN || errno == EWOULDBLOCK) break; // Buffer is full, stop*/
-/*                    perror("send");*/
-/*                    close(pipeFd);*/
-/*                    close(clientFd);*/
-/*                    selector.getRequests().erase(clientFd);*/
-/*                    return -1;*/
-/*                }*/
-/*                bytesSent += sent;*/
-/*            }*/
-/*        }*/
-/*        else */
-/*        {*/
-/*            // Send unchunked data*/
-/*            ssize_t bytesSent = 0;*/
-/*            while (bytesSent < bytesRead) */
-/*            {*/
-/*                ssize_t sent = send(clientFd, buffer + bytesSent, bytesRead - bytesSent, 0);*/
-/*                if (sent == -1) */
-/*                {*/
-/*                    if (errno == EAGAIN || errno == EWOULDBLOCK) */
-/*                        break; // Buffer is full, stop*/
-/*                    perror("send");*/
-/*                    //removeClient(selector, pipeFd);*/
-/*                    if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1)*/
-/*                    {*/
-/*                        std::cout << "problem when trying to remove pipe: " << pipeFd << std::endl;*/
-/*                        exit(1);*/
-/*                    }*/
-/*                    removeClient(selector, clientFd);*/
-/*                    return -1;*/
-/*                }*/
-/*                bytesSent += sent;*/
-/*            }*/
-/*        }*/
-/*    }*/
-/**/
-/*    if (bytesRead == 0) */
-/*    {*/
-/*        // EOF: End of response*/
-/*        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1) {*/
-/*            perror("epoll_ctl: remove pipeFd");*/
-/*            std::cout << "Failed to remove pipeFd: " << pipeFd << ", errno: " << errno << std::endl;*/
-/*            exit(1);*/
-/*        }*/
-/*        close(pipeFd);*/
-/**/
-/*        if (isChunked) */
-/*        {*/
-/*            // Send the final chunk for chunked transfer encoding*/
-/*            std::string finalChunk = "0\r\n\r\n";*/
-/*            send(clientFd, finalChunk.c_str(), finalChunk.size(), 0);*/
-/*        }*/
-/**/
-/*        // Handle connection persistence*/
-/*        selector.setClientFdEvent(clientFd, READ);*/
-/*    } */
-/*    else if (bytesRead == -1)*/
-/*    {*/
-/*        //remove from epoll instance*/
-/*        perror("handleResponsePipe: read");*/
-/*        std::cout << "pipeFd: " << pipeFd << std::endl;*/
-/*        std::cout << "clientFd: " << clientFd << std::endl;*/
-/*        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1) {*/
-/*            perror("epoll_ctl: remove pipeFd");*/
-/*            std::cout << "Failed to remove pipeFd: " << pipeFd << ", errno: " << errno << std::endl;*/
-/*            exit(1);*/
-/*        }*/
-/*        close(pipeFd);*/
-/*        if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, pipeFd, NULL) == -1)*/
-/*        {*/
-/*            std::cout << "problem when trying to remove pipe: " << pipeFd << std::endl;*/
-/*            exit(1);*/
-/*        }*/
-/**/
-/*        //removeClient(selector, pipeFd);*/
-/*        removeClient(selector, clientFd);*/
-/*        return -1;*/
-/*    }*/
-/**/
-/*    return 0;*/
-/*}*/
-/**/
-
-
 

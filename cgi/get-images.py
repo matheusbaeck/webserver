@@ -9,7 +9,8 @@ print("Content-Type: application/json")
 print()
 
 # Directory containing images (change this to your actual images directory)
-image_directory = "/home/glacroix/Documents/pushed-webserv/html/gallery-images" #str(os.getenv('HOME')) + "/p"
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+image_directory = os.path.join(project_root, 'html', 'gallery-images')
 
 # Base URL for accessing images (adjust host/port and path as needed)
 base_url = "http://localhost:2525/images/"

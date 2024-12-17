@@ -56,28 +56,30 @@ std::map<int, cgiProcessInfo*>::const_iterator Selector::getCgiProcessInfo(int c
 
 }
 
+int Selector::checkCgiStatus(cgiProcessInfo* cgi)
+{
+    int status = 0;
+    waitpid(cgi->_pid, &status, 0);
+    return WEXITSTATUS(status);
+}
+
 void Selector::deleteCgi(cgiProcessInfo* CgiProcess)
 {
-    // Remove from epoll instance
     if (epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, CgiProcess->_responsePipe, NULL) == -1) 
     {
         perror("epoll_ctl: remove eventFd");
         std::cerr << "Failed to remove eventFd: " << CgiProcess->_responsePipe << ", errno: " << errno << std::endl;
-        /*exit(1);*/
     }
 
-    // Remove from _cgiProcesses
     size_t erased = _cgiProcesses.erase(CgiProcess->_responsePipe);
     if (erased == 0) 
         std::cerr << "Warning: CGI process not found in _cgiProcesses!" << std::endl;
 
-    // Close response pipe
     close(CgiProcess->_responsePipe);
     close(CgiProcess->_pipe[0]);
     close(CgiProcess->_pipe[1]);
     std::cout << "Closed response pipe: " << CgiProcess->_responsePipe << std::endl;
 
-    // Clear and delete CGI process
     CgiProcess->_path.clear();
     CgiProcess->_ScriptResponse.clear();
     delete CgiProcess;
@@ -204,7 +206,6 @@ void Selector::removeClient(int clientSocket)
         perror("epoll_ctl: remove eventFd");
         std::cerr << "Failed to remove eventFd: " << clientSocket << ", errno: " << errno << std::endl;
         return;
-        /*exit(1);*/
     }
     getClientConfig().erase(clientSocket);
     getHTTPRequests().erase(clientSocket);
@@ -222,17 +223,19 @@ void Selector::examineCgiExecution()
     {
         int result = waitpid(it->second->_pid, &status, WNOHANG);
         if (!result && std::time(0) -  it->second->getStartTime() > CLIENT_TIMEOUT)
-        {
             break;
+        if (WIFEXITED(status))
+        {
+            std::string response = HttpRequest::serverError();
+            send(it->second->_clientFd, response.c_str(), response.size(), 0);
+            removeClient(it->second->_clientFd);        
+            deleteCgi(it->second);
+            return;
         }
         it++;
     }
     if (it != _cgiProcesses.end())
     {
-        if (WIFEXITED(status))
-        {
-            std::cout << "status code: " << WEXITSTATUS(status) << std::endl;
-        }
         std::cout << "we killed someone" << std::endl;
         kill(it->second->_pid, SIGKILL);
 
@@ -263,6 +266,12 @@ void Selector::processEvents(const std::vector<Server*>& servers )
         {
             Server *server = servers[i];
             int event_fd = _events[n].data.fd;
+
+            if (_events[n].events & (EPOLLERR | EPOLLHUP)) 
+            {
+                std::cerr << "Error on FD " << _events[n].data.fd << ": " << strerror(errno) << std::endl;
+                removeClient(event_fd);
+            }
             // Reading requests
             if (_events[n].events & EPOLLIN) 
             {
@@ -296,20 +305,10 @@ void Selector::processEvents(const std::vector<Server*>& servers )
             // Answering clients
             if (_events[n].events & EPOLLOUT) 
             {
-                err = server->sendResponse(*this, event_fd);
-                if (err == 0) continue;
-                else if (err == 2) return;
-                else
-                {
-                    selector.getRequests().erase(event_fd);
-                    selector.setClientFdEvent(event_fd, READ);
-                    return;
-                }
-            }
-            if (_events[n].events & (EPOLLERR | EPOLLHUP)) 
-            {
-                std::cerr << "Error on FD " << _events[n].data.fd << ": " << strerror(errno) << std::endl;
-                removeClient(event_fd);
+                server->sendResponse(*this, event_fd);
+                selector.getRequests().erase(event_fd);
+                selector.setClientFdEvent(event_fd, READ);
+                return;
             }
         }
     }

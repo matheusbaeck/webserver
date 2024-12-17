@@ -6,7 +6,7 @@
 /*   By: glacroix <PGCL>                            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/09 20:20:19 by glacroix          #+#    #+#             */
-/*   Updated: 2024/12/15 14:35:55 by glacroix         ###   ########.fr       */
+/*   Updated: 2024/12/17 17:28:20 by glacroix         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,7 +22,17 @@
 #include <unistd.h>
 #include <string>
 
-cgiProcessInfo::cgiProcessInfo() {}
+cgiProcessInfo::cgiProcessInfo() 
+{
+    this->_startTime = -1;
+    this->_pid = -1;
+    this->_path = "";
+    this->_pipe[0] = -1;
+    this->_pipe[1] = -1;
+    this->_clientFd = -1;
+    this->_responsePipe = -1;
+    this->_ScriptResponse = "";
+}
 
 std::time_t& cgiProcessInfo::getStartTime()
 {
@@ -46,25 +56,17 @@ cgiProcessInfo::~cgiProcessInfo()
 
 CgiHandler::CgiHandler(HttpRequest *_httpReq, std::string scriptName, std::string cgiPath)
 {
-    // TODO: do deep copy of config file to prevent double free
     this->httpReq = _httpReq;
-    //get request
-    //find end of headers
-    //do substr from the end of headers + sizeof \r\n\r\n
-    //use that to write within pipe as input
 
-    //this->env["AUTH_TYPE"] = ;
     this->env["CONTENT_LENGTH"]         = _httpReq->getHeader("content-length");
     this->env["CONTENT_TYPE"]           = _httpReq->getHeader("content-type");
     this->env["QUERY_STRING"]           = _httpReq->getQuery();
     this->env["REQUEST_METHOD"]         = _httpReq->getMethodStr();
     this->env["SERVER_PORT"]            = _httpReq->getServerPort();
 
-    /*// TODO: if there is another slash*/
     this->env["PATH_INFO"]              = cgiPath;
     this->env["SCRIPT_FILENAME"]        = cgiPath + "/" + scriptName;
     
-    // TODO: we are just hardcoding SERVER_NAME. Do we need to match it with server_name in config?
     this->env["SERVER_NAME"]            = "localhost";
     this->env["SERVER_PROTOCOL"]        = "HTTP/1.1";
     this->env["SERVER_SOFTWARE"]        = "webserv/0.42";
@@ -113,8 +115,6 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
 {
     cgiProcessInfo* cgiInfo = new cgiProcessInfo();
 
-    // Assign to CgiHandlerInfo
-    //char **envp = this->getEnvp();
     char **envp;
     if (pipe(cgiInfo->_pipe) == -1)
     {
@@ -149,7 +149,6 @@ StatusCode CgiHandler::execute(Selector& selector, int clientFd, int bodyPipe)
 
         dup2(bodyPipe, STDIN_FILENO); // CGI reads from inputPipe
         dup2(cgiInfo->_pipe[1], STDOUT_FILENO); // CGI writes to pipe
-        dup2(cgiInfo->_pipe[1], STDERR_FILENO); // CGI error writes to pipe
         close(cgiInfo->_pipe[0]);
         close(cgiInfo->_pipe[1]);
         close(bodyPipe);

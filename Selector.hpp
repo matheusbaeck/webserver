@@ -56,6 +56,7 @@ class Selector
         void                            addCgi(int clientFd, cgiProcessInfo* CgiProcess);
         void                            deleteCgi(cgiProcessInfo* CgiProcess);
         void                            examineCgiExecution();
+        int                             checkCgiStatus(cgiProcessInfo *cgi);
 
         std::map<int, cgiProcessInfo*>::const_iterator getCgiProcessInfo(int clientFd);
 

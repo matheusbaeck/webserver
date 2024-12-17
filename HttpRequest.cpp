@@ -589,27 +589,18 @@ std::string	fileUpload(std::string const &body, std::string const &filename)
 
 std::string HttpRequest::DELETEmethod(const std::string &pathname)
 {
+
     std::string statusLine = this->getStatusLine(NCONTENT);
-	std::string headers = "Server: webserv/0.42\r\n";
-	std::string body;/*HttpRequest::readFile("./err_pages/400.html")*/;
+    std::string headers = "Server: webserv/0.42\r\n";
+    std::string body;
 
-
-
-    
-    /*if ((access(pathname.c_str(), R_OK | W_OK) == -1))
-    {
+    if ((access(pathname.c_str(), R_OK | W_OK) == -1))
         statusLine = this->getStatusLine(NALLOWED);
-    }*/
-    std::remove(pathname.c_str());
-	headers += "Connection: keep-alive\r\n\r\n";
-        
-    std::cout << "{\n";
-    std::cout << statusLine << headers << body << std::endl;
-    std::cout << "}\n";
-
-
-
-	return statusLine + headers + body + "\r\n";
+    else
+        std::remove(pathname.c_str());
+    
+    headers += "Connection: keep-alive\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
 
 std::string	HttpRequest::handler(Selector& selector, int clientFd)
@@ -657,6 +648,9 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 			break;
 		default: std::invalid_argument("NOT IMPLEMENTED - STATUS CODE");
 	}
+    std::cout << "----------------------------\n";
+    std::cout << this->response << std::endl;
+    std::cout << "----------------------------\n";
 	return this->response;
 }
 
