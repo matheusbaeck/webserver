@@ -47,6 +47,7 @@ class HttpRequest
 	static void	toLower(char &c);
 
 	struct BodyRequest body;
+    std::string _targetRequest;
 
     size_t pos;
 

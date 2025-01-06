@@ -182,9 +182,7 @@ HttpRequest	&HttpRequest::operator=(const HttpRequest &other)
 		this->method  		= other.method;
 		this->path    		= other.path;
 		this->statusCode	= other.statusCode;
-		//
-		//this->clientFd = other.clientFd;
-		//this->port = other.port;
+        this->_targetRequest = other._targetRequest;
 		this->tokenizer.setBuffer(other.tokenizer.str().c_str());
 	}
 	return *this;
@@ -296,6 +294,7 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 		route = HttpRequest::configServer->getRoute(requestTarget);
         if (!route)
 			return NFOUND;
+        this->_targetRequest = requestTarget;;
 
         size_t      found;
         std::string target;
@@ -608,7 +607,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 	std::string cgiResponse;
 
 	this->parse();
-	Route *route = this->configServer->getRoute(this->path);
+	Route *route = this->configServer->getRoute(this->_targetRequest);
     if (!route)
     {
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
@@ -739,6 +738,8 @@ std::string HttpRequest::getStatusLine(StatusCode statusCode)
 
 std::string	HttpRequest::GETmethod(std::string &pathname, Route *route)
 {
+
+    std::cout << pathname << std::endl;
     std::string statusLine  = getStatusLine(OK);
     std::string headers     = "Server: webserver/0.42\r\n";
 

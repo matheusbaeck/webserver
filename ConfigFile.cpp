@@ -372,7 +372,6 @@ void	ConfigServer::parseBodySize(void)
 void	ConfigServer::parseRoute(void)
 {
 	Route route;
-
 	{
 		route.root  = this->root;
 		route.index = this->index;
