@@ -71,10 +71,7 @@ void Selector::deleteCgi(cgiProcessInfo* CgiProcess)
         std::cerr << "Failed to remove eventFd: " << CgiProcess->_responsePipe << ", errno: " << errno << std::endl;
     }
 
-    size_t erased = _cgiProcesses.erase(CgiProcess->_responsePipe);
-    if (erased == 0) 
-        std::cerr << "Warning: CGI process not found in _cgiProcesses!" << std::endl;
-
+     _cgiProcesses.erase(CgiProcess->_responsePipe);
     close(CgiProcess->_responsePipe);
     close(CgiProcess->_pipe[0]);
     close(CgiProcess->_pipe[1]);

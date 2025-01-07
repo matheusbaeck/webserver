@@ -128,15 +128,17 @@ int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
     return (0);
 }
 
-static void writeToBodyPipe(std::vector<char>& body, size_t contentLength, int pipeIn)
+static int writeToBodyPipe(std::vector<char>& body, size_t contentLength, int pipeIn)
 {
 	int flags = fcntl(pipeIn, F_GETFL, 0);
 	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
 
     //check for -1 or 0
-    write(pipeIn, &body[0], contentLength);
-    std::cout << "write in BodyPipe: " << body.data() << std::endl;
+    int characters = write(pipeIn, &body[0], contentLength);
     close(pipeIn);
+    if (characters <= -1) 
+        return -1;
+    return 0;
 }
 
 void Server::readClientRequest(Selector& selector, int clientFD)
@@ -154,6 +156,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         //error checking if request is bad
         if (std::time(0) - start_time > CLIENT_TIMEOUT)
         {
+            //not checking -1 or 0 because i will remove the client anyways
             send(clientFD, HttpRequest::requestTimeout().c_str(), HttpRequest::requestTimeout().size(), 0); 
             selector.removeClient(clientFD);
             delete incomingRequestHTTP;
@@ -166,6 +169,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
                     && request.find("POST") == std::string::npos
                     && request.find("DELETE") == std::string::npos)
             {
+                //not checking -1 or 0 because i will remove the client anyways
                 send(clientFD, HttpRequest::badRequest().c_str(), HttpRequest::badRequest().size(), 0);
                 selector.removeClient(clientFD);
                 delete incomingRequestHTTP;
@@ -175,7 +179,11 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         char buffer[1];
         ssize_t count = recv(clientFD, buffer, sizeof(buffer), 0);
         if (count == -1) 
+        {
+            selector.removeClient(clientFD);
+            delete incomingRequestHTTP;
             return; // not done reading everything yet, so remove client as per subject
+        }
         if (count == 0) 
         { 
             epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, clientFD, NULL);
@@ -207,17 +215,26 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     {
         std::vector<char> bodyBuffer(contentLength + 1);
         int err = recv(clientFD, bodyBuffer.data(), contentLength, 0);
-        if (err == -1)
+        if (err <= -1)
         {
             selector.removeClient(clientFD);       
             delete incomingRequestHTTP;
             return;
         }
         else if (err != 0)
-            writeToBodyPipe(bodyBuffer, contentLength, incomingRequestHTTP->_bodyPipe[1]);
+        {
+           int err = writeToBodyPipe(bodyBuffer, contentLength, incomingRequestHTTP->_bodyPipe[1]);
+           if (err == -1)
+           {
+                selector.removeClient(clientFD);
+                delete incomingRequestHTTP;
+                return;
+           }
+        }
     }
     selector.setClientFdEvent(clientFD, WRITE);
     incomingRequestHTTP->handler(selector, clientFD);
+    std::cout << "am i here" << std::endl;
 }
 
 
@@ -230,7 +247,7 @@ int Server::sendResponse(Selector& selector, int client_socket)
 
     int err = send(client_socket, &vec[0], totalSize, 0);
     delete clientHTTP;
-    if (err == -1)
+    if (err <= -1)
     {
         selector.removeClient(client_socket);
         return 1;
@@ -258,13 +275,8 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
 
     if (selector.checkCgiStatus(cgiInfo) != 0)
     {
-        int err = send(clientFd, HttpRequest::serverError().c_str(), HttpRequest::serverError().size(), 0);
-        if (err <= 0)
-        {
-            selector.removeClient(clientFd);
-            selector.deleteCgi(cgiInfo);
-            return -1;
-        }
+        //not checking -1 or 0 because i will remove the client anyways
+        send(clientFd, HttpRequest::serverError().c_str(), HttpRequest::serverError().size(), 0);
         selector.removeClient(clientFd);
         selector.deleteCgi(cgiInfo);
         return -1;
@@ -275,7 +287,8 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
         cgiInfo->_ScriptResponse.append(buffer, bytesRead);
     else if (bytesRead == 0) 
     {
-        this->sendCGIResponse(cgiInfo);
+        if (this->sendCGIResponse(cgiInfo) == -1)
+            selector.removeClient(clientFd);
         selector.deleteCgi(cgiInfo);
         std::memset(buffer, 0, sizeof(buffer));
         return (-1);
@@ -290,7 +303,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     return 0;
 }
 
-void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
+int Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 {
     std::string statusLine  = "HTTP/1.1 200 OK\r\n";
     std::string headers     = "Server: webserver/0.42\r\n";
@@ -319,7 +332,10 @@ void Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
 
     //TODO: check for fails in send
     std::vector<char> vec(response.begin(), response.end());
-    send(cgiInfo->_clientFd, &vec[0], response.size(), 0);
+    int err = send(cgiInfo->_clientFd, &vec[0], response.size(), 0);
+    if (err <= -1) return -1;
+    return 0;
+
 }
 
 Server::Server( const Server &other )

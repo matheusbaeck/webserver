@@ -60,7 +60,7 @@ class Server
         bool        readWholeRequestHeaders(Selector& selector, int clientFD, size_t* end);
         int         handleResponsePipe(Selector& selector, int pipeFd);
 		int			sendResponse(Selector& selector, int clientSocket);
-        void        sendCGIResponse(cgiProcessInfo* cgiInfo);
+        int         sendCGIResponse(cgiProcessInfo* cgiInfo);
 };
 
 #endif
