@@ -118,6 +118,11 @@ public:
 	//Route(ConfigServer const &other); ---- why do you call ConfigServer
 	Route	&operator=(Route const &other);
 
+    void setAutoIndex(bool flag)
+    {
+        this->autoindex = flag;
+    }
+
 	void	parseMethods(void);
 	void	parseRedirection(void);
 	void	parseAutoIndex(void);

@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <algorithm>
 
 // NOTE: connection closes if there is BAD REQUEST, otherwise depend on Connection header.
 
@@ -237,6 +238,7 @@ StatusCode HttpRequest::parseStartLine(void)
 
 StatusCode HttpRequest::parseMethod(const std::string &_method)
 {
+
 	if (!_method.empty() && HttpRequest::isUpperCase(_method))
 	{
 		this->method = ConfigFile::isMethod(_method);
@@ -285,16 +287,30 @@ std::string findCGIScript(const std::string& cgi_path, const std::vector<std::st
 StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 {
 	Route *route;
+    std::vector<Method>::iterator it;
+
 
 	if (requestTarget.find_first_of("/") == 0)
 	{
-			/*
-		 	*	TODO: Now let' handle one server and multiple routes.
-		 	* */
-		route = HttpRequest::configServer->getRoute(requestTarget);
+        route = HttpRequest::configServer->getRoute(requestTarget);
         if (!route)
-			return NFOUND;
+            return NFOUND;
         this->_targetRequest = requestTarget;;
+        if (route->getMethods().size())
+        {
+            it = std::find(route->getMethods().begin(), route->getMethods().end(), this->method);
+
+
+            std::cout << std::boolalpha;
+            std::cout << "Method: " << (it != route->getMethods().end()) << std::endl;
+            std::cout << "this->method: " << this->method << std::endl;
+
+            if (it == route->getMethods().end()) 
+            {
+                route->setAutoIndex(false);
+                return FORBIDDEN;
+            }
+        }
 
         size_t      found;
         std::string target;
@@ -306,7 +322,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             if (requestTarget == route->path)
             {
                 fullPath = route->getCgiPath();
-                //DO i need to add a scriptName
                 route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
                 std::cout << "absence of scriptName, found: " << route->getCgiScriptName() << std::endl;
             }
@@ -314,7 +329,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             {
                 fullPath = route->getCgiPath() + requestTarget.substr(found);
                 size_t queryPos = requestTarget.find("?");
-                std::cout << queryPos << std::endl;
                 std::string scriptRAW = requestTarget.substr(0, queryPos);
                 std::string scriptName = scriptRAW.substr(found + 1);
                 if (scriptName.size())
@@ -608,6 +622,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 
 	this->parse();
 	Route *route = this->configServer->getRoute(this->_targetRequest);
+    std::cout << "targetRequest: " << _targetRequest << std::endl;
     if (!route)
     {
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;

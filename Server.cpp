@@ -128,37 +128,14 @@ int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
     return (0);
 }
 
-std::string Server::readBodyRequest(size_t contentLength, int clientFd)
+static void writeToBodyPipe(std::vector<char>& body, size_t contentLength, int pipeIn)
 {
-    char buffer[contentLength];
-    ssize_t count = recv(clientFd, buffer, sizeof(buffer), 0);
-    if (count == -1)
-        return std::string();
-    
-    return (buffer);
-}
-
-static void writeToBodyPipe(std::string& request, int pipeIn)
-{
-    static const std::string    RequestHeaderEnding = "\r\n\r\n";
-
-    size_t start = request.find(RequestHeaderEnding);
-    std::string body = request.substr(start + RequestHeaderEnding.size());
-
-    if (body.size() > 0)
-    {
-        std::cout << "-----------------------\n" << std::endl;
-        std::cout << "body: " << body << std::endl;
-        std::cout << "-----------------------\n" << std::endl;
-    }
-
 	int flags = fcntl(pipeIn, F_GETFL, 0);
 	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
 
-    std::string strBody = body;
-
     //check for -1 or 0
-    write(pipeIn, &strBody[0], strBody.size());
+    write(pipeIn, &body[0], contentLength);
+    std::cout << "write in BodyPipe: " << body.data() << std::endl;
     close(pipeIn);
 }
 
@@ -198,7 +175,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         char buffer[1];
         ssize_t count = recv(clientFD, buffer, sizeof(buffer), 0);
         if (count == -1) 
-            return; // not done reading everything yet, so return
+            return; // not done reading everything yet, so remove client as per subject
         if (count == 0) 
         { 
             epoll_ctl(selector.getEpollFD(), EPOLL_CTL_DEL, clientFD, NULL);
@@ -213,18 +190,6 @@ void Server::readClientRequest(Selector& selector, int clientFD)
             continue;
     }
     std::cout << selector.getRequests()[clientFD] << std::endl;
-    
-    //is there a body
-    size_t contentLength = selector.getBodyContentLength(clientFD);
-    if (contentLength != std::string::npos)
-    {
-        char *bodyBuffer = new char[contentLength + 1];
-        recv(clientFD, bodyBuffer, contentLength, 0);
-        bodyBuffer[contentLength] = '\0';
-        std::string requestBody(bodyBuffer);
-        selector.getRequests()[clientFD] += requestBody;
-        delete[] bodyBuffer;
-    }
     std::string request = selector.getRequests()[clientFD].c_str();
     if (request.size() == 0)
     {
@@ -235,9 +200,23 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     }
     incomingRequestHTTP->setBuffer(request.c_str());
     selector.getHTTPRequests()[clientFD] = incomingRequestHTTP;
-    writeToBodyPipe(request, incomingRequestHTTP->_bodyPipe[1]);
+    
+    //is there a body
+    size_t contentLength = selector.getBodyContentLength(clientFD);
+    if (contentLength != std::string::npos)
+    {
+        std::vector<char> bodyBuffer(contentLength + 1);
+        int err = recv(clientFD, bodyBuffer.data(), contentLength, 0);
+        if (err == -1)
+        {
+            selector.removeClient(clientFD);       
+            delete incomingRequestHTTP;
+            return;
+        }
+        else if (err != 0)
+            writeToBodyPipe(bodyBuffer, contentLength, incomingRequestHTTP->_bodyPipe[1]);
+    }
     selector.setClientFdEvent(clientFD, WRITE);
-    //should i handle here
     incomingRequestHTTP->handler(selector, clientFD);
 }
 
@@ -249,11 +228,13 @@ int Server::sendResponse(Selector& selector, int client_socket)
 
     std::vector<char> vec(clientHTTP->getResponse().begin(), clientHTTP->getResponse().end());
 
-
-    //check for -1 or 0
     int err = send(client_socket, &vec[0], totalSize, 0);
-    std::cout << "err: " << err << std::endl; 
     delete clientHTTP;
+    if (err == -1)
+    {
+        selector.removeClient(client_socket);
+        return 1;
+    }
     selector.getHTTPRequests().erase(client_socket);
     return 1;
 }
@@ -301,7 +282,6 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     } 
     else 
     {
-        //remove from epoll instance
         perror("handleResponsePipe: read");
         selector.deleteCgi(cgiInfo);
         selector.removeClient(clientFd);

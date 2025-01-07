@@ -19,6 +19,16 @@ int main(int argc, char **argv)
         else
             pathname = ConfigFile::pathname;
 
+        /*ConfigFile config(pathname);*/
+        /**/
+        /*for (size_t i = 0; i < config.getServersConfig().size(); i += 1)*/
+        /*{*/
+        /*    std::cout << config.getServersConfig()[i] << std::endl;*/
+        /*}*/
+        /**/
+        /**/
+        /*return 0;*/
+
         ServerManager manager(pathname);
         Selector& selector = Selector::getSelector();
         manager.addSockets(selector);

@@ -620,6 +620,11 @@ void	Route::parseMethods(void)
 			error("allow_method invalid: " + token);
 		}
 		this->methods.push_back(method);
+        std::cout << "-------------------------\n";
+        std::cout << "allowed methods for Route: " << this->path << std::endl;
+        for (size_t i = 0; i < methods.size(); i += 1)
+            std::cout << methods[i] << std::endl;
+        std::cout << "-------------------------\n";
 		this->tokenizer->trim();
 	}
 
