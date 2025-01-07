@@ -419,7 +419,7 @@ void	ConfigServer::parseRoute(void)
 		{
 			route.parseRedirection();
 		}
-		if (token == "root")
+		if (token == "alias")
 		{
 			route.parseRoot();
 		}
@@ -477,7 +477,7 @@ void	ConfigServer::parse(void)
 		{
 			this->parseIndex();
 		}
-		else if (token == "root")
+		else if (token == "alias")
 		{
 			this->parseRoot();
 		}

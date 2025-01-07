@@ -40,33 +40,6 @@ bool	isDir(const char *pathname)
 	return S_ISDIR(statbuf.st_mode);
 }
 
-std::vector<std::string>::const_iterator checkIndex(const std::vector<std::string> &indices)
-{
-	std::vector<std::string>::const_iterator it = indices.begin();
-	while (it != indices.end())
-	{
-        std::cout << "trying to access: " << it->c_str() << std::endl;
-		if (access(it->c_str(), F_OK) == 0) return it;
-		it++;
-	}
-	return indices.end();
-}
-
-std::vector<std::string>::const_iterator findIndex(std::string const& root, const std::vector<std::string> &indices)
-{
-    
-	std::vector<std::string>::const_iterator it = indices.begin();
-	while (it != indices.end())
-	{
-        std::string index = *it;
-        std::string check = (root + "/" + index).c_str();
-        std::cout << "findIndex check: "<<check << std::endl;
-		if (access(check.c_str(), F_OK) == 0) 
-            return it;
-		it++;
-	}
-	return indices.end();
-}
 
 
 
@@ -283,12 +256,41 @@ std::string findCGIScript(const std::string& cgi_path, const std::vector<std::st
 }
 
 
+std::vector<std::string>::const_iterator checkIndex(const std::vector<std::string> &indices)
+{
+	std::vector<std::string>::const_iterator it = indices.begin();
+	while (it != indices.end())
+	{
+        std::cout << "trying to access: " << it->c_str() << std::endl;
+		if (access(it->c_str(), F_OK) == 0) return it;
+		it++;
+	}
+	return indices.end();
+}
+
+std::vector<std::string>::const_iterator findIndex(std::string const& root, const std::vector<std::string> &indices)
+{
+    
+	std::vector<std::string>::const_iterator it = indices.begin();
+	while (it != indices.end())
+	{
+        std::string index = *it;
+        std::string check = (root + "/" + index).c_str();
+        std::cout << "findIndex check: "<<check << std::endl;
+		if (access(check.c_str(), F_OK) == 0) 
+            return it;
+		it++;
+	}
+	return indices.end();
+}
 
 StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 {
-	Route *route;
-    std::vector<Method>::iterator it;
-
+	Route                           *route;
+    size_t                          found;
+    std::string                     target;
+    std::string                     fullPath;
+    std::vector<Method>::iterator   it;
 
 	if (requestTarget.find_first_of("/") == 0)
 	{
@@ -299,12 +301,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         if (route->getMethods().size())
         {
             it = std::find(route->getMethods().begin(), route->getMethods().end(), this->method);
-
-
-            std::cout << std::boolalpha;
-            std::cout << "Method: " << (it != route->getMethods().end()) << std::endl;
-            std::cout << "this->method: " << this->method << std::endl;
-
             if (it == route->getMethods().end()) 
             {
                 route->setAutoIndex(false);
@@ -312,10 +308,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             }
         }
 
-        size_t      found;
-        std::string target;
-        std::string fullPath;
-        //TODO: condition for CGi
         if (route->isCgi())
         {
             found = requestTarget.find_last_of("/");
