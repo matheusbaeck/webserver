@@ -598,7 +598,7 @@ std::string HttpRequest::DELETEmethod(const std::string &pathname)
     std::string statusLine = this->getStatusLine(NCONTENT);
     std::string headers = "Server: webserv/0.42\r\n";
     std::string body = HttpRequest::notAllowed("Allow: GET, POST, DELETE");
-    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Content-Length: 0\r\n";
 
     if ((access(pathname.c_str(), R_OK | W_OK) == -1))
         statusLine = this->getStatusLine(NALLOWED);
@@ -879,6 +879,7 @@ std::string HttpRequest::createAbsoluteFilePath(const std::string& pathname, con
 
 std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
 {
+    std::cout << "am i here" << std::endl;
     std::stringstream ss(this->body.raw);
 
     std::cout << "pathname: "<<pathname << std::endl;

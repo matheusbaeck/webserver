@@ -234,7 +234,6 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     }
     selector.setClientFdEvent(clientFD, WRITE);
     incomingRequestHTTP->handler(selector, clientFD);
-    std::cout << "am i here" << std::endl;
 }
 
 
