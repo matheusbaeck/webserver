@@ -214,6 +214,7 @@ void Selector::removeClient(int clientSocket)
 
 void Selector::examineCgiExecution()
 {
+    std::cout << "we are here examineExecutio" << std::endl;
     std::map<int, cgiProcessInfo*>::const_iterator it = _cgiProcesses.begin();
     int status;
     while (it != _cgiProcesses.end())

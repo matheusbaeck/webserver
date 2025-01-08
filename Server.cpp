@@ -128,18 +128,18 @@ int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
     return (0);
 }
 
-/*static int writeToBodyPipe(std::vector<char>& body, size_t contentLength, int pipeIn)*/
-/*{*/
-/*	int flags = fcntl(pipeIn, F_GETFL, 0);*/
-/*	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);*/
-/**/
-/*    //check for -1 or 0*/
-/*    int characters = write(pipeIn, &body[0], contentLength);*/
-/*    close(pipeIn);*/
-/*    if (characters <= -1) */
-/*        return -1;*/
-/*    return 0;*/
-/*}*/
+static int writeToBodyPipe(std::vector<char>& body, size_t contentLength, int pipeIn)
+{
+	int flags = fcntl(pipeIn, F_GETFL, 0);
+	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
+
+    //check for -1 or 0
+    int characters = write(pipeIn, &body[0], contentLength);
+    close(pipeIn);
+    if (characters <= -1) 
+        return -1;
+    return 0;
+}
 
 void Server::readClientRequest(Selector& selector, int clientFD)
 {
@@ -223,16 +223,16 @@ void Server::readClientRequest(Selector& selector, int clientFD)
             delete incomingRequestHTTP;
             return;
         }
-        /*else if (err != 0)*/
-        /*{*/
-        /*   int err = writeToBodyPipe(bodyBuffer, contentLength, incomingRequestHTTP->_bodyPipe[1]);*/
-        /*   if (err == -1)*/
-        /*   {*/
-        /*        selector.removeClient(clientFD);*/
-        /*        delete incomingRequestHTTP;*/
-        /*        return;*/
-        /*   }*/
-        /*}*/
+        else if (err != 0)
+        {
+           int err = writeToBodyPipe(bodyBuffer, contentLength, incomingRequestHTTP->_bodyPipe[1]);
+           if (err == -1)
+           {
+                selector.removeClient(clientFD);
+                delete incomingRequestHTTP;
+                return;
+           }
+        }
         incomingRequestHTTP->getBody().raw = std::string(bodyBuffer.begin(), bodyBuffer.end());
     }
     selector.setClientFdEvent(clientFD, WRITE);
@@ -244,18 +244,23 @@ void Server::sendResponse(Selector& selector, int client_socket)
     HttpRequest*    clientHTTP  = selector.getHTTPRequests()[client_socket];
     size_t          totalSize   = clientHTTP->getResponse().size();
 
+    std::cout << "response\n" << clientHTTP->getResponse() << std::endl;
+
     std::vector<char> vec(clientHTTP->getResponse().begin(), clientHTTP->getResponse().end());
     bool connectionClosed = (clientHTTP->getResponse().find("Connection: close") != std::string::npos) ? true : false;
 
     int err = send(client_socket, &vec[0], totalSize, 0);
-    if (err <= -1 || connectionClosed == true)
+    if (err == -1 || connectionClosed == true)
     {
         selector.removeClient(client_socket);
         delete clientHTTP;
         return;
     }
-    delete clientHTTP;
-    selector.getHTTPRequests().erase(client_socket);
+    else 
+    {
+        delete clientHTTP;
+        selector.getHTTPRequests().erase(client_socket);
+    }
 }
 
 
@@ -286,6 +291,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     }
 
     bytesRead = read(eventFd, buffer, sizeof(buffer));
+    std::cout << "bytesRead: " << bytesRead<< std::endl;
     if (bytesRead > 0)
         cgiInfo->_ScriptResponse.append(buffer, bytesRead);
     else if (bytesRead == 0) 

@@ -446,8 +446,6 @@ StatusCode HttpRequest::parseBody(void)
     {
         this->body.type = MULTIPART;
     }
-    else
-        return BREQUEST;
     return OK;
 }
 
