@@ -18,8 +18,7 @@ base_url = "http://localhost:2525/images/"
 # Supported image file extensions
 image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
-images = [
-]
+images = []
 
 # Ensure the directory exists to avoid errors
 if not os.path.isdir(image_directory):

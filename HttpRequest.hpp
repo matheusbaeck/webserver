@@ -96,6 +96,10 @@ public:
     {
         return this->response;
     }
+    struct BodyRequest& getBody()
+    {
+        return this->body;
+    }
 
     std::string getQuery(void)
     {

@@ -78,6 +78,17 @@ std::string	HttpRequest::notFound(void)
 	return statusLine + headers + body + "\r\n";
 }
 
+std::string HttpRequest::createdFile(std::string filename)
+{
+	const std::string statusLine = "HTTP/1.1 201 Created\r\n";
+	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+	std::string body    = HttpRequest::readFile("./err_pages/201.html");
+	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Location: " + filename + "\r\n";
+	headers += "Connection: keep-alive\r\n\r\n";
+	return statusLine + headers + body + "\r\n";
+}
+
 
 std::string	HttpRequest::gatewayTimeout(void)
 {
@@ -127,7 +138,7 @@ std::string HttpRequest::payloadTooLarge(void)
 	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
 	std::string body    = HttpRequest::readFile("./err_pages/413.html");
 	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	headers += "Connection: close\r\n\r\n";
+	headers += "Connection: keep-alive\r\n\r\n";
 	return statusLine + headers + body + "\r\n";
 }
 	
@@ -297,7 +308,7 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         route = HttpRequest::configServer->getRoute(requestTarget);
         if (!route)
             return NFOUND;
-        this->_targetRequest = requestTarget;;
+        this->_targetRequest = requestTarget;
         if (route->getMethods().size())
         {
             it = std::find(route->getMethods().begin(), route->getMethods().end(), this->method);
@@ -332,22 +343,27 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         }
         else 
         {
-            std::cout << "requestTarget: " << requestTarget << std::endl;
-            std::cout << "route->path: " << route->path << std::endl;
-            if (requestTarget == route->path)
+            /*std::string urlDestination;*/
+            /*size_t lastSlash = requestTarget.find_last_of('/');*/
+            /**/
+            /*if (lastSlash == (requestTarget.size() -1))*/
+            /*    urlDestination = requestTarget.substr(0, lastSlash);*/
+            /*else */
+            std::string urlDestination = requestTarget;
+            if (urlDestination == route->path)
             {
                 std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
                 if (it == route->getIndex().end())
                 {
-                    this->path = route->getRoot() + requestTarget;
+                    this->path = route->getRoot() + urlDestination;
                     return FORBIDDEN;
                 }
                 target = *it;
             }
             else
             {
-                found = requestTarget.find(route->path);
-                target = requestTarget.substr(found + route->path.size(), requestTarget.size());
+                found = urlDestination.find(route->path);
+                target = urlDestination.substr(found + route->path.size(), urlDestination.size());
                 if (target[0] == '/')
                     target = target.substr(1, target.size());
             }
@@ -399,22 +415,19 @@ StatusCode HttpRequest::getStatusCode(void) const
 
 StatusCode HttpRequest::parseBody(void)
 {
-	//this->body = new BodyRequest(); // TODO: handle delete
 	this->body.type = NOTSET;
 
-	// TODO: try to return if size 0
-	if (this->method != POST)
-		return OK;
+    if (this->method != POST)
+        return OK;
 
-	// Bad Request: content-length required
-	if (this->headers.find("content-length") == this->headers.end())
-		return BREQUEST;
+    // Bad Request: content-length required
+    if (this->headers.find("content-length") == this->headers.end())
+        return BREQUEST;
 
+    this->body.size = ConfigFile::toNumber(this->headers["content-length"]);
 
-	// TODO: be careful from overflow
-	this->body.size = ConfigFile::toNumber(this->headers["content-length"]);
-    
     //IF size > client-max-body-size then statusCode is 413 
+    std::cout << "actual bodysize raw: " << this->body.raw.size() << std::endl;
     std::cout << "bodysize: " << this->body.size << std::endl;
     std::cout << "MaxclientSize: " << this->configServer->getClientMaxBodySize() << std::endl;
 
@@ -424,44 +437,18 @@ StatusCode HttpRequest::parseBody(void)
     if (this->body.size > this->configServer->getClientMaxBodySize())
         return CTOOLARGE; 
 
-    char body[this->body.size + 1];
-    this->tokenizer.get(body, this->body.size + 1, '\0');
-    body[this->body.size] = '\0';
-
-
-	const std::string contentType = this->headers["content-type"];
-	if (contentType == "application/x-www-form-urlencoded")
-	{
-		this->body.type = URLENCODED;
-		Tokenizer t(body);
-		while (!t.end())
-		{
-			// TODO: make a list of delimiters
-			std::string key   = t.next("=");
-			if (t.peek() == '=')
-			{
-				t.get();
-			}
-			std::string value = t.next("&");
-			if (t.peek() == '&')
-			{
-				t.get();
-			}
-			// TODO: try to access by []
-			this->body.urlencoded.insert(std::make_pair(key, value));
-		}
-	}
-	else if (contentType == "text/plain")
-	{
-		this->body.type = RAW;
-		this->body.raw = body;
-	}
-	else if (contentType.find("multipart/form-data") != std::string::npos)
-	{
-		this->body.type = MULTIPART;
-		this->body.raw = body;
-	}
-	return OK;
+    const std::string contentType = this->headers["content-type"];
+    if (contentType == "text/plain")
+    {
+        this->body.type = RAW;
+    }
+    else if (contentType.find("multipart/form-data") != std::string::npos)
+    {
+        this->body.type = MULTIPART;
+    }
+    else
+        return BREQUEST;
+    return OK;
 }
 
 StatusCode HttpRequest::parseHeaders(void)
@@ -550,31 +537,23 @@ void	HttpRequest::parse(void)
 
 	/* ----------- Start Line ----------- */
     this->statusCode = this->parseStartLine();
+    std::cout << "statusCode startLine = " << this->statusCode << std::endl;
 
-    std::cout << "status code of start line: " << this->statusCode << std::endl;
 
     /* -----------   Headers  ----------- */
-
-	/*	after ":" only space allow
-	 *  no spaces allow before key of header
-	 * */
 	if (this->statusCode == OK)
 	{
 		this->statusCode = this->parseHeaders();
-		std::cout << "status code of headers: " << this->statusCode << std::endl;
+        std::cout << "statusCode headers = " << this->statusCode << std::endl;
 	}
 
 
 
 	/* -----------   Body  ----------- */
-		/* NOTE: if the body request has more client_body_max_size,
-		 *  	 server should take client_body_max_size characters.
-		 *		 rest of the body request should start parsing it again as new request!!
-		 * */
-    
 	if (this->statusCode == OK)
     {
 	    this->statusCode = this->parseBody();
+        std::cout << "statusCode Body = " << this->statusCode << std::endl;
     }
 	/* -----------   generate response  ----------- */
 
@@ -615,7 +594,6 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 
 	this->parse();
 	Route *route = this->configServer->getRoute(this->_targetRequest);
-    std::cout << "targetRequest: " << _targetRequest << std::endl;
     if (!route)
     {
         std::cout << __func__ << " in " << __FILE__ << ": route not found" << std::endl;
@@ -629,7 +607,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
         if (this->statusCode == OK)
             return this->response;
     }
-        std::cout << "Status code: " << this->statusCode << std::endl;
+    std::cout << "Status code: " << this->statusCode << std::endl;
 
 	switch (this->statusCode)
 	{
@@ -796,14 +774,6 @@ std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname)
 	return bodyStream.str();
 }
 
-std::string HttpRequest::createdFile(std::string filename)
-{
-	const std::string statusLine = "HTTP/1.1 201 Created\r\n";
-	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-    headers += "\t\"filename\": " + filename + "\r\n";
-	return statusLine + headers + "\r\n";
-}
-
 static size_t stringFound(const std::string& line, const std::string& toFind)
 {
     if (toFind.empty() || line.size() < toFind.size())
@@ -848,6 +818,7 @@ std::string HttpRequest::getFilenameMultipart(std::stringstream& ss)
 
     std::getline(ss, line);
     size_t pos = line.find(tmp);
+    //check if pos is infinite
     std::string filename = line.substr(pos + tmp.size(), line.size() - (pos + tmp.size()) - 2);
     return filename;
 
@@ -879,10 +850,8 @@ std::string HttpRequest::createAbsoluteFilePath(const std::string& pathname, con
 
 std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
 {
-    std::cout << "am i here" << std::endl;
-    std::stringstream ss(this->body.raw);
-
     std::cout << "pathname: "<<pathname << std::endl;
+    std::stringstream ss(this->body.raw);
 
     //getting boundary from line
     std::string boundary = this->getBoundaryMultipart(ss);
@@ -917,31 +886,16 @@ std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
         {
             line += "\n";
             output.write(line.c_str(), line.size());
-            std::cout << "Writing line: " << line;
-            std::cout << "Line size: " << line.size() << std::endl;
         } 
         else 
-        {
             break;
-        }
     }
-
-    // Close the output file
     output.close();
-
-    //sending response with filename created 
-    return HttpRequest::createdFile(filename);
+    return HttpRequest::createdFile(uploadFilePathName);
 }
 
 std::string HttpRequest::POSTmethod(const std::string &pathname)
 {
-	std::string statusLine = "HTTP/1.1 200 OK\r\n";
-    std::string headers    = "Server: webserver/0.42\r\n";
-    headers += "Content-Type: text/plain\r\n";
-
-    std::string response;
-
-	std::cout << "------------------------------------------------------------------------------------\n";
 	switch (this->body.type)
 	{
 		case RAW:			response = POSTmethodRAW(pathname); break;
@@ -949,11 +903,7 @@ std::string HttpRequest::POSTmethod(const std::string &pathname)
 		case MULTIPART:		response = POSTmethodMULTIPART(pathname); break;
 		default:			std::invalid_argument("NOT IMPLEMENTED - POST type not found"); break;
 	}
-	headers += "Content-Length: " + toString(response.size()) + "\r\n\r\n";
-	std::cout << statusLine + headers + response;
-	std::cout << "------------------------------------------------------------------------------------\n";
-
-    return statusLine + headers + response;
+    return response;
 }
 
 

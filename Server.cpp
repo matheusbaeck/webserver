@@ -128,18 +128,18 @@ int Server::acceptConnection(Selector& selector, int socketFD, int portFD)
     return (0);
 }
 
-static int writeToBodyPipe(std::vector<char>& body, size_t contentLength, int pipeIn)
-{
-	int flags = fcntl(pipeIn, F_GETFL, 0);
-	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);
-
-    //check for -1 or 0
-    int characters = write(pipeIn, &body[0], contentLength);
-    close(pipeIn);
-    if (characters <= -1) 
-        return -1;
-    return 0;
-}
+/*static int writeToBodyPipe(std::vector<char>& body, size_t contentLength, int pipeIn)*/
+/*{*/
+/*	int flags = fcntl(pipeIn, F_GETFL, 0);*/
+/*	fcntl(pipeIn, F_SETFL, flags | O_NONBLOCK);*/
+/**/
+/*    //check for -1 or 0*/
+/*    int characters = write(pipeIn, &body[0], contentLength);*/
+/*    close(pipeIn);*/
+/*    if (characters <= -1) */
+/*        return -1;*/
+/*    return 0;*/
+/*}*/
 
 void Server::readClientRequest(Selector& selector, int clientFD)
 {
@@ -213,47 +213,51 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     size_t contentLength = selector.getBodyContentLength(clientFD);
     if (contentLength != std::string::npos)
     {
-        std::vector<char> bodyBuffer(contentLength + 1);
+        std::cout << "there's a body" << std::endl;
+        std::vector<char> bodyBuffer(contentLength);
         int err = recv(clientFD, bodyBuffer.data(), contentLength, 0);
         if (err <= -1)
         {
+            std::cout << "readClientRequest  err: " << err << std::endl;
             selector.removeClient(clientFD);       
             delete incomingRequestHTTP;
             return;
         }
-        else if (err != 0)
-        {
-           int err = writeToBodyPipe(bodyBuffer, contentLength, incomingRequestHTTP->_bodyPipe[1]);
-           if (err == -1)
-           {
-                selector.removeClient(clientFD);
-                delete incomingRequestHTTP;
-                return;
-           }
-        }
+        /*else if (err != 0)*/
+        /*{*/
+        /*   int err = writeToBodyPipe(bodyBuffer, contentLength, incomingRequestHTTP->_bodyPipe[1]);*/
+        /*   if (err == -1)*/
+        /*   {*/
+        /*        selector.removeClient(clientFD);*/
+        /*        delete incomingRequestHTTP;*/
+        /*        return;*/
+        /*   }*/
+        /*}*/
+        incomingRequestHTTP->getBody().raw = std::string(bodyBuffer.begin(), bodyBuffer.end());
     }
     selector.setClientFdEvent(clientFD, WRITE);
     incomingRequestHTTP->handler(selector, clientFD);
 }
 
-
-int Server::sendResponse(Selector& selector, int client_socket)
+void Server::sendResponse(Selector& selector, int client_socket)
 {
     HttpRequest*    clientHTTP  = selector.getHTTPRequests()[client_socket];
     size_t          totalSize   = clientHTTP->getResponse().size();
 
     std::vector<char> vec(clientHTTP->getResponse().begin(), clientHTTP->getResponse().end());
+    bool connectionClosed = (clientHTTP->getResponse().find("Connection: close") != std::string::npos) ? true : false;
 
     int err = send(client_socket, &vec[0], totalSize, 0);
-    delete clientHTTP;
-    if (err <= -1)
+    if (err <= -1 || connectionClosed == true)
     {
         selector.removeClient(client_socket);
-        return 1;
+        delete clientHTTP;
+        return;
     }
+    delete clientHTTP;
     selector.getHTTPRequests().erase(client_socket);
-    return 1;
 }
+
 
 std::string	toString(size_t num)
 {
@@ -315,7 +319,7 @@ int Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
         std::string line;
         std::getline(bodyStream, line);
         headers += line + "\r\n";
-        std::getline(bodyStream, line); // skipping newline
+        std::getline(bodyStream, line);
     }
     else 
     {
@@ -328,8 +332,6 @@ int Server::sendCGIResponse(cgiProcessInfo* cgiInfo)
     headers += "\r\n";
 
     std::string response = statusLine + headers + tmp.str();
-
-    //TODO: check for fails in send
     std::vector<char> vec(response.begin(), response.end());
     int err = send(cgiInfo->_clientFd, &vec[0], response.size(), 0);
     if (err <= -1) return -1;
