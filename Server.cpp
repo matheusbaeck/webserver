@@ -153,7 +153,6 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     incomingRequestHTTP->setConfig(selector.getClientConfig()[clientFD]);
     while (pos == std::string::npos) 
     {
-        //error checking if request is bad
         if (std::time(0) - start_time > CLIENT_TIMEOUT)
         {
             //not checking -1 or 0 because i will remove the client anyways
@@ -209,16 +208,13 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     incomingRequestHTTP->setBuffer(request.c_str());
     selector.getHTTPRequests()[clientFD] = incomingRequestHTTP;
     
-    //is there a body
     size_t contentLength = selector.getBodyContentLength(clientFD);
     if (contentLength != std::string::npos)
     {
-        std::cout << "there's a body" << std::endl;
         std::vector<char> bodyBuffer(contentLength);
         int err = recv(clientFD, bodyBuffer.data(), contentLength, 0);
         if (err <= -1)
         {
-            std::cout << "readClientRequest  err: " << err << std::endl;
             selector.removeClient(clientFD);       
             delete incomingRequestHTTP;
             return;
@@ -239,6 +235,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     incomingRequestHTTP->handler(selector, clientFD);
 }
 
+
 void Server::sendResponse(Selector& selector, int client_socket)
 {
     HttpRequest*    clientHTTP  = selector.getHTTPRequests()[client_socket];
@@ -246,18 +243,18 @@ void Server::sendResponse(Selector& selector, int client_socket)
 
     std::vector<char> vec(clientHTTP->getResponse().begin(), clientHTTP->getResponse().end());
     bool connectionClosed = (clientHTTP->getResponse().find("Connection: close") != std::string::npos) ? true : false;
+    delete clientHTTP;
 
     int err = send(client_socket, &vec[0], totalSize, 0);
     if (err == -1 || connectionClosed == true)
     {
         selector.removeClient(client_socket);
-        delete clientHTTP;
         return;
     }
     else 
     {
-        delete clientHTTP;
         selector.getHTTPRequests().erase(client_socket);
+        selector.setClientFdEvent(client_socket, READ);
     }
 }
 

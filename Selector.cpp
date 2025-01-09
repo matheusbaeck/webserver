@@ -292,7 +292,6 @@ void Selector::processEvents(const std::vector<Server*>& servers )
             {
                 server->sendResponse(*this, event_fd);
                 selector.getRequests().erase(event_fd);
-                selector.setClientFdEvent(event_fd, READ);
                 return;
             }
         }

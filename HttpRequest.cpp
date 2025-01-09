@@ -40,9 +40,6 @@ bool	isDir(const char *pathname)
 	return S_ISDIR(statbuf.st_mode);
 }
 
-
-
-
 #if 1
 std::string	HttpRequest::notAllowed(std::string const &str, std::string const& errPage)
 {
@@ -388,7 +385,10 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             {
                 found = urlDestination.find(route->path);
                 target = urlDestination.substr(found + route->path.size(), urlDestination.size());
-                if (target[0] == '/')
+                std::cout << "urlDestination: " << urlDestination << std::endl;
+                std::cout << "route->path: " << route->path << std::endl;
+                std::cout << "target: " << urlDestination.substr(found + route->path.size(), urlDestination.size()) << std::endl;
+                 if (target[0] == '/')
                     target = target.substr(1, target.size());
             }
             fullPath = route->getRoot() + "/" + target;
