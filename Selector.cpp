@@ -212,6 +212,7 @@ void Selector::examineCgiExecution()
         if (WIFEXITED(status))
         {
             std::string response = HttpRequest::serverError("");
+            //removing the client anyways so not checking -1 or 0
             send(it->second->_clientFd, response.c_str(), response.size(), 0);
             removeClient(it->second->_clientFd);        
             deleteCgi(it->second);
@@ -225,8 +226,8 @@ void Selector::examineCgiExecution()
         kill(it->second->_pid, SIGKILL);
 
         std::string response = HttpRequest::gatewayTimeout("");
+        //removing the client anyways so not checking -1 or 0
         send(it->second->_clientFd, response.c_str(), response.size(), 0);
-
         removeClient(it->second->_clientFd);        
         deleteCgi(it->second);
     }
