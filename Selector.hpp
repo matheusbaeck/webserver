@@ -58,9 +58,6 @@ class Selector
         void                            examineCgiExecution();
         int                             checkCgiStatus(cgiProcessInfo *cgi);
 
-        std::map<int, cgiProcessInfo*>::const_iterator getCgiProcessInfo(int clientFd);
-
-
         /* Getters */
         epoll_event*                     getEvents();
         std::set<int>&                   getActiveClients();

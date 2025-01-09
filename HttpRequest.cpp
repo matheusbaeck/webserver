@@ -44,104 +44,128 @@ bool	isDir(const char *pathname)
 
 
 #if 1
-std::string	HttpRequest::notAllowed(std::string const &str)
+std::string	HttpRequest::notAllowed(std::string const &str, std::string const& errPage)
 {
-	const std::string statusLine = "HTTP/1.1 405 Not Allowed\r\n";
-
-	std::string headers = "Server: webserv/0.42\r\n";
-	headers += str + "\r\n";
-	headers += "Content-Type: text/html\r\n";
-
-	std::string body = HttpRequest::readFile("./err_pages/405.html");
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	headers += "Connection: keep-alive\r\n\r\n";
-	return statusLine + headers + body + "\r\n";
+    const char *filepathName = "./err_pages/405.html";
+    if (!errPage.empty())
+        filepathName = errPage.c_str();
+    const std::string statusLine = "HTTP/1.1 405 Not Allowed\r\n";
+    std::string headers = "Server: webserv/0.42\r\n";
+    headers += str + "\r\n";
+    headers += "Content-Type: text/html\r\n";
+    std::string body = HttpRequest::readFile(filepathName);
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Connection: keep-alive\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
 
-std::string	HttpRequest::serverError(void)
+std::string	HttpRequest::serverError(std::string const& errPage)
 {
-	const std::string statusLine = "HTTP/1.1 500 Internal Server Error\r\n";
-	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/500.html");
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	headers += "Connection: keep-alive\r\n\r\n";
-	return statusLine + headers + body + "\r\n";
+    const char *filepathName = "./err_pages/500.html";
+    if (!errPage.empty())
+        filepathName = errPage.c_str();
+    const std::string statusLine = "HTTP/1.1 500 Internal Server Error\r\n";
+    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+    std::string body    = HttpRequest::readFile(filepathName);
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Connection: keep-alive\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
 
-std::string	HttpRequest::notFound(void)
+std::string	HttpRequest::notFound(std::string const& errPage)
 {
-	const std::string statusLine = "HTTP/1.1 404 Not Found\r\n";
-	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/404.html");
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	headers += "Connection: keep-alive\r\n\r\n";
-	return statusLine + headers + body + "\r\n";
+    const char *filepathName = "./err_pages/404.html";
+    if (!errPage.empty())
+        filepathName = errPage.c_str();
+    const std::string statusLine = "HTTP/1.1 404 Not Found\r\n";
+    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+    std::string body    = HttpRequest::readFile(filepathName);
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Connection: keep-alive\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
 
-std::string HttpRequest::createdFile(std::string filename)
+std::string HttpRequest::createdFile(std::string filename, std::string const& errPage)
 {
-	const std::string statusLine = "HTTP/1.1 201 Created\r\n";
-	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/201.html");
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    const char *filepathName = "./err_pages/201.html";
+    if (!errPage.empty())
+        filepathName = errPage.c_str();
+    const std::string statusLine = "HTTP/1.1 201 Created\r\n";
+    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+    std::string body    = HttpRequest::readFile(filepathName);
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
     headers += "Location: " + filename + "\r\n";
-	headers += "Connection: keep-alive\r\n\r\n";
-	return statusLine + headers + body + "\r\n";
+    headers += "Connection: keep-alive\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
 
 
-std::string	HttpRequest::gatewayTimeout(void)
+std::string	HttpRequest::gatewayTimeout(std::string const& errPage)
 {
-        std::string statusLine = "HTTP/1.1 504 Gateway Timeout\r\n";
-	    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	    std::string body    = HttpRequest::readFile("./err_pages/504.html");
-	    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	    headers += "Connection: close\r\n\r\n";
-        return statusLine + headers + body + "\r\n";
+    const char *filepathName = "./err_pages/504.html";
+    if (!errPage.empty())
+        filepathName = errPage.c_str();
+    std::string statusLine = "HTTP/1.1 504 Gateway Timeout\r\n";
+    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+    std::string body    = HttpRequest::readFile(filepathName);
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Connection: close\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
 
-std::string HttpRequest::badRequest(void)
+std::string HttpRequest::badRequest(std::string const& errPage)
 {
-	const std::string statusLine = "HTTP/1.1 400 Bad Request\r\n";
-	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/400.html");
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	headers += "Connection: close\r\n\r\n";
-	return statusLine + headers + body + "\r\n";
+    const char *filepathName = "./err_pages/400.html";
+    if (!errPage.empty())
+        filepathName = errPage.c_str();
+    const std::string statusLine = "HTTP/1.1 400 Bad Request\r\n";
+    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+    std::string body    = HttpRequest::readFile(filepathName);
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Connection: close\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
 
 
-std::string HttpRequest::requestTimeout(void)
+std::string HttpRequest::requestTimeout(std::string const& errPage)
 {
-	const std::string statusLine = "HTTP/1.1 408 Forbidden\r\n";
-	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/408.html");
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	headers += "Connection: close\r\n\r\n";
-	return statusLine + headers + body + "\r\n";
+    const char *filepathName = "./err_pages/408.html";
+    if (!errPage.empty())
+        filepathName = errPage.c_str();
+    const std::string statusLine = "HTTP/1.1 408 Request Timeout\r\n";
+    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+    std::string body    = HttpRequest::readFile(filepathName);
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Connection: close\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
 
-std::string HttpRequest::forbidden(void)
+std::string HttpRequest::forbidden(std::string const& errPage)
 {
-	const std::string statusLine = "HTTP/1.1 403 Forbidden\r\n";
-	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/403.html");
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	headers += "Connection: close\r\n\r\n";
-	return statusLine + headers + body + "\r\n";
+    const char *filepathName = "./err_pages/403.html";
+    if (!errPage.empty())
+        filepathName = errPage.c_str();
+    const std::string statusLine = "HTTP/1.1 403 Forbidden\r\n";
+    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+    std::string body    = HttpRequest::readFile(filepathName);
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Connection: close\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
 
 
-std::string HttpRequest::payloadTooLarge(void)
+std::string HttpRequest::payloadTooLarge(std::string const& errPage)
 {
-	const std::string statusLine = "HTTP/1.1 413 Payload Too Large\r\n";
-	std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
-	std::string body    = HttpRequest::readFile("./err_pages/413.html");
-	headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
-	headers += "Connection: keep-alive\r\n\r\n";
-	return statusLine + headers + body + "\r\n";
+    const char *filepathName = "./err_pages/413.html";
+    if (!errPage.empty())
+        filepathName = errPage.c_str();
+    const std::string statusLine = "HTTP/1.1 413 Payload Too Large\r\n";
+    std::string headers = "Server: webserv/0.42\r\nContent-Type: text/html\r\n";
+    std::string body    = HttpRequest::readFile(filepathName);
+    headers += "Content-Length: " + HttpRequest::toString(body.size()) + "\r\n";
+    headers += "Connection: keep-alive\r\n\r\n";
+    return statusLine + headers + body + "\r\n";
 }
-	
 
 #endif
 
@@ -343,13 +367,13 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         }
         else 
         {
-            /*std::string urlDestination;*/
-            /*size_t lastSlash = requestTarget.find_last_of('/');*/
-            /**/
-            /*if (lastSlash == (requestTarget.size() -1))*/
-            /*    urlDestination = requestTarget.substr(0, lastSlash);*/
-            /*else */
-            std::string urlDestination = requestTarget;
+            std::string urlDestination;
+            size_t lastSlash = requestTarget.find_last_of('/');
+
+            if (lastSlash == (requestTarget.size() -1) && requestTarget.size() > 1)
+                urlDestination = requestTarget.substr(0, lastSlash);
+            else 
+                urlDestination = requestTarget;
             if (urlDestination == route->path)
             {
                 std::vector<std::string>::const_iterator it = findIndex(route->getRoot(), route->getIndex());
@@ -368,6 +392,7 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
                     target = target.substr(1, target.size());
             }
             fullPath = route->getRoot() + "/" + target;
+            std::cout << "fullPath: " << fullPath << std::endl;
         
         }
 		found = fullPath.find_first_of("?");
@@ -392,6 +417,9 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
 
 /*
  * HTTP-version = "HTTP" "/" 1*DIGIT "." 1*DIGIT
+ * requestTarget =  /images/image.jpg
+ * location = /images
+ *
  * */
 
 StatusCode HttpRequest::parseProtocol(const std::string &protocol)
@@ -420,17 +448,10 @@ StatusCode HttpRequest::parseBody(void)
     if (this->method != POST)
         return OK;
 
-    // Bad Request: content-length required
     if (this->headers.find("content-length") == this->headers.end())
         return BREQUEST;
 
     this->body.size = ConfigFile::toNumber(this->headers["content-length"]);
-
-    //IF size > client-max-body-size then statusCode is 413 
-    std::cout << "actual bodysize raw: " << this->body.raw.size() << std::endl;
-    std::cout << "bodysize: " << this->body.size << std::endl;
-    std::cout << "MaxclientSize: " << this->configServer->getClientMaxBodySize() << std::endl;
-
     if (this->body.size == 0)
         return BREQUEST;
 
@@ -511,7 +532,6 @@ StatusCode HttpRequest::parseHeaders(void)
 	return OK;	
 }
 
-// TODO: try to put this function in configFile class
 bool HttpRequest::matchHost(const std::string &host)
 {
 	this->serverName = host;
@@ -527,16 +547,11 @@ bool HttpRequest::matchHost(const std::string &host)
 	return std::find(begin, end, this->serverName) != end;
 }
 
-// TODO: what about CRLF at the EOF
-//void	HttpRequest::parse(const char *buffer)
 void	HttpRequest::parse(void)
 {
-	// TODO: how do i generate a HTTP response?
-
 	/* ----------- Start Line ----------- */
     this->statusCode = this->parseStartLine();
     std::cout << "statusCode startLine = " << this->statusCode << std::endl;
-
 
     /* -----------   Headers  ----------- */
 	if (this->statusCode == OK)
@@ -545,28 +560,12 @@ void	HttpRequest::parse(void)
         std::cout << "statusCode headers = " << this->statusCode << std::endl;
 	}
 
-
-
 	/* -----------   Body  ----------- */
 	if (this->statusCode == OK)
     {
 	    this->statusCode = this->parseBody();
         std::cout << "statusCode Body = " << this->statusCode << std::endl;
     }
-	/* -----------   generate response  ----------- */
-
-}
-
-std::string	fileUpload(std::string const &body, std::string const &filename)
-{
-	///std::ofstream file()
-
-	(void) body;
-
-	std::cout << "body    : " << body << std::endl;
-	std::cout << "filename: " << filename << std::endl;
-
-	return std::string("HTTP/1.1 201 Created\r\n\r\n");	
 }
 
 std::string HttpRequest::DELETEmethod(const std::string &pathname)
@@ -574,7 +573,7 @@ std::string HttpRequest::DELETEmethod(const std::string &pathname)
 
     std::string statusLine = this->getStatusLine(NCONTENT);
     std::string headers = "Server: webserv/0.42\r\n";
-    std::string body = HttpRequest::notAllowed("Allow: GET, POST, DELETE");
+    std::string body = HttpRequest::notAllowed("Allow: GET, POST, DELETE", "");
     headers += "Content-Length: 0\r\n";
 
     if ((access(pathname.c_str(), R_OK | W_OK) == -1))
@@ -607,13 +606,15 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
     }
     std::cout << "Status code: " << this->statusCode << std::endl;
 
+    std::map<StatusCode, std::string> errorPages = route->getErrorPages();
+    std::cout << "errorPage: " << errorPages[statusCode] << std::endl;
 	switch (this->statusCode)
 	{
-		case BREQUEST: this->response = badRequest(); break;
-		case NFOUND  : this->response = notFound();   break;
-        case SERVERR : this->response = serverError(); break;
-		case NALLOWED: this->response = notAllowed("Allow: GET, POST, DELETE"); break;
-        case CTOOLARGE: this->response = payloadTooLarge(); break;
+		case BREQUEST: this->response = badRequest(errorPages[this->statusCode]); break;
+		case NFOUND  : this->response = notFound(errorPages[this->statusCode]);   break;
+        case SERVERR : this->response = serverError(errorPages[this->statusCode]); break;
+		case NALLOWED: this->response = notAllowed("Allow: GET, POST, DELETE", errorPages[this->statusCode]); break;
+        case CTOOLARGE: this->response = payloadTooLarge(errorPages[this->statusCode]); break;
 		case OK:
 			switch (this->method)
 			{
@@ -627,7 +628,7 @@ std::string	HttpRequest::handler(Selector& selector, int clientFd)
 			if (route->getAutoIndex() && this->method == GET)
 				this->response = this->dirList(this->path);
 			else
-				this->response = forbidden();
+				this->response = forbidden(errorPages[this->statusCode]);
 			break;
 		default: std::invalid_argument("NOT IMPLEMENTED - STATUS CODE");
 	}
@@ -640,8 +641,6 @@ std::string HttpRequest::dirList(std::string const &dirpath)
 	struct stat	  statbuf;
 	DIR	*dir;
 	char buff[100];
-
-	
 
 	std::string startLine = "HTTP/1.1 200 OK\r\n";
 	std::string headers   = "Server: webserver/0.42\r\nContent-Type: text/html\r\n";
@@ -763,7 +762,6 @@ std::string HttpRequest::POSTmethodRAW(const std::string &pathname)
 std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname)
 {
 	(void)pathname;
-	/*(void)cgiResponse;*/
 	std::ostringstream bodyStream;
 	for (std::map<std::string, std::string>::iterator it = this->body.urlencoded.begin();
 			it != this->body.urlencoded.end(); ++it) {
@@ -775,20 +773,20 @@ std::string HttpRequest::POSTmethodURLENCODED(const std::string &pathname)
 static size_t stringFound(const std::string& line, const std::string& toFind)
 {
     if (toFind.empty() || line.size() < toFind.size())
-        return std::string::npos; // Handle edge cases
+        return std::string::npos;
 
-    for (size_t pos = 0; pos <= line.size() - toFind.size(); ++pos) // Iterate within bounds
+    for (size_t pos = 0; pos <= line.size() - toFind.size(); ++pos)
     {
         size_t i = 0;
         for (; i < toFind.size(); ++i)
         {
-            if (line[pos + i] != toFind[i]) // Check for character match
+            if (line[pos + i] != toFind[i]) 
                 break;
         }
-        if (i == toFind.size()) // If full match, return starting position
+        if (i == toFind.size()) 
             return pos;
     }
-    return std::string::npos; // No match found
+    return std::string::npos; 
 }
 
 static bool isBoundaryLine(const std::string& line, const std::string& boundary) 
@@ -889,7 +887,7 @@ std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
             break;
     }
     output.close();
-    return HttpRequest::createdFile(uploadFilePathName);
+    return HttpRequest::createdFile(uploadFilePathName, "");
 }
 
 std::string HttpRequest::POSTmethod(const std::string &pathname)

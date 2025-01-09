@@ -135,16 +135,15 @@ public:
         this->tokenizer.setBuffer(buffer);
     }
 
-    static std::string notAllowed(std::string const &str);
-    static std::string gatewayTimeout();
-    static std::string forbidden();
-    static std::string serverError();
-    static std::string notFound();
-    static std::string badRequest();
-    static std::string requestTimeout();
-
-    static std::string payloadTooLarge();
-    static std::string createdFile(std::string filename);
+    static std::string notAllowed(std::string const &str, std::string const& errPage);
+    static std::string gatewayTimeout(std::string const& errPage);
+    static std::string forbidden(std::string const& errPage);
+    static std::string serverError(std::string const& errPage);
+    static std::string notFound(std::string const& errPage);
+    static std::string badRequest(std::string const& errPage);
+    static std::string requestTimeout(std::string const& errPage);
+    static std::string payloadTooLarge(std::string const& errPage);
+    static std::string createdFile(std::string filename, std::string const& errPage);
     
     std::string getStatusLine(StatusCode statusCode);
 

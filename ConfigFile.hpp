@@ -92,8 +92,6 @@ public:
 	std::vector<std::string> &getServerNames(void);
 	std::vector<std::string> &getIndex(void);
 	std::map<StatusCode, std::string> &getErrorPages(void);
-
-
 };
 
 class Route : public ConfigServer

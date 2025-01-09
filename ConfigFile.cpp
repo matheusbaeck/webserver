@@ -52,16 +52,6 @@ ConfigFile	&ConfigFile::operator=(ConfigFile const &other)
 
 /* ------------- Methods --------------- */
 
-/*std::vector<std::vector<uint16_t> >	ConfigFile::getPorts(void)
-{
-	std::vector<std::vector<uint16_t> > ports;
-	for (size_t i = 0; i < servers.size(); i += 1)
-	{
-		ports.push_back(servers[i].getPorts());
-	}
-	return ports;
-}*/
-
 void	ConfigFile::parse(void)
 {
 	
@@ -78,13 +68,9 @@ void	ConfigFile::parse(void)
 		std::string token = this->tokenizer.next(ConfigFile::delim);
 		if (token.empty()) continue;
 		if (token == "server")
-		{
 			server.parse();
-		}
 		else
-		{
 			error("unexpected token");
-		}
 		this->servers.push_back(server);
 	}
 }
@@ -93,7 +79,6 @@ std::vector<ConfigServer>	&ConfigFile::getServersConfig(void)
 {
 	return this->servers;
 }
-
 
 /* ------------- Static Methods --------------- */
 
@@ -136,7 +121,6 @@ Method ConfigFile::isMethod(std::string const &method)
 
 ConfigServer::ConfigServer(void)
 {
-	// TODO: add default config here.
 	this->isResized = false;
 	this->client_max_body_size = 1024;
 	this->tokenizer = &ConfigFile::getTokenizer();
@@ -329,6 +313,7 @@ void	ConfigServer::parseErrorPage(void)
 	{
 		error("`" + token + "` must be between 300 and 599");
 	}
+    StatusCode code = static_cast<StatusCode>(ConfigFile::toNumber(token));
 
 	this->tokenizer->trim();
 	token = this->tokenizer->next(ConfigFile::delim);
@@ -336,9 +321,7 @@ void	ConfigServer::parseErrorPage(void)
 	{
 		error("error_page: invalid argument");
 	}
-
-	this->error_pages[static_cast<StatusCode>(ConfigFile::toNumber(token))] = token;
-
+	this->error_pages[code] = token;
 	this->tokenizer->trim();
 	this->tokenizer->expected(';', ConfigFile::delim);
 }
@@ -369,37 +352,37 @@ void	ConfigServer::parseBodySize(void)
 	this->tokenizer->expected(';', ConfigFile::delim);
 }
 
+typedef void	(Route::*RouteFuncPtr)();
 void	ConfigServer::parseRoute(void)
 {
 	Route route;
-	{
-		route.root  = this->root;
-		route.index = this->index;
-        route.redirection = this->redirection;
-	}
-
+    route.root  = this->root;
+    route.index = this->index;
+    route.redirection = this->redirection;
+    route.error_pages = this->error_pages;
 
 	this->tokenizer->trim();
-
-	if (this->tokenizer->peek() == '#')
-	{
-		this->tokenizer->consume();
-	}
+	if (this->tokenizer->peek() == '#')	this->tokenizer->consume();
 
 	std::string _path = this->tokenizer->next(ConfigFile::delim);
-    std::cout << "path: " << _path << std::endl;
 	route.path = _path;
 
-	if (_path.empty())
-	{
-		error("location: invalid argument");
-	}
+	if (_path.empty())	error("location: invalid argument");
 
 	this->tokenizer->trim();
 	this->tokenizer->expected('{', ConfigFile::delim);
 
 	std::string token;
+	std::map<std::string, RouteFuncPtr> fptrs;
 
+	fptrs["allow_method"] = &Route::parseMethods;
+	fptrs["return"] = &Route::parseRedirection;
+	fptrs["alias"] = &Route::parseRoot;
+	fptrs["autoindex"] = &Route::parseAutoIndex;
+	fptrs["index"] = &Route::parseIndex;
+	fptrs["cgi_path"] = &Route::parseCgiPath;
+	fptrs["cgi_ext"] = &Route::parseCgiExtensions;
+	std::map<std::string, RouteFuncPtr>::iterator it;
 	while (!this->tokenizer->end() && this->tokenizer->peek() != '}')
 	{
 		this->tokenizer->trim();
@@ -408,40 +391,14 @@ void	ConfigServer::parseRoute(void)
 			this->tokenizer->consume();
 			continue;
 		}
-
 		token = this->tokenizer->next(ConfigFile::delim);
-
-		if (token == "allow_method")
-		{
-			route.parseMethods();
-		}
-		if (token == "return")
-		{
-			route.parseRedirection();
-		}
-		if (token == "alias")
-		{
-			route.parseRoot();
-		}
-		if (token == "autoindex")
-		{
-			route.parseAutoIndex();
-		}
-		if (token == "index")
-		{
-			route.parseIndex();
-		}
-        if (token == "cgi_path")
-        {
-            route.parseCgiPath();
-        }
-        if (token == "cgi_ext")
-        {
-            route.parseCgiExtensions();
-        }
-		// TODO: check for invalid keyword.
+		if (token.empty()) continue;
+		it = fptrs.find(token);
+		if (it != fptrs.end())
+			(route.*it->second)();
+		else
+			error("invalid keyword: " + token);
 	}
-
 	this->routes.push_back(route);
 	this->tokenizer->trim();
 	this->tokenizer->expected('}', ConfigFile::delim);
@@ -620,11 +577,6 @@ void	Route::parseMethods(void)
 			error("allow_method invalid: " + token);
 		}
 		this->methods.push_back(method);
-        std::cout << "-------------------------\n";
-        std::cout << "allowed methods for Route: " << this->path << std::endl;
-        for (size_t i = 0; i < methods.size(); i += 1)
-            std::cout << methods[i] << std::endl;
-        std::cout << "-------------------------\n";
 		this->tokenizer->trim();
 	}
 
@@ -720,16 +672,10 @@ void	Route::parseAutoIndex(void)
 void    Route::parseCgiPath(void)
 {
 	this->tokenizer->trim();
-	if (this->tokenizer->peek() == '#')
-	{
-		this->tokenizer->consume();
-	}
+	if (this->tokenizer->peek() == '#') this->tokenizer->consume();
 	this->cgiPath = this->tokenizer->next(ConfigFile::delim);
 
-	if (this->cgiPath.empty())
-	{
-		error("cgi_path: invalid argument");
-	}
+	if (this->cgiPath.empty()) error("cgi_path: invalid argument");
 	this->tokenizer->trim();
 	this->tokenizer->expected(';', ConfigFile::delim);
 }
@@ -756,8 +702,6 @@ void    Route::parseCgiExtensions(void)
 		c = this->tokenizer->peek();
 		if (std::string("{}\n;").find(c) != std::string::npos)
 			break;
-
-		// TODO: think about it
 		if (c == '#')
 		{
 			this->tokenizer->consume();
@@ -765,11 +709,7 @@ void    Route::parseCgiExtensions(void)
 		}
 		cgiExtensions.push_back(this->tokenizer->next(ConfigFile::delim));
 	}
-	
-	if (cgiExtensions.size() == 0)
-	{
-		error("cgi_ext: invalid argument");
-	}
+	if (cgiExtensions.size() == 0) error("cgi_ext: invalid argument");
 	this->tokenizer->trim();
 	this->tokenizer->expected(';', ConfigFile::delim);
 }

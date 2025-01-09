@@ -43,19 +43,6 @@ void Selector::addCgi(int pipeFd, cgiProcessInfo* CgiProcess)
     _cgiProcesses[pipeFd] = CgiProcess;
 }
 
-std::map<int, cgiProcessInfo*>::const_iterator Selector::getCgiProcessInfo(int clientFd)
-{
-    std::map<int, cgiProcessInfo*>::const_iterator it = _cgiProcesses.begin();
-    while (it != _cgiProcesses.end())
-    {
-        if (it->second->_clientFd == clientFd)
-            return (it);
-        it++;
-    }
-    return (it);
-
-}
-
 int Selector::checkCgiStatus(cgiProcessInfo* cgi)
 {
     int status = 0;
@@ -214,9 +201,9 @@ void Selector::removeClient(int clientSocket)
 
 void Selector::examineCgiExecution()
 {
-    std::cout << "we are here examineExecutio" << std::endl;
     std::map<int, cgiProcessInfo*>::const_iterator it = _cgiProcesses.begin();
     int status;
+
     while (it != _cgiProcesses.end())
     {
         int result = waitpid(it->second->_pid, &status, WNOHANG);
@@ -224,7 +211,7 @@ void Selector::examineCgiExecution()
             break;
         if (WIFEXITED(status))
         {
-            std::string response = HttpRequest::serverError();
+            std::string response = HttpRequest::serverError("");
             send(it->second->_clientFd, response.c_str(), response.size(), 0);
             removeClient(it->second->_clientFd);        
             deleteCgi(it->second);
@@ -237,7 +224,7 @@ void Selector::examineCgiExecution()
         std::cout << "we killed someone" << std::endl;
         kill(it->second->_pid, SIGKILL);
 
-        std::string response = HttpRequest::gatewayTimeout();
+        std::string response = HttpRequest::gatewayTimeout("");
         send(it->second->_clientFd, response.c_str(), response.size(), 0);
 
         removeClient(it->second->_clientFd);        

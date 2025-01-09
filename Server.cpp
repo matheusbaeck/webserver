@@ -157,7 +157,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         if (std::time(0) - start_time > CLIENT_TIMEOUT)
         {
             //not checking -1 or 0 because i will remove the client anyways
-            send(clientFD, HttpRequest::requestTimeout().c_str(), HttpRequest::requestTimeout().size(), 0); 
+            send(clientFD, HttpRequest::requestTimeout("").c_str(), HttpRequest::requestTimeout("").size(), 0); 
             selector.removeClient(clientFD);
             delete incomingRequestHTTP;
             return;
@@ -170,7 +170,7 @@ void Server::readClientRequest(Selector& selector, int clientFD)
                     && request.find("DELETE") == std::string::npos)
             {
                 //not checking -1 or 0 because i will remove the client anyways
-                send(clientFD, HttpRequest::badRequest().c_str(), HttpRequest::badRequest().size(), 0);
+                send(clientFD, HttpRequest::badRequest("").c_str(), HttpRequest::badRequest("").size(), 0);
                 selector.removeClient(clientFD);
                 delete incomingRequestHTTP;
                 return;
@@ -244,8 +244,6 @@ void Server::sendResponse(Selector& selector, int client_socket)
     HttpRequest*    clientHTTP  = selector.getHTTPRequests()[client_socket];
     size_t          totalSize   = clientHTTP->getResponse().size();
 
-    std::cout << "response\n" << clientHTTP->getResponse() << std::endl;
-
     std::vector<char> vec(clientHTTP->getResponse().begin(), clientHTTP->getResponse().end());
     bool connectionClosed = (clientHTTP->getResponse().find("Connection: close") != std::string::npos) ? true : false;
 
@@ -262,7 +260,6 @@ void Server::sendResponse(Selector& selector, int client_socket)
         selector.getHTTPRequests().erase(client_socket);
     }
 }
-
 
 std::string	toString(size_t num)
 {
@@ -284,7 +281,7 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     if (selector.checkCgiStatus(cgiInfo) != 0)
     {
         //not checking -1 or 0 because i will remove the client anyways
-        send(clientFd, HttpRequest::serverError().c_str(), HttpRequest::serverError().size(), 0);
+        send(clientFd, HttpRequest::serverError("").c_str(), HttpRequest::serverError("").size(), 0);
         selector.removeClient(clientFd);
         selector.deleteCgi(cgiInfo);
         return -1;
