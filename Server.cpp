@@ -235,27 +235,37 @@ void Server::readClientRequest(Selector& selector, int clientFD)
     incomingRequestHTTP->handler(selector, clientFD);
 }
 
-
 void Server::sendResponse(Selector& selector, int client_socket)
 {
-    HttpRequest*    clientHTTP  = selector.getHTTPRequests()[client_socket];
-    size_t          totalSize   = clientHTTP->getResponse().size();
+    HttpRequest* clientHTTP = selector.getHTTPRequests()[client_socket];
+    size_t totalSize = clientHTTP->getResponse().size();
 
     std::vector<char> vec(clientHTTP->getResponse().begin(), clientHTTP->getResponse().end());
-    bool connectionClosed = (clientHTTP->getResponse().find("Connection: close") != std::string::npos) ? true : false;
-    delete clientHTTP;
+    bool connectionClosed = (clientHTTP->getResponse().find("Connection: close") != std::string::npos);
 
-    int err = send(client_socket, &vec[0], totalSize, 0);
-    if (err == -1 || connectionClosed == true)
+    delete clientHTTP; 
+
+    ssize_t bytesSent = 0;
+    while (bytesSent < (ssize_t)totalSize) 
+    {
+        int err = send(client_socket, &vec[bytesSent], totalSize - bytesSent, 0);
+        if (err == -1) 
+        {
+            std::cerr << "Error sending response to client " << client_socket << std::endl;
+            selector.removeClient(client_socket);
+            return;
+        }
+        bytesSent += err;
+    }
+
+    if (connectionClosed) 
     {
         selector.removeClient(client_socket);
         return;
     }
-    else 
-    {
-        selector.getHTTPRequests().erase(client_socket);
-        selector.setClientFdEvent(client_socket, READ);
-    }
+
+    selector.getHTTPRequests().erase(client_socket);
+    selector.setClientFdEvent(client_socket, READ);
 }
 
 std::string	toString(size_t num)
