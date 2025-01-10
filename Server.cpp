@@ -196,7 +196,6 @@ void Server::readClientRequest(Selector& selector, int clientFD)
         if (pos == std::string::npos) 
             continue;
     }
-    std::cout << selector.getRequests()[clientFD] << std::endl;
     std::string request = selector.getRequests()[clientFD].c_str();
     if (request.size() == 0)
     {
@@ -295,7 +294,6 @@ int Server::handleResponsePipe(Selector& selector, int eventFd)
     }
 
     bytesRead = read(eventFd, buffer, sizeof(buffer));
-    std::cout << "bytesRead: " << bytesRead<< std::endl;
     if (bytesRead > 0)
         cgiInfo->_ScriptResponse.append(buffer, bytesRead);
     else if (bytesRead == 0) 

@@ -293,7 +293,6 @@ std::vector<std::string>::const_iterator checkIndex(const std::vector<std::strin
 	std::vector<std::string>::const_iterator it = indices.begin();
 	while (it != indices.end())
 	{
-        std::cout << "trying to access: " << it->c_str() << std::endl;
 		if (access(it->c_str(), F_OK) == 0) return it;
 		it++;
 	}
@@ -308,7 +307,6 @@ std::vector<std::string>::const_iterator findIndex(std::string const& root, cons
 	{
         std::string index = *it;
         std::string check = (root + "/" + index).c_str();
-        std::cout << "findIndex check: "<<check << std::endl;
 		if (access(check.c_str(), F_OK) == 0) 
             return it;
 		it++;
@@ -347,7 +345,6 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             {
                 fullPath = route->getCgiPath();
                 route->setCgiScriptName(findCGIScript(route->getCgiPath(), route->getCgiExtensions()));
-                std::cout << "absence of scriptName, found: " << route->getCgiScriptName() << std::endl;
             }
             else
             {
@@ -385,14 +382,10 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
             {
                 found = urlDestination.find(route->path);
                 target = urlDestination.substr(found + route->path.size(), urlDestination.size());
-                std::cout << "urlDestination: " << urlDestination << std::endl;
-                std::cout << "route->path: " << route->path << std::endl;
-                std::cout << "target: " << urlDestination.substr(found + route->path.size(), urlDestination.size()) << std::endl;
                  if (target[0] == '/')
                     target = target.substr(1, target.size());
             }
             fullPath = route->getRoot() + "/" + target;
-            std::cout << "fullPath: " << fullPath << std::endl;
         
         }
 		found = fullPath.find_first_of("?");
@@ -400,12 +393,10 @@ StatusCode HttpRequest::parsePath(const std::string &requestTarget)
         {
             this->path   = fullPath.substr(0, found);
             this->query = fullPath.substr(found + 1);
-            std::cout << "QUERY STRING: " << this->query << std::endl;
         }
         else
             this->path = fullPath;
 
-		std::cout << "---------------- " << this->path << " ----------------" << std::endl;
 
 
 		if (access(this->path.c_str(), F_OK) == -1)
@@ -483,15 +474,11 @@ StatusCode HttpRequest::parseHeaders(void)
 		tokenizer.trimSpace();
 		value = tokenizer.next(HttpRequest::CRLF/*HttpRequest::delim*/);
 
-		/*std::cout << "key  : " << key << std::endl;*/
-		/*std::cout << "value: " << value << std::endl;*/
-
 		if (key == "host")
 		{
 			if (value.empty() || this->headers.count(key) > 0) return BREQUEST;
 			// NOTE: match host with server_names
 
-			std::cout << "host: " << value << std::endl;
 
 			this->headers[key] = tokenizer.next(HttpRequest::CRLF);
 // 			if (!this->matchHost(value))
@@ -570,17 +557,16 @@ void	HttpRequest::parse(void)
 
 std::string HttpRequest::DELETEmethod(const std::string &pathname)
 {
-
     std::string statusLine = this->getStatusLine(NCONTENT);
     std::string headers = "Server: webserv/0.42\r\n";
     std::string body = HttpRequest::notAllowed("Allow: GET, POST, DELETE", "");
     headers += "Content-Length: 0\r\n";
 
-    if ((access(pathname.c_str(), R_OK | W_OK) == -1))
+    if ((access(pathname.c_str(), W_OK) == -1))
         statusLine = this->getStatusLine(NALLOWED);
     else
         std::remove(pathname.c_str());
-    
+
     headers += "Connection: keep-alive\r\n\r\n";
     return statusLine + headers + body + "\r\n";
 }
