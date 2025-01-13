@@ -14,17 +14,13 @@ Our self-hosted web server used NGINX as a standard. We choose to implement only
 
 To execute a CGI script, our program follows these steps:
 
-1. **Path Validation**:  
-   The program searches for the CGI script in the designated CGI directory, as specified in `webserv.conf`. It ensures the script's filename has the correct extension (e.g., `.php`, `.py`) before proceeding.
+1. The program searches for the CGI script in the designated CGI directory, as specified in `webserv.conf`. It ensures the script's filename has the correct extension (e.g., `.php`, `.py`) before proceeding.
 
-2. **Execution**:  
-   If the script is valid, it is executed in a new process using a fork-exec pattern. Pipes are established between the server and the CGI process for communication.
+2. If the script is valid, it is executed in a new process using a fork-exec pattern. Pipes are established between the server and the CGI process for communication.
 
-3. **Integration with Epoll**:  
-   The pipe's read end is added to the epoll instance, allowing the server to monitor the output of the CGI script without blocking.
+3. The pipe's read end is added to the epoll instance, allowing the server to monitor the output of the CGI script without blocking.
 
-4. **Completion Handling**:  
-   When the CGI script finishes execution, its pipes are closed, which triggers an event in the epoll instance. This event signals that the server can now process the script's output and send the appropriate response back to the client.
+4. When the CGI script finishes execution, its pipes are closed, which triggers an event in the epoll instance. This event signals that the server can now process the script's output and send the appropriate response back to the client.
 
 <br>
 </details>
