@@ -8,7 +8,7 @@ Since our web server had to be compliant with HTTP/1.1, all clients used the Con
 
 Our self-hosted web server used NGINX as a standard. We choose to implement only a subset of all available HTTP codes and focused on the most recurrent errors to craft our error pages and messages, see `err_pages/` for a list of all error_codes. <br>
 
-Our program allows the servers it creates to listen on multiple ports simultaneously, yet ports cannot be reused in a server or even between two or more servers. The maximum body size sent by a client, can also be limited by changing the <ins>client_max_body directive</ins> within the `webserv.conf` file.
+Our program allows the servers it creates to listen on multiple ports simultaneously, yet ports cannot be reused in a server or even between two or more servers. The maximum body size sent by a client, can also be limited by changing the **client_max_body** directive within the `webserv.conf` file.
 
 <details>
 <summary>More Info on CGI execution and monitoring</summary>
