@@ -1,6 +1,6 @@
 # Self Hosted Webserver
 
-This program attempts to recreate a HTTP/1.1 compliant web server able to fully serve a static website. This server accepts GET, POST and DELETE methods from clients. It makes use of epoll, a Linux kernel feature, for I/O multiplexing. Our subject disallowed the use of threads and demanded the server to be non-blocking. In addition, we implemented CGI scripts and custom error pages. Our program made use of one epoll instance shared between all potential servers. Every read or write operation had to pass first by an epoll call.<br>
+This program attempts to recreate a HTTP/1.1 compliant web server able to fully serve a static website.<br> This server accepts GET, POST and DELETE methods from clients. It makes use of epoll, a Linux kernel feature, for I/O multiplexing. Our subject disallowed the use of threads and demanded the server to be non-blocking. In addition, we implemented CGI scripts and custom error pages. Our program made use of one epoll instance shared between all potential servers. Every read or write operation had to pass first by an epoll call.<br>
 
 Since our web server had to be compliant with HTTP/1.1, all clients used the Connection: keep-alive header by default. Connections were closed, and clients were subsequently removed in the following cases:
 1. When an error occurred during read, write, send, or recv system calls.
