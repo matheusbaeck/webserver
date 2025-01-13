@@ -6,7 +6,9 @@ Since our web server had to be compliant with HTTP/1.1, all clients used the Con
 1. When an error occurred during read, write, send, or recv system calls.
 2. When specific HTTP errors, such as 403 (Forbidden), 413 (Payload Too Large), or 500 (Internal Server Error), were encountered. In these cases, the response included a Connection: close header to inform the client that the connection would not be reused.<br>
 
-Our self-hosted web server used NGINX as a standard. We choose to implement only a subset of all available HTTP codes and focused on the most recurrent errors to craft our error pages and messages, see `err_pages/` for a list of all error_codes. Our program allows the servers it creates to listen on multiple ports simultaneously, yet ports cannot be reused in a server or even between two or more servers. The maximum body size sent by a client, can also be limited by changing the <ins>client_max_body directive</ins> within the `webserv.conf` file.
+Our self-hosted web server used NGINX as a standard. We choose to implement only a subset of all available HTTP codes and focused on the most recurrent errors to craft our error pages and messages, see `err_pages/` for a list of all error_codes. <br>
+
+Our program allows the servers it creates to listen on multiple ports simultaneously, yet ports cannot be reused in a server or even between two or more servers. The maximum body size sent by a client, can also be limited by changing the <ins>client_max_body directive</ins> within the `webserv.conf` file.
 
 <details>
 <summary>More Info on CGI execution and monitoring</summary>
