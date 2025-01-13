@@ -3,7 +3,7 @@
 This program attempts to recreate a HTTP/1.1 compliant web server able to fully serve a static website.<br> This server accepts GET, POST and DELETE methods from clients. It makes use of epoll, a Linux kernel feature, for I/O multiplexing. Our subject disallowed the use of threads and demanded the server to be non-blocking. In addition, we implemented CGI scripts and custom error pages.
 
 <details>
-<summary>How did we execute and monitor CGI processes?</summary>
+<summary>**How did we execute and monitor CGI processes?**</summary>
 <br>
 
 To execute a CGI script, our program follows these steps:
