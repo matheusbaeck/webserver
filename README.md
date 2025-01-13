@@ -5,17 +5,24 @@ This program attempts to recreate a HTTP/1.1 compliant web server able to fully 
 <details>
 <summary>CGI execution and monitoring</summary>
 <br>
+
 To execute a CGI script, our program follows these steps:
-1. Path Validation:
-    The program searches for the CGI script in the designated CGI directory, as specified in webserv.conf. It ensures the script's filename has the correct extension (e.g., .php, .py) before proceeding.
-2. Execution:
-    If the script is valid, it is executed in a new process using a fork-exec pattern. Pipes are established between the server and the CGI process for communication.
-3. Integration with Epoll:
-    The pipe's read end is added to the epoll instance, allowing the server to monitor the output of the CGI script without blocking.
-4. Completion Handling:
-    When the CGI script finishes execution, its pipes are closed, which triggers an event in the epoll instance. This event signals that the server can now process the script's output and send the appropriate response back to the client.
-<br><br>
+
+1. **Path Validation**:  
+   The program searches for the CGI script in the designated CGI directory, as specified in `webserv.conf`. It ensures the script's filename has the correct extension (e.g., `.php`, `.py`) before proceeding.
+
+2. **Execution**:  
+   If the script is valid, it is executed in a new process using a fork-exec pattern. Pipes are established between the server and the CGI process for communication.
+
+3. **Integration with Epoll**:  
+   The pipe's read end is added to the epoll instance, allowing the server to monitor the output of the CGI script without blocking.
+
+4. **Completion Handling**:  
+   When the CGI script finishes execution, its pipes are closed, which triggers an event in the epoll instance. This event signals that the server can now process the script's output and send the appropriate response back to the client.
+
+<br>
 </details>
+
 
 Our program made use of one epoll instance shared between all potential servers. Every read or write operation had to pass first by an epoll call.<br>
 
