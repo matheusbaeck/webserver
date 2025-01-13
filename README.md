@@ -1,6 +1,6 @@
 # Self Hosted Webserver
 
-This program attempts to recreate a HTTP/1.1 compliant web server able to fully serve a static website.<br> This server accepts GET, POST and DELETE methods from clients. It makes use of epoll, a Linux kernel feature, for I/O multiplexing. Our subject disallowed the use of threads and demanded the server to be non-blocking. In addition, we implemented CGI scripts and custom error pages. Our program made use of one epoll instance shared between all potential servers. Every read or write operation had to pass first by an epoll call.<br>
+This program attempts to recreate a HTTP/1.1 compliant web server able to fully serve a static website.<br> This server accepts GET, POST and DELETE methods from clients. It makes use of epoll, a Linux kernel feature, for I/O multiplexing. Our subject disallowed the use of threads and demanded the server to be non-blocking. In addition, we implemented CGI scripts (see more info) and custom error pages. Our program made use of one epoll instance shared between all potential servers. Every read or write operation had to pass first by an epoll call.<br>
 
 Since our web server had to be compliant with HTTP/1.1, all clients used the Connection: keep-alive header by default. Connections were closed, and clients were subsequently removed in the following cases:
 1. When an error occurred during read, write, send, or recv system calls.
@@ -9,7 +9,7 @@ Since our web server had to be compliant with HTTP/1.1, all clients used the Con
 Our self-hosted web server used NGINX as a standard. We choose to implement only a subset of all available HTTP codes and focused on the most recurrent errors to craft our error pages and messages, see **err_pages/** for a list of all error_codes. Our program allows the servers it creates to listen on multiple ports simultaneously, yet ports cannot be reused in a server or even between two or more servers. The maximum body size, a client can send, can also be limited by editing the **webserv.conf** file and changing the <ins>client_max_body directive</ins>.
 
 <details>
-<summary>How did we execute and monitor CGI processes?</summary>
+<summary>More Info on CGI execution and monitoring</summary>
 <br>
 
 To execute a CGI script, our program follows these steps:
