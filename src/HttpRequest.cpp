@@ -867,7 +867,10 @@ std::string HttpRequest::POSTmethodMULTIPART(const std::string& pathname)
         if (!isBoundaryLine(line, boundary)) 
         {
             line += "\n";
-            output.write(line.c_str(), line.size());
+            std::vector<char> vec;
+            for (size_t i = 0; i < line.size(); ++i)
+                vec.push_back(line[i]);
+            output.write(&vec[0], vec.size());
         } 
         else 
             break;
