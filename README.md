@@ -61,7 +61,7 @@ I would have liked to implement Automatas for the parsing of the **ConfigFile** 
 * [Official RFC HTTP1.1](https://datatracker.ietf.org/doc/html/rfc2616)
 * [Beej's Guide to Network Programming](https://beej.us/guide/bgnet/html/)
 * [Epoll Linux Manual](https://man7.org/linux/man-pages/man7/epoll.7.html)
-* [Stanford Network Programming Slides](https://web.stanford.edu/class/archive/cs/cs110/cs110.1202/static/lectures/19-events-threads.pdf)
+* [Stanford Network Programming Slides](https://web.stanford.edu/class/archive/cs/cs110/cs110.1202/static/lectures/20-non-blocking-io.pdf)
 * [Non-Blocking I/O youtube video](https://youtu.be/wB9tIg209-8?feature=shared)
 * [Mozilla's resources about HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP)
 * [HTTP and CGI explained](https://www.garshol.priv.no/download/text/http-tut.html)
